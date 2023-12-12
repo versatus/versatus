@@ -259,7 +259,7 @@ impl StateStore {
                         }
                     }
                     final_account = account;
-                },
+                }
                 Err(err) => fail = (true, Err(err)),
             }
 

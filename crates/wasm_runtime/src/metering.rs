@@ -4,12 +4,16 @@ use wasmer_middlewares::Metering;
 // This function will be called for each `Operator` encountered during
 // the Wasm module execution. It should return the cost of the operator
 // that it received as it first argument.
-pub fn cost_function(operator: &Operator) -> u64 {
-    match operator {
-        Operator::LocalGet { .. } | Operator::I32Const { .. } => 1,
-        Operator::I32Add { .. } => 2,
-        _ => 0,
-    }
+pub fn cost_function(_operator: &Operator) -> u64 {
+    // Cost fn from wasmer examples:
+    //
+    // match operator {
+    //     Operator::LocalGet { .. } | Operator::I32Const { .. } => 1,
+    //     Operator::I32Add { .. } => 2,
+    //     _ => 0,
+    // }
+
+    1 /* for now we just return 1 regardless of the instruction */
 }
 
 /// A convenience wrapper for creating a new `wasmer_middlewares::Metering`.

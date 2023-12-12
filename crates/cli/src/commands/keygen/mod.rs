@@ -35,12 +35,12 @@ pub fn keygen(overwrite: bool) -> Result<Keypair> {
                 info!("Found existing keypair");
                 Ok(keypair)
             }
-        },
+        }
         Err(err) => {
             warn!("Failed to read keypair file: {err}");
             info!("Generating new keypair");
             write_new_keypair(&keypair_file_path)
-        },
+        }
     }
 }
 

@@ -317,8 +317,8 @@ impl StateManager {
                             proposals,
                         });
                     }
-                },
-                None => {},
+                }
+                None => {}
             }
         }
 
@@ -358,6 +358,46 @@ impl StateManager {
         });
 
         proposals
+    }
+
+    pub fn handle_block_received(
+        &mut self,
+        block: &mut Block,
+        sig_engine: SignerEngine,
+    ) -> Result<Event> {
+        match block {
+            Block::Genesis { ref mut block } => {
+                if let Err(e) = self.dag.append_genesis(block) {
+                    let err_note = format!("Encountered GraphError: {e:?}");
+                    return Err(NodeError::Other(err_note));
+                };
+            }
+            Block::Proposal { ref mut block } => {
+                if let Err(e) = self.dag.append_proposal(block, sig_engine.clone()) {
+                    let err_note = format!("Encountered GraphError: {e:?}");
+                    return Err(NodeError::Other(err_note));
+                }
+            }
+            Block::Convergence { ref mut block } => {
+                if let Err(e) = self.dag.append_convergence(block) {
+                    let err_note = format!("Encountered GraphError: {e:?}");
+                    return Err(NodeError::Other(err_note));
+                }
+
+                if block.certificate.is_none() {
+                    if let Some(header) = self.dag.last_confirmed_block_header() {
+                        let event = Event::ConvergenceBlockPrecheckRequested {
+                            convergence_block: block.clone(),
+                            block_header: header,
+                        };
+
+                        return Ok(event);
+                    }
+                }
+            }
+        }
+
+        Ok(Event::BlockAppended(block.hash()))
     }
 
     pub fn apply_block(&mut self, block: Block) -> Result<ApplyBlockResult> {

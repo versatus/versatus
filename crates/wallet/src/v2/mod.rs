@@ -175,7 +175,9 @@ impl Wallet {
 
         let signature = self.sign_transaction(transfer_builder.build_payload().as_bytes());
 
-        let transfer = transfer_builder.signature(signature).build_kind()
+        let transfer = transfer_builder
+            .signature(signature)
+            .build_kind()
             .map_err(|_| WalletError::Custom("Failed to build transfer transaction".to_string()))?;
 
         self.client

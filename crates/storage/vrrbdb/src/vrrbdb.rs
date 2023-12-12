@@ -4,7 +4,7 @@ use block::{Block, ConvergenceBlock, GenesisBlock, GenesisRewards, ProposalBlock
 use ethereum_types::U256;
 use patriecia::RootHash;
 use primitives::Address;
-use ritelinked::LinkedHashMap;
+
 use storage_utils::{Result, StorageError};
 use vrrb_core::transactions::{Transaction, TransactionKind, Transfer};
 use vrrb_core::{

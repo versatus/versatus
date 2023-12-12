@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use serde_derive::{Deserialize, Serialize};
 use wasmer::{Cranelift, Target};
+use wasmer_vm::TrapCode;
 
 use crate::{
     metering::{cost_function, MeteringConfig},
@@ -31,7 +32,10 @@ const TEST_RETURN_FAIL: &str = "RETURN_FAIL";
 const VRRB_CONTRACT_NAME: &str = "vrrb-contract"; //argv[0] for smart contracts
 const TEST_SPENDING_LIMIT: u64 = 1000000;
 
-fn create_test_wasm_runtime(target: &Target, wasm_bytes: &[u8]) -> anyhow::Result<WasmRuntime> {
+fn create_test_wasm_runtime(
+    target: &Target,
+    wasm_bytes: &[u8],
+) -> crate::wasm_runtime::RuntimeResult<WasmRuntime> {
     let metering_config = MeteringConfig::new(TEST_SPENDING_LIMIT, cost_function);
     WasmRuntime::new::<Cranelift>(target, wasm_bytes, metering_config)
 }
@@ -54,8 +58,7 @@ fn test_multiline_input() {
     let target = Target::default();
     let mut runtime = create_test_wasm_runtime(&target, &wasm_bytes)
         .unwrap()
-        .stdin(&serde_json::to_vec(&inputs).unwrap())
-        .unwrap();
+        .stdin(&serde_json::to_vec(&inputs).unwrap());
     runtime.execute().unwrap();
 
     let out: TestOutput = serde_json::from_str(&runtime.stdout()).unwrap();
@@ -74,8 +77,7 @@ fn test_single_line_input() {
     let target = Target::default();
     let mut runtime = create_test_wasm_runtime(&target, &wasm_bytes)
         .unwrap()
-        .stdin(&json_data)
-        .unwrap();
+        .stdin(&json_data);
     runtime.execute().unwrap();
 
     let out: TestOutput = serde_json::from_str(&runtime.stdout()).unwrap();
@@ -104,9 +106,7 @@ fn test_command_line_args() {
     let mut runtime = create_test_wasm_runtime(&target, &wasm_bytes)
         .unwrap()
         .stdin(&json_data)
-        .unwrap()
-        .args(&args)
-        .unwrap();
+        .args(&args);
     runtime.execute().unwrap();
 
     let out: TestOutput = serde_json::from_str(&runtime.stdout()).unwrap();
@@ -130,9 +130,7 @@ fn test_environment_vars() {
     let mut runtime = create_test_wasm_runtime(&target, &wasm_bytes)
         .unwrap()
         .stdin(&json_data)
-        .unwrap()
-        .env(&wasm_env)
-        .unwrap();
+        .env(&wasm_env);
     runtime.execute().unwrap();
 
     let out: TestOutput = serde_json::from_str(&runtime.stdout()).unwrap();
@@ -154,10 +152,67 @@ fn test_failed_execution() {
     let mut runtime = create_test_wasm_runtime(&target, &wasm_bytes)
         .unwrap()
         .stdin(&json_data)
-        .unwrap()
-        .env(&wasm_env)
-        .unwrap();
+        .env(&wasm_env);
     runtime.execute().unwrap();
 
     let _out: TestOutput = serde_json::from_str(&runtime.stdout()).unwrap();
+}
+
+// This test checks for the return of a mock instance of an instantiation error.
+#[test]
+fn test_mem_alloc() {
+    let wasm_bytes = std::fs::read("test_data/should_panic/mem_alloc.wasm").unwrap();
+    let json_data = std::fs::read("test_data/wasm_test_oneline.json").unwrap();
+    let target = Target::default();
+    let mut runtime = create_test_wasm_runtime(&target, &wasm_bytes)
+        .unwrap()
+        .stdin(&json_data);
+    let res = runtime.execute();
+    assert_eq!(res.err().unwrap().inst_err(), Some("Failed to create memory: A user-defined error occurred: Minimum exceeds the allowed memory limit".to_string()));
+}
+
+// This test checks for the return of a mock instance of stack overflow.
+#[test]
+#[ignore = "https://github.com/versatus/versatus/issues/728"]
+fn test_stack_overflow() {
+    let wasm_bytes = std::fs::read("test_data/should_panic/stack_overflow.wasm").unwrap();
+    let json_data = std::fs::read("test_data/wasm_test_oneline.json").unwrap();
+    let target = Target::default();
+    let mut runtime = create_test_wasm_runtime(&target, &wasm_bytes)
+        .unwrap()
+        .stdin(&json_data);
+    let res = runtime.execute();
+    assert_eq!(res.err().unwrap().reason(), Some(TrapCode::StackOverflow));
+}
+
+// This test checks for the return of a non-existent file attempting to be read.
+#[test]
+fn test_file_not_found() {
+    let wasm_bytes = std::fs::read("test_data/should_panic/file_not_found.wasm").unwrap();
+    let json_data = std::fs::read("test_data/wasm_test_oneline.json").unwrap();
+    let target = Target::default();
+    let mut runtime = create_test_wasm_runtime(&target, &wasm_bytes)
+        .unwrap()
+        .stdin(&json_data);
+    let res = runtime.execute();
+    assert_eq!(
+        res.err().unwrap().reason(),
+        Some(TrapCode::UnreachableCodeReached)
+    );
+}
+
+// This test checks for the return of i32 integer using std::process::exit().
+#[test]
+fn test_process_exit() {
+    let wasm_bytes = std::fs::read("test_data/should_panic/process_exit.wasm").unwrap();
+    let json_data = std::fs::read("test_data/wasm_test_oneline.json").unwrap();
+    let target = Target::default();
+    let mut runtime = create_test_wasm_runtime(&target, &wasm_bytes)
+        .unwrap()
+        .stdin(&json_data);
+    let res = runtime.execute();
+    assert_eq!(
+        res.err().unwrap().origin(),
+        Some("Exit(ExitCode::2147483647)".to_string())
+    );
 }

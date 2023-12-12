@@ -214,7 +214,7 @@ checksum = "1ca33f4bc4ed1babef42cad36cc1f51fa88be00420404e5b1e80ab1b18f7678c"
 dependencies = [
  "concurrent-queue",
  "event-listener 4.0.0",
- "event-listener-strategy",
+ "event-listener-strategy 0.4.0",
  "futures-core",
  "pin-project-lite",
 ]
@@ -225,7 +225,7 @@ version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "17ae5ebefcc48e7452b4987947920dac9450be1110cadf34d1b8c116bdbaf97c"
 dependencies = [
- "async-lock 3.2.0",
+ "async-lock 3.1.0",
  "async-task",
  "concurrent-queue",
  "fastrand 2.0.1",
@@ -254,7 +254,7 @@ dependencies = [
  "async-channel 2.1.1",
  "async-executor",
  "async-io 2.2.1",
- "async-lock 3.2.0",
+ "async-lock 3.1.0",
  "blocking",
  "futures-lite 2.1.0",
  "once_cell",
@@ -315,8 +315,8 @@ version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "deb2ab2aa8a746e221ab826c73f48bc6ba41be6763f0855cb249eb6d154cf1d7"
 dependencies = [
- "event-listener 4.0.0",
- "event-listener-strategy",
+ "event-listener 3.1.0",
+ "event-listener-strategy 0.3.0",
  "pin-project-lite",
 ]
 
@@ -1094,9 +1094,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.4.11"
+version = "4.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bfaff671f6b22ca62406885ece523383b9b64022e341e53e009a62ebc47a45f2"
+checksum = "2275f18819641850fa26c89acc84d465c1bf91ce57bc2748b28c420473352f64"
 dependencies = [
  "clap_builder",
  "clap_derive 4.4.7",
@@ -1104,9 +1104,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.4.11"
+version = "4.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a216b506622bb1d316cd51328dce24e07bdff4a6128a47c7e7fad11878d5adbb"
+checksum = "07cdf1b148b25c1e1f7a42225e30a0d99a615cd4637eae7365548dd4529b95bc"
 dependencies = [
  "anstream",
  "anstyle",
@@ -1469,7 +1469,7 @@ dependencies = [
  "async-std",
  "cast",
  "ciborium",
- "clap 4.4.11",
+ "clap 4.4.8",
  "criterion-plot 0.5.0",
  "csv",
  "futures",
@@ -2188,6 +2188,16 @@ checksum = "770d968249b5d99410d61f5bf89057f3199a077a04d087092f58e7d10692baae"
 dependencies = [
  "concurrent-queue",
  "parking",
+ "pin-project-lite",
+]
+
+[[package]]
+name = "event-listener-strategy"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d96b852f1345da36d551b9473fa1e2b1eb5c5195585c6c018118bc92a8d91160"
+dependencies = [
+ "event-listener 3.1.0",
  "pin-project-lite",
 ]
 
@@ -3202,7 +3212,9 @@ dependencies = [
  "jsonrpsee",
  "platform",
  "serde",
+ "serial_test",
  "service_config",
+ "tokio",
 ]
 
 [[package]]
@@ -3537,7 +3549,7 @@ version = "1.0.0"
 source = "git+https://github.com/vrrb-io/kademlia-dht-rs#884dcab5648f56c0b84e4d55363c82c959b09e5d"
 dependencies = [
  "bincode 0.9.2",
- "clap 4.4.11",
+ "clap 4.4.8",
  "hex",
  "rand 0.8.5",
  "serde",
@@ -5765,7 +5777,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.4.12",
- "windows-sys 0.52.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -8123,15 +8135,16 @@ dependencies = [
 name = "wasm_runtime"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "derive_builder 0.12.0",
  "serde",
  "serde_derive",
  "serde_json",
  "telemetry",
+ "thiserror",
  "vrrb_core",
  "wasmer",
  "wasmer-middlewares",
+ "wasmer-vm",
  "wasmer-wasix",
  "wasmer-wasix-types",
 ]

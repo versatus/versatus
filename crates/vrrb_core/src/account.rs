@@ -6,7 +6,7 @@ use std::{
 };
 
 use primitives::Address;
-use ritelinked::LinkedHashMap;
+
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
@@ -266,7 +266,7 @@ impl Account {
             AccountField::Credits(credits) => match self.credits.checked_add(credits) {
                 Some(new_amount) => {
                     self.credits = new_amount;
-                },
+                }
                 None => return Err(Error::Other(format!("failed to update {value:?}"))),
             },
             AccountField::Debits(debits) => match self.debits.checked_add(debits) {
@@ -276,19 +276,19 @@ impl Account {
                     } else {
                         return Err(Error::Other(format!("failed to update {value:?}")));
                     }
-                },
+                }
                 None => return Err(Error::Other(format!("failed to update {value:?}"))),
             },
 
             // Should the storage be impossible to delete?
             AccountField::Storage(storage) => {
                 self.storage = storage;
-            },
+            }
 
             // Should the code be impossible to delete?
             AccountField::PackageAddress(package_address) => {
                 self.package_address = package_address;
-            },
+            }
 
             // Maybe we want to change `digests` to digest and only
             // update one at a time, though this could become a problem
@@ -296,7 +296,7 @@ impl Account {
             // better to batch them and update or at least have option to.
             AccountField::Digests(digests) => {
                 self.digests.extend_all(digests);
-            },
+            }
         }
         Ok(())
     }
