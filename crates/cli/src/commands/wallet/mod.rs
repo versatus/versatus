@@ -4,14 +4,14 @@ mod info;
 mod new;
 mod transfer;
 
-use std::{collections::HashMap, net::SocketAddr, path::PathBuf, str::FromStr};
+use std::{net::SocketAddr, path::PathBuf, str::FromStr};
 
 use clap::{Parser, Subcommand};
 use primitives::Address;
 use serde_json;
+use vrrb_core::helpers::read_or_generate_keypair_file;
 use vrrb_core::transactions::Token;
-use vrrb_core::{account::Account, helpers::read_or_generate_keypair_file};
-use wallet::v2::{AddressAlias, Wallet, WalletConfig};
+use wallet::v2::{Wallet, WalletConfig};
 
 use crate::result::{CliError, Result};
 
@@ -151,45 +151,4 @@ pub async fn exec(args: WalletOpts) -> Result<()> {
             Ok(())
         },
     }
-}
-
-fn restore_accounts_and_addresses(
-    path: &PathBuf,
-) -> Result<(HashMap<Address, Account>, HashMap<AddressAlias, Address>)> {
-    let mut accounts = HashMap::new();
-    let mut addresses = HashMap::new();
-
-    let entries = std::fs::read_dir(path).map_err(|err| CliError::Other(err.to_string()))?;
-
-    for entry in entries {
-        let entry = entry.map_err(|err| CliError::Other(err.to_string()))?;
-        let path = entry.path();
-
-        let file_name = path
-            .file_name()
-            .ok_or(CliError::Other("unable to get file name".to_string()))
-            .map_err(|err| CliError::Other(err.to_string()))?
-            .to_str()
-            .ok_or(CliError::Other("unable to get file name".to_string()))
-            .map_err(|err| CliError::Other(err.to_string()))?;
-
-        let alias =
-            AddressAlias::from_str(file_name).map_err(|err| CliError::Other(err.to_string()))?;
-
-        let account_string = std::fs::read_to_string(&path.join("account.json"))
-            .map_err(|err| CliError::Other(err.to_string()))?;
-
-        let account: Account = serde_json::from_str(&account_string)
-            .map_err(|err| CliError::Other(err.to_string()))?;
-
-        let (_, public) = read_or_generate_keypair_file(&path.join("keys"))
-            .map_err(|err| CliError::Other(err.to_string()))?;
-
-        let address = Address::new(public);
-
-        accounts.insert(address.clone(), account);
-        addresses.insert(alias, address.clone());
-    }
-
-    Ok((accounts, addresses))
 }

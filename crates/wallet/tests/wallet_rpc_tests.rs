@@ -1,7 +1,7 @@
 use std::net::SocketAddr;
 
 use primitives::Address;
-use secp256k1::{generate_keypair, PublicKey, Secp256k1, SecretKey};
+use secp256k1::{PublicKey, Secp256k1, SecretKey};
 use serial_test::serial;
 use storage::storage_utils::remove_vrrb_data_dir;
 use tokio::sync::mpsc::channel;

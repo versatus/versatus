@@ -1,6 +1,6 @@
 use crate::{HttpApiServer, HttpApiServerConfig, HttpApiServerConfigBuilder};
 use axum::{body::Body, http::Request};
-use axum_server::tls_rustls::RustlsConfig;
+
 use events::Event;
 use hyper::{Client, StatusCode};
 use tokio::sync::broadcast::channel;
