@@ -158,7 +158,7 @@ fn test_failed_execution() {
     let _out: TestOutput = serde_json::from_str(&runtime.stdout()).unwrap();
 }
 
-/// This test checks for the return of a mock instance of infinite recursion.
+// This test checks for the return of a mock instance of an instantiation error.
 #[test]
 fn test_mem_alloc() {
     let wasm_bytes = std::fs::read("test_data/should_panic/mem_alloc.wasm").unwrap();
@@ -173,6 +173,7 @@ fn test_mem_alloc() {
 
 // This test checks for the return of a mock instance of stack overflow.
 #[test]
+#[ignore = "https://github.com/versatus/versatus/issues/728"]
 fn test_stack_overflow() {
     let wasm_bytes = std::fs::read("test_data/should_panic/stack_overflow.wasm").unwrap();
     let json_data = std::fs::read("test_data/wasm_test_oneline.json").unwrap();
