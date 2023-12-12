@@ -46,9 +46,9 @@ pub async fn create_test_network(n: u16) -> Vec<Node> {
 }
 
 pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeConfig>) -> Vec<Node> {
-    let validator_count = (n.clone() as f64 * 0.8).ceil() as usize;
-    let farmer_count = (validator_count.clone() as f64 * 0.7).ceil() as usize;
-    let harvester_count = validator_count.clone() - farmer_count;
+    let validator_count = (n as f64 * 0.8).ceil() as usize;
+    let farmer_count = (validator_count as f64 * 0.7).ceil() as usize;
+    let harvester_count = validator_count - farmer_count;
     let miner_count = n as usize - validator_count;
 
     let mut nodes = vec![];
