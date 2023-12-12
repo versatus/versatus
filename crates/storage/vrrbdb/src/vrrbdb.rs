@@ -353,11 +353,11 @@ impl VrrbDb {
             Block::Convergence { block } => {
                 // TODO: find a way to get the proposals here
                 self.apply_convergence_block(&block, &[])
-            },
+            }
             _ => {
                 telemetry::info!("Unsupported block type: {:?}", block);
                 return Err(StorageError::Other("Unsupported block type".to_string()));
-            },
+            }
         }
     }
 }
