@@ -9,7 +9,7 @@ use quorum::{
     quorum::{Quorum, QuorumError},
 };
 use theater::{ActorId, ActorState};
-use vrrb_config::{BootstrapConfig, BootstrapQuorumConfig, NodeConfig, QuorumMembershipConfig};
+use vrrb_config::{BootstrapConfig, NodeConfig, QuorumMembershipConfig};
 use vrrb_core::claim::{Claim, Eligibility};
 
 #[derive(Debug, Clone)]

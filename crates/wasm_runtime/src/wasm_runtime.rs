@@ -39,7 +39,7 @@ pub struct WasmRuntime {
     args: Vec<String>,
     env: HashMap<String, String>,
 }
-
+#[allow(clippy::result_large_err)]
 impl WasmRuntime {
     /// Creates a new WasmRuntime environment to execute the WASM binary passed
     /// in.
@@ -153,6 +153,7 @@ impl WasmRuntime {
             get_remaining_points(store, &instance)
         );
 
-        Ok(wasi_fn_env.cleanup(store, None))
+        wasi_fn_env.cleanup(store, None);
+        Ok(())
     }
 }
