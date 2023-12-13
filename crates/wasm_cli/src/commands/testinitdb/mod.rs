@@ -1,7 +1,17 @@
 use anyhow::Result;
+use bonsaidb::core::connection::{Connection, StorageConnection};
+use bonsaidb::local::Storage;
+use bonsaidb::{
+    core::schema::{Collection, SerializedCollection},
+    local::config::{Builder, StorageConfiguration},
+};
 use clap::Parser;
+use ethereum_types::{Address, H160, U256};
 
-#[derive(Parser, Debug)]
+const DEFAULT_BALANCE: &str = "10000";
+
+#[derive(Collection, Default, Clone, Parser, Debug)]
+#[collection(name = "test-init-db")]
 pub struct TestInitDBOpts {
     /// This is the path to the database to be created/used. #716, this path is what we'll feed
     /// into the database driver.
@@ -17,6 +27,50 @@ pub struct TestInitDBOpts {
     /// [ethnum::U256] in size, but u128 ought to be fine for now.
     #[clap(short, long)]
     pub default_balance: Option<u128>,
+}
+#[derive(Collection, SerializedCollection, Clone, Parser, Debug)]
+#[collection(name = "account-info")]
+pub struct AccountInfo {
+    /// Address of the smart contract's blockchain account
+    pub account_address: Address,
+    /// Current balance of the smart contract's account at last block
+    pub account_balance: U256,
+}
+
+impl SerializedCollection for AccountInfo {}
+
+#[derive(Collection, Clone, Parser, Debug)]
+#[collection(name = "protocol-inputs")]
+pub struct ProtocolInputs {
+    /// The block number/height of the block currently being processed
+    pub block_height: u64,
+    /// The timestamp of the block currently being processed
+    pub block_time: u64,
+}
+
+fn main_init() -> Result<(), bonsaidb::core::Error> {
+    let storage = Storage::open(
+        StorageConfiguration::new("testinit.bonsaidb").with_schema::<TestInitDBOpts>()?,
+    )?;
+    let account_info = storage.create_database::<AccountInfo>("account-info", true)?;
+    let protocol_inputs = storage.create_database::<ProtocolInputs>("protocol-inputs", true)?;
+
+    insert_info(&account_info, "0x0000000000000000000000000000000000000001")?;
+    insert_info(&account_info, "0x0000000000000000000000000000000000000002")?;
+    // ^^ This seems like a bad way of doing things.
+    // Not sure on how to give detailed connection, ie, having seperate connections for
+    // each variable from struct that is inputed
+    insert_info(&account_info, DEFAULT_BALANCE)?;
+    Ok(())
+}
+
+fn insert_info<C: Connection>(connection: &C, value: &str) -> Result<(), bonsaidb::core::Error> {
+    AccountInfo {
+        account_address: H160([u8, 20]),
+        account_balance: U256([u64; 4]),
+    }
+    .push_into(connection)?;
+    Ok(())
 }
 
 /// Initialises a new database for keeping standalone state typically provided by a blockchain.

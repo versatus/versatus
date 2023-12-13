@@ -1,8 +1,8 @@
 use clap::{Parser, Subcommand};
 
 use crate::commands::{
-    testbalance::TestBalanceOpts, describe::DescribeOpts, execute::ExecuteOpts,
-    testinitdb::TestInitDBOpts, testcontract::TestContractOpts, validate::ValidateOpts,
+    describe::DescribeOpts, execute::ExecuteOpts, testbalance::TestBalanceOpts,
+    testcontract::TestContractOpts, testinitdb::TestInitDBOpts, validate::ValidateOpts,
 };
 
 #[derive(Parser)]
