@@ -110,8 +110,9 @@ async fn harvester_nodes_form_certificate() {
         // 2 of 3 harvester nodes sign a convergence block
         sigs.push(
             harvester
-                .handle_sign_convergence_block(convergence_block.clone())
-                .await
+                .handle_sign_block(Block::Convergence {
+                    block: convergence_block.clone(),
+                })
                 .unwrap(),
         );
         let _ = harvester
@@ -167,8 +168,9 @@ async fn certificate_formed_includes_pending_quorum() {
         // 2 of 3 harvester nodes sign a convergence block
         sigs.push(
             harvester
-                .handle_sign_convergence_block(convergence_block.clone())
-                .await
+                .handle_sign_block(Block::Convergence {
+                    block: convergence_block.clone(),
+                })
                 .unwrap(),
         );
         let _ = harvester
@@ -273,8 +275,9 @@ async fn all_nodes_append_certificate_to_convergence_block() {
         // 2 of 3 harvester nodes sign a convergence block
         sigs.push(
             harvester
-                .handle_sign_convergence_block(convergence_block.clone())
-                .await
+                .handle_sign_block(Block::Convergence {
+                    block: convergence_block.clone(),
+                })
                 .unwrap(),
         );
         let _ = harvester
@@ -303,7 +306,6 @@ async fn all_nodes_append_certificate_to_convergence_block() {
     }
     let convergence_block = chosen_harvester
         .handle_convergence_block_certificate_created(certificate.clone())
-        .await
         .unwrap();
     assert_eq!(&convergence_block.certificate.unwrap(), &certificate);
 }
@@ -377,8 +379,9 @@ async fn all_nodes_append_certified_convergence_block_to_dag() {
         // 2 of 3 harvester nodes sign a convergence block
         sigs.push(
             harvester
-                .handle_sign_convergence_block(convergence_block.clone())
-                .await
+                .handle_sign_block(Block::Convergence {
+                    block: convergence_block.clone(),
+                })
                 .unwrap(),
         );
         let _ = harvester
@@ -408,7 +411,6 @@ async fn all_nodes_append_certified_convergence_block_to_dag() {
     }
     let convergence_block = chosen_harvester
         .handle_convergence_block_certificate_created(certificate.clone())
-        .await
         .unwrap();
     assert_eq!(&convergence_block.certificate.unwrap(), &certificate);
     assert!(chosen_harvester.certified_convergence_block_exists_within_dag(convergence_block.hash));
@@ -525,8 +527,9 @@ async fn all_nodes_update_state_upon_successfully_appending_certified_convergenc
         // 2 of 3 harvester nodes sign a convergence block
         sigs.push(
             harvester
-                .handle_sign_convergence_block(convergence_block.clone())
-                .await
+                .handle_sign_block(Block::Convergence {
+                    block: convergence_block.clone(),
+                })
                 .unwrap(),
         );
         let _ = harvester
@@ -563,7 +566,6 @@ async fn all_nodes_update_state_upon_successfully_appending_certified_convergenc
     }
     let convergence_block = chosen_harvester
         .handle_convergence_block_certificate_created(certificate.clone())
-        .await
         .unwrap();
     let block_apply_result = chosen_harvester
         .state_driver

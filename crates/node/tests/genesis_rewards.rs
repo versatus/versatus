@@ -95,7 +95,6 @@ async fn genesis_block_can_be_certified() {
             node.handle_sign_block(Block::Genesis {
                 block: genesis_block.clone(),
             })
-            .await
             .unwrap(),
         );
         assert!(node.state_driver.append_genesis(&genesis_block).is_ok());
@@ -192,7 +191,6 @@ async fn all_nodes_append_certified_genesis_block_to_dag() {
             node.handle_sign_block(Block::Genesis {
                 block: genesis_block.clone(),
             })
-            .await
             .unwrap(),
         );
         assert!(node.state_driver.append_genesis(&genesis_block).is_ok());
