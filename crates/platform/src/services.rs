@@ -18,6 +18,7 @@ pub enum ServiceType {
 /// A bitmask of capabilities supported by a particular service.
 /// Subject to change, batteries not included.
 #[bitmask]
+#[bitmask_config(vec_debug)]
 #[derive(Serialize, Deserialize)]
 pub enum ServiceCapabilities {
     /// This compute service supports execution of WASM/WASI
@@ -77,7 +78,7 @@ impl std::fmt::Display for VersionNumber {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize)]
 pub struct ServiceStatusResponse {
     /// Type of service (see above)
     pub service_type: ServiceType,
@@ -89,4 +90,28 @@ pub struct ServiceStatusResponse {
     pub service_version: VersionNumber,
     /// The current uptime (seconds.ns) of the service
     pub service_uptime: u64,
+}
+impl std::fmt::Debug for ServiceStatusResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+impl std::fmt::Display for ServiceStatusResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Service Status Response:
+    service type:   {:?}
+    capabilities:   {:?}({} bits)
+    implementation: {:?}
+    version:        v{}
+    uptime:         {}s",
+            self.service_type,
+            self.service_capabilities,
+            self.service_capabilities.bits(),
+            (!self.service_implementation.is_empty()).then_some(Some(self.service_capabilities)),
+            self.service_version,
+            self.service_uptime
+        )
+    }
 }
