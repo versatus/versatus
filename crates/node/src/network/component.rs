@@ -11,7 +11,6 @@ use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{Actor, ActorImpl, Handler};
 use vrrb_config::{ NodeConfig, QuorumMembershipConfig};
-
 use crate::{NodeError, RuntimeComponent, RuntimeComponentHandle};
 
 use crate::network::module::*;
