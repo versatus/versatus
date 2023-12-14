@@ -371,7 +371,7 @@ impl ConsensusModule {
             )));
         }
 
-        let batch_sigs = set
+        let batch_sigs: Vec<(String, Signature)> = set
             .iter()
             .map(|vote| (vote.farmer_node_id.clone(), vote.signature))
             .collect();

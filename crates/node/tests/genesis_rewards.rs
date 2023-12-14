@@ -1,11 +1,10 @@
 //! Genesis block should contain a list of rewards to pre configured addresses. These rewards should allocate a pre configurable number of tokens.
 use block::{Block, Certificate, GenesisReceiver};
-use events::DEFAULT_BUFFER;
+use events::{Event, DEFAULT_BUFFER};
 use node::{
     node_runtime::NodeRuntime, test_utils::create_quorum_assigned_node_runtime_network, NodeError,
 };
 use primitives::{Address, NodeType, QuorumKind, Signature};
-use storage::vrrbdb::ApplyBlockResult;
 
 /// Genesis blocks created by elected Miner nodes should contain at least one reward
 #[tokio::test]
@@ -95,7 +94,6 @@ async fn genesis_block_can_be_certified() {
             node.handle_sign_block(Block::Genesis {
                 block: genesis_block.clone(),
             })
-            .await
             .unwrap(),
         );
         assert!(node.state_driver.append_genesis(&genesis_block).is_ok());
@@ -192,7 +190,6 @@ async fn all_nodes_append_certified_genesis_block_to_dag() {
             node.handle_sign_block(Block::Genesis {
                 block: genesis_block.clone(),
             })
-            .await
             .unwrap(),
         );
         assert!(node.state_driver.append_genesis(&genesis_block).is_ok());
@@ -257,26 +254,25 @@ async fn genesis_block_rewards_are_applied_to_state() {
         .mine_genesis_block(genesis_reward_state_updates.clone())
         .unwrap();
     // apply rewards
-    let results: Vec<ApplyBlockResult> = all_nodes
+    let results: Vec<Option<Block>> = all_nodes
         .iter_mut()
         .map(|node| {
-            node.handle_block_received(block::Block::Genesis {
-                block: genesis_block.clone().into(),
-            })
-            .unwrap()
+            if let Event::StateUpdated(s) = node
+                .handle_block_received(block::Block::Genesis {
+                    block: genesis_block.clone().into(),
+                })
+                .unwrap()
+            {
+                Some(s)
+            } else {
+                None
+            }
         })
         .collect();
-    let apply_block_result = results.first().unwrap();
+    let apply_block_result = results.first().unwrap().clone().unwrap().hash();
 
     results.iter().for_each(|res| {
-        assert_eq!(
-            res.transactions_root_hash_str(),
-            apply_block_result.transactions_root_hash_str()
-        );
-        assert_eq!(
-            res.state_root_hash_str(),
-            apply_block_result.state_root_hash_str()
-        );
+        assert_eq!(res.clone().unwrap().hash(), apply_block_result);
     });
 }
 
