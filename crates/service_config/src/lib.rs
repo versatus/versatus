@@ -1,7 +1,8 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use serde_derive::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::BufReader;
+use std::net;
 
 /// High level wrapper struct to allow us to add things to this configuration file later that
 /// aren't network service parameters. Some runtime-configuration parameters are best suited as
@@ -48,6 +49,45 @@ pub struct ServiceConfig {
     pub exporter_address: String,
     /// Prometheus exporter bind port
     pub exporter_port: String,
+}
+impl ServiceConfig {
+    /// A concatinated RPC address & port.
+    ///
+    /// Attemps to parse the address into either `Ipv4` or `Ipv6`,
+    /// returning a `SocketAddr`.
+    pub fn rpc_socket_addr(&self) -> Result<net::SocketAddr> {
+        let address = self.rpc_address.split('.').collect::<Vec<&str>>();
+        match address.len() {
+            4 => {
+                let address = address
+                    .into_iter()
+                    .map(|n| n.parse().expect("expected 8-bit integer"))
+                    .collect::<Vec<u8>>();
+                Ok(net::SocketAddr::new(
+                    net::IpAddr::V4(net::Ipv4Addr::new(
+                        address[0], address[1], address[2], address[3],
+                    )),
+                    self.rpc_port.try_into().expect("expected a 16-bit integer"),
+                ))
+            }
+            8 => {
+                let address = address
+                    .into_iter()
+                    .map(|n| n.parse().expect("expected 16-bit integer"))
+                    .collect::<Vec<u16>>();
+                Ok(net::SocketAddr::new(
+                    net::IpAddr::V6(net::Ipv6Addr::new(
+                        address[0], address[1], address[2], address[3], address[4], address[5],
+                        address[6], address[7],
+                    )),
+                    self.rpc_port.try_into().expect("expected a 16-bit integer"),
+                ))
+            }
+            _ => {
+                bail!("failed to produce SocketAddr: expected either Ipv4 or Ipv6: incorrect address length: {}", address.len())
+            }
+        }
+    }
 }
 
 impl Config {

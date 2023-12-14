@@ -9,7 +9,7 @@ use std::net::SocketAddr;
 ///
 /// To interact with the server, use the methods
 /// available on the `InternalRpcApi` interface.
-pub struct InternalRpcClient(pub(crate) Client);
+pub struct InternalRpcClient(pub Client);
 impl InternalRpcClient {
     /// Accepts a URL to a server, and attempts to build a client bound to that URL.
     /// The URL to the server MUST include the port.
