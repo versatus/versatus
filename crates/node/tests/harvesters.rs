@@ -299,8 +299,7 @@ async fn all_nodes_append_certificate_to_convergence_block() {
     all_nodes.extend(harvesters);
     for node in all_nodes.iter_mut() {
         let convergence_block = node
-            .handle_convergence_block_certificate_received(certificate.clone())
-            .await
+            .handle_convergence_block_certificate_created(certificate.clone())
             .unwrap();
         assert_eq!(&convergence_block.certificate.unwrap(), &certificate);
     }
@@ -403,8 +402,7 @@ async fn all_nodes_append_certified_convergence_block_to_dag() {
     all_nodes.extend(harvesters);
     for node in all_nodes.iter_mut() {
         let convergence_block = node
-            .handle_convergence_block_certificate_received(certificate.clone())
-            .await
+            .handle_convergence_block_certificate_created(certificate.clone())
             .unwrap();
         assert_eq!(&convergence_block.certificate.unwrap(), &certificate);
         assert!(node.certified_convergence_block_exists_within_dag(convergence_block.hash));
@@ -552,8 +550,7 @@ async fn all_nodes_update_state_upon_successfully_appending_certified_convergenc
     let mut results = Vec::new();
     for node in all_nodes.iter_mut() {
         let convergence_block = node
-            .handle_convergence_block_certificate_received(certificate.clone())
-            .await
+            .handle_convergence_block_certificate_created(certificate.clone())
             .unwrap();
 
         let block_result = node
