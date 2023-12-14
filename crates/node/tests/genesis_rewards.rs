@@ -270,6 +270,9 @@ async fn genesis_block_rewards_are_applied_to_state() {
             }
         })
         .collect();
+    results.iter().for_each(|hash| {
+        assert!(hash.is_some());
+    });
     let apply_block_result = results.first().unwrap();
 
     results.iter().for_each(|res| {
