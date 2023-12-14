@@ -6,7 +6,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
-use tokio::sync::Mutex;
 use vrrb_config::NodeConfig;
 
 use crate::{

@@ -1,17 +1,14 @@
-use std::collections::HashMap;
-use std::net::{Ipv4Addr, SocketAddr};
-use std::sync::Arc;
-
 use events::{Event, EventPublisher, EventRouter, Topic};
 use mempool::MempoolReadHandleFactory;
 use metric_exporter::metric_factory::PrometheusFactory;
 use primitives::{
     KademliaPeerId, NodeType, JSON_RPC_API_TOPIC_STR, NETWORK_TOPIC_STR, RUNTIME_TOPIC_STR,
 };
-use prometheus::labels;
+use std::collections::HashMap;
+use std::net::SocketAddr;
+use std::sync::Arc;
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
-use tokio::sync::Mutex;
 use tokio::{
     signal,
     sync::mpsc::{channel, UnboundedReceiver},
@@ -31,10 +28,8 @@ use crate::{
 #[derive(Debug)]
 pub struct Node {
     config: NodeConfig,
-
     // TODO: make this private
     pub keypair: Keypair,
-
     cancel_token: CancellationToken,
     runtime_control_handle: JoinHandle<Result<()>>,
     db_read_handle: VrrbDbReadHandle,
@@ -42,6 +37,10 @@ pub struct Node {
 }
 
 pub type UnboundedControlEventReceiver = UnboundedReceiver<Event>;
+
+const LABELS: &[(&str, &str)] = &[("service", "protocol"), ("source", "versatus")];
+
+const BUFFER_SIZE: usize = 5;
 
 impl Node {
     #[telemetry::instrument(skip(config))]
@@ -66,10 +65,10 @@ impl Node {
         let cloned_token = cancel_token.clone();
 
         //Setting up the prometheus
-        let labels = labels! {
-                    "service".to_string() => "protocol".to_string(),
-                    "source".to_string() => "versatus".to_string(),
-        };
+        let mut labels = HashMap::new();
+        for (key, value) in LABELS {
+            labels.insert(key.to_string(), value.to_string());
+        }
 
         // Prometheus factory for metrics
         let factory = Arc::new(
@@ -137,9 +136,25 @@ impl Node {
     ) -> Result<()> {
         info!("Node {} is up and running", id);
 
-        let mut sighup_receiver = signal::unix::signal(signal::unix::SignalKind::hangup()).unwrap();
-        let (sender, receiver) = tokio::sync::mpsc::channel::<()>(100);
-
+        let mut sighup_receiver = signal::unix::signal(signal::unix::SignalKind::hangup())
+            .map_err(|e| {
+                NodeError::Other(format!(
+                    "Error occured while constructing sighup handler :{:?}",
+                    e
+                ))
+            })?;
+        let (sender, receiver) = channel::<()>(BUFFER_SIZE);
+        tokio::spawn(async move {
+            while let Some(_) = sighup_receiver.recv().await {
+                // Do something when a SIGHUP signal is received
+                if let Err(_) = sender.send(()).await {
+                    // Handle the error if sending fails
+                    info!("Failed to send signal");
+                } else {
+                    info!("Sending signal to reload config")
+                }
+            }
+        });
         // Assuming async context
         let server = factory.serve(receiver);
         server

@@ -2,7 +2,6 @@ use crate::Result;
 use metric_exporter::metric_factory::PrometheusFactory;
 use std::sync::Arc;
 use std::{collections::HashMap, thread};
-use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
 #[derive(Debug, Clone)]

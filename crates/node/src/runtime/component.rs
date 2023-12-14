@@ -7,7 +7,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use storage::vrrbdb::VrrbDbReadHandle;
 use theater::{Actor, ActorImpl};
-use tokio::sync::Mutex;
 use tokio::time::sleep;
 use vrrb_config::NodeConfig;
 

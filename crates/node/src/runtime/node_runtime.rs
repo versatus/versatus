@@ -17,7 +17,6 @@ use primitives::{
     Address, Epoch, NodeId, NodeType, PublicKey, QuorumKind, Round, Signature, NETWORK_TOPIC_STR,
     RUNTIME_TOPIC_STR,
 };
-use prometheus::labels;
 use ritelinked::LinkedHashMap;
 use secp256k1::{hashes::Hash, Message};
 use signer::engine::{QuorumMembers as InaugaratedMembers, SignerEngine};
@@ -27,7 +26,6 @@ use std::{
 };
 use storage::vrrbdb::{StateStoreReadHandleFactory, VrrbDbConfig, VrrbDbReadHandle};
 use theater::{ActorId, ActorState};
-use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use utils::payload::digest_data_to_bytes;
 use vrrb_config::{NodeConfig, QuorumMembershipConfig};

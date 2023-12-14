@@ -7,13 +7,11 @@ use bulldag::graph::BullDag;
 use ethereum_types::U256;
 use events::{SyncPeerData, Vote};
 use mempool::MempoolReadHandleFactory;
-use metric_exporter::metric_factory::PrometheusFactory;
 use miner::conflict_resolver::Resolver;
 use primitives::{
     NodeId, NodeType, NodeTypeBytes, PKShareBytes, PayloadBytes, PublicKey, QuorumId, QuorumKind,
     QuorumPublicKey, RawSignature, Signature,
 };
-use prometheus::labels;
 use prometheus::IntGauge;
 use secp256k1::Message;
 use serde::{Deserialize, Serialize};

@@ -7,11 +7,10 @@ use async_trait::async_trait;
 use events::{EventPublisher, EventSubscriber};
 use metric_exporter::metric_factory::PrometheusFactory;
 use primitives::{KademliaPeerId, NodeId, PublicKey};
-use prometheus::labels;
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{Actor, ActorImpl, Handler};
-use vrrb_config::{ NodeConfig, QuorumMembershipConfig};
+use vrrb_config::{NodeConfig, QuorumMembershipConfig};
 
 use crate::network::module::*;
 
