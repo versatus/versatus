@@ -13,9 +13,10 @@ rand = { workspace = true }
 platform = { workspace = true }
 prometheus = { workspace = true }
 hyper-rustls = { workspace = true }
-rustls = { workspace = true }
-rustls-pemfile = { workspace = true }
-telemetry = { workspace = true }
+rustls = { workspace = true}
+rustls-pemfile = { workspace = true}
+telemetry = { workspace = true}
+tokio-util = { workspace = true}
 
 [[example]]
 name = "metrics_example"

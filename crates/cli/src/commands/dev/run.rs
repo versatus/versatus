@@ -169,6 +169,10 @@ impl From<RunOpts> for NodeConfig {
             enable_block_indexing: default_node_config.enable_block_indexing,
             threshold_config: default_node_config.threshold_config,
             whitelisted_nodes: default_node_config.whitelisted_nodes,
+            prometheus_bind_addr: default_node_config.prometheus_bind_addr,
+            prometheus_bind_port: default_node_config.prometheus_bind_port,
+            prometheus_cert_path: default_node_config.prometheus_cert_path,
+            prometheus_private_key_path: default_node_config.prometheus_private_key_path,
         }
     }
 }

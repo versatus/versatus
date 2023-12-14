@@ -68,6 +68,8 @@ maglev = { workspace = true }
 dyswarm = { workspace = true }
 chrono = { workspace = true }
 integral-db = { workspace = true }
+metric_exporter = { workspace = true }
+prometheus = { workspace = true}
 
 [dev-dependencies]
 reqwest = { workspace = true }

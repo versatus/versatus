@@ -1,8 +1,9 @@
-use std::{collections::HashMap, thread};
-
-use tokio::task::JoinHandle;
-
 use crate::Result;
+use metric_exporter::metric_factory::PrometheusFactory;
+use std::sync::Arc;
+use std::{collections::HashMap, thread};
+use tokio::sync::Mutex;
+use tokio::task::JoinHandle;
 
 #[derive(Debug, Clone)]
 pub struct RuntimeComponentHealthReport {}
@@ -16,7 +17,11 @@ where
     A: Sized,
     D: Sized,
 {
-    async fn setup(args: A) -> Result<RuntimeComponentHandle<D>>;
+    async fn setup(
+        args: A,
+        factory: Arc<Mutex<PrometheusFactory>>,
+        labels: HashMap<String, String>,
+    ) -> Result<RuntimeComponentHandle<D>>;
     async fn stop(&mut self) -> Result<()>;
 }
 
