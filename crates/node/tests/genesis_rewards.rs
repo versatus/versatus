@@ -5,7 +5,6 @@ use node::{
     node_runtime::NodeRuntime, test_utils::create_quorum_assigned_node_runtime_network, NodeError,
 };
 use primitives::{Address, NodeType, QuorumKind, Signature};
-use storage::vrrbdb::ApplyBlockResult;
 
 /// Genesis blocks created by elected Miner nodes should contain at least one reward
 #[tokio::test]
@@ -255,10 +254,10 @@ async fn genesis_block_rewards_are_applied_to_state() {
         .mine_genesis_block(genesis_reward_state_updates.clone())
         .unwrap();
     // apply rewards
-    let results: Vec<Option<String>> = all_nodes
+    let results: Vec<Option<Block>> = all_nodes
         .iter_mut()
         .map(|node| {
-            if let Event::BlockAppended(s) = node
+            if let Event::StateUpdated(s) = node
                 .handle_block_received(block::Block::Genesis {
                     block: genesis_block.clone().into(),
                 })
@@ -270,13 +269,10 @@ async fn genesis_block_rewards_are_applied_to_state() {
             }
         })
         .collect();
-    results.iter().for_each(|hash| {
-        assert!(hash.is_some());
-    });
-    let apply_block_result = results.first().unwrap();
+    let apply_block_result = results.first().unwrap().clone().unwrap().hash();
 
     results.iter().for_each(|res| {
-        assert_eq!(res, apply_block_result);
+        assert_eq!(res.clone().unwrap().hash(), apply_block_result);
     });
 }
 
