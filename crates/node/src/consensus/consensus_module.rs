@@ -89,7 +89,7 @@ pub struct ConsensusModule {
     pub votes_pool: HashMap<QuorumId, HashMap<TransactionDigest, HashSet<Vote>>>,
     pub(crate) validator_core_manager: ValidatorCoreManager,
     pub miner_election_results: Option<BTreeMap<U256, Claim>>,
-    pub certified_pending_transactions: IntGauge
+    pub certified_pending_transactions: IntGauge,
 }
 
 impl ConsensusModule {
@@ -128,7 +128,7 @@ impl ConsensusModule {
             validator_core_manager,
             votes_pool: Default::default(),
             miner_election_results: None,
-            certified_pending_transactions
+            certified_pending_transactions,
         })
     }
 
@@ -343,7 +343,8 @@ impl ConsensusModule {
                 self.quorum_certified_txns
                     .entry(vote.txn.id().clone())
                     .or_insert((vote.txn.clone(), cert));
-                self.certified_pending_transactions.set(self.quorum_certified_txns.len() as i64);
+                self.certified_pending_transactions
+                    .set(self.quorum_certified_txns.len() as i64);
                 return Ok(());
             }
         }

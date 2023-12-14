@@ -131,7 +131,7 @@ impl NodeRuntime {
             database.claim_store_factory(),
             // TODO: Replace with a configurable number
             10,
-            certified_pending_transactions
+            certified_pending_transactions,
         )?;
 
         Ok(Self {
@@ -425,7 +425,9 @@ impl NodeRuntime {
             })
             .collect();
 
-        self.consensus_driver.certified_pending_transactions.set(self.consensus_driver.quorum_certified_txns.len() as i64);
+        self.consensus_driver
+            .certified_pending_transactions
+            .set(self.consensus_driver.quorum_certified_txns.len() as i64);
         Ok(ProposalBlock::build(
             ref_hash, round, epoch, txns_list, claim_list, from, sig_engine,
         ))

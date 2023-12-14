@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use crate::{NodeError, RuntimeComponent, RuntimeComponentHandle};
 use async_trait::async_trait;
 use events::{EventPublisher, EventSubscriber};
 use metric_exporter::metric_factory::PrometheusFactory;
@@ -11,7 +12,6 @@ use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{Actor, ActorImpl, Handler};
 use vrrb_config::{ NodeConfig, QuorumMembershipConfig};
-use crate::{NodeError, RuntimeComponent, RuntimeComponentHandle};
 
 use crate::network::module::*;
 

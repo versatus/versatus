@@ -32,12 +32,17 @@ impl RuntimeComponent<NodeRuntimeComponentConfig, NodeRuntimeComponentResolvedDa
     async fn setup(
         args: NodeRuntimeComponentConfig,
         factory: Arc<PrometheusFactory>,
-      labels: HashMap<String, String>,
+        labels: HashMap<String, String>,
     ) -> crate::Result<RuntimeComponentHandle<NodeRuntimeComponentResolvedData>> {
         let mut events_rx = args.events_rx;
-        let node_runtime = NodeRuntime::new(&args.config, args.events_tx,factory.clone(),labels.clone())
-            .await
-            .map_err(|err| NodeError::Other(err.to_string()))?;
+        let node_runtime = NodeRuntime::new(
+            &args.config,
+            args.events_tx,
+            factory.clone(),
+            labels.clone(),
+        )
+        .await
+        .map_err(|err| NodeError::Other(err.to_string()))?;
 
         let state_read_handle = node_runtime.state_read_handle();
         let mempool_read_handle_factory = node_runtime.mempool_read_handle_factory();
