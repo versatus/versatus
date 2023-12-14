@@ -1,5 +1,8 @@
 use anyhow::Result;
 use bonsaidb::core::connection::{Connection, StorageConnection};
+use bonsaidb::core::permissions::bonsai;
+use bonsaidb::core::schema::DefaultSerialization;
+use bonsaidb::core::transmog_pot::Pot;
 use bonsaidb::local::Storage;
 use bonsaidb::{
     core::schema::{Collection, SerializedCollection},
@@ -28,7 +31,7 @@ pub struct TestInitDBOpts {
     #[clap(short, long)]
     pub default_balance: Option<u128>,
 }
-#[derive(Collection, SerializedCollection, Clone, Parser, Debug)]
+#[derive(Collection, Clone, Parser, Debug)]
 #[collection(name = "account-info")]
 pub struct AccountInfo {
     /// Address of the smart contract's blockchain account
@@ -36,8 +39,6 @@ pub struct AccountInfo {
     /// Current balance of the smart contract's account at last block
     pub account_balance: U256,
 }
-
-impl SerializedCollection for AccountInfo {}
 
 #[derive(Collection, Clone, Parser, Debug)]
 #[collection(name = "protocol-inputs")]
@@ -64,6 +65,8 @@ fn main_init() -> Result<(), bonsaidb::core::Error> {
     Ok(())
 }
 
+// Template for inserting information via connection. Will need to do so to get mock information
+// to be stored in the two tables requested.
 fn insert_info<C: Connection>(connection: &C, value: &str) -> Result<(), bonsaidb::core::Error> {
     AccountInfo {
         account_address: H160([u8, 20]),
