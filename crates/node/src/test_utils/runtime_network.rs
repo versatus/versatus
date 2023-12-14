@@ -1,14 +1,9 @@
 use metric_exporter::metric_factory::PrometheusFactory;
 use prometheus::labels;
 use std::{
-    collections::{BTreeMap, HashMap, VecDeque},
-    env,
-    hash::Hash,
+    collections::{BTreeMap, VecDeque},
     net::{IpAddr, Ipv4Addr, SocketAddr},
-    sync::Arc,
 };
-use tokio_util::sync::CancellationToken;
-
 use crate::{
     node_runtime::NodeRuntime,
     test_utils::{
@@ -19,9 +14,11 @@ use crate::{
 use events::EventPublisher;
 pub use miner::test_helpers::{create_address, create_claim, create_miner};
 use primitives::{KademliaPeerId, NodeType, QuorumKind};
-
 use vrrb_config::{BootstrapPeerData, BootstrapQuorumConfig, BootstrapQuorumMember};
 use vrrb_core::keypair::Keypair;
+use std::collections::HashMap;
+use tokio_util::sync::CancellationToken;
+use std::sync::Arc;
 
 use super::create_mock_full_node_config;
 /// Creates n NodeRuntimes to simulate networks

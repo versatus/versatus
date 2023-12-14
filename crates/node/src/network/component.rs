@@ -10,8 +10,6 @@ use prometheus::labels;
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{Actor, ActorImpl, Handler};
-
-use tokio::sync::Mutex;
 use vrrb_config::{ NodeConfig, QuorumMembershipConfig};
 
 use crate::{NodeError, RuntimeComponent, RuntimeComponentHandle};
