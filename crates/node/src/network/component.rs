@@ -45,7 +45,7 @@ impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolv
 {
     async fn setup(
         args: NetworkModuleComponentConfig,
-        factory: Arc<Mutex<PrometheusFactory>>,
+        factory: Arc<PrometheusFactory>,
         labels: HashMap<String, String>,
     ) -> crate::Result<RuntimeComponentHandle<NetworkModuleComponentResolvedData>> {
         let mut network_events_rx = args.network_events_rx;
@@ -73,7 +73,6 @@ impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolv
         let kademlia_dht_resolved_id = network_module.kademlia_peer_id();
         let resolved_kademlia_liveness_address = network_module.kademlia_liveness_addr();
         let resolved_raptorq_gossip_address = network_module.raptorq_gossip_addr();
-        let factory = factory.lock().await;
         let is_bootstrap_node = factory
             .build_counter("is_bootstrap_node", "Is Bootstrap Node?", labels.clone())
             .map_err(|e| NodeError::Other(format!("Failed to build prometheus metric :{:?}", e)))?;

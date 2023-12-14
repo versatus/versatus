@@ -1,7 +1,13 @@
+use metric_exporter::metric_factory::PrometheusFactory;
+use prometheus::labels;
 use std::{
-    collections::{BTreeMap, VecDeque},
+    collections::{BTreeMap, HashMap, VecDeque},
+    env,
+    hash::Hash,
     net::{IpAddr, Ipv4Addr, SocketAddr},
+    sync::Arc,
 };
+use tokio_util::sync::CancellationToken;
 
 use crate::{
     node_runtime::NodeRuntime,
@@ -29,7 +35,9 @@ pub async fn create_node_runtime_network(
     let mut nodes = VecDeque::new();
 
     let mut quorum_members = BTreeMap::new();
-
+    let current_dir = std::env::current_dir().expect("Failed to get current directory");
+    let rsa_path = current_dir.join("crates/node/src/test_utils/mocks/sample.rsa");
+    let pem_path = current_dir.join("crates/node/src/test_utils/mocks/sample.pem");
     for i in 1..=n as u16 {
         let udp_port: u16 = 11000 + i;
         let raptor_port: u16 = 12000 + i;
@@ -70,9 +78,26 @@ pub async fn create_node_runtime_network(
 
     config.bootstrap_config = Some(bootstrap_node_config.clone());
 
-    let _addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
-
-    let node_0 = NodeRuntime::new(&config, events_tx.clone()).await.unwrap();
+    let bootstrap_prometheus_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
+    let factory = Arc::new(
+        PrometheusFactory::new(
+            bootstrap_prometheus_addr.ip().to_string(),
+            bootstrap_prometheus_addr.port(),
+            false,
+            HashMap::new(),
+            rsa_path.to_str().unwrap().to_string(),
+            pem_path.to_str().unwrap().to_string(),
+            CancellationToken::new(),
+        )
+        .unwrap(),
+    );
+    let labels = labels! {
+                "service".to_string() => "compute".to_string(),
+                "source".to_string() => "versatus".to_string(),
+    };
+    let node_0 = NodeRuntime::new(&config, events_tx.clone(), factory.clone(), labels.clone())
+        .await
+        .unwrap();
 
     let bootstrap_peer_data = BootstrapPeerData {
         id: node_0.config.kademlia_peer_id.unwrap(),
@@ -84,6 +109,19 @@ pub async fn create_node_runtime_network(
     nodes.push_back(node_0);
 
     for i in 1..=validator_count - 1 {
+        let validator_prometheus_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
+        let factory = Arc::new(
+            PrometheusFactory::new(
+                validator_prometheus_addr.ip().to_string(),
+                validator_prometheus_addr.port(),
+                false,
+                HashMap::new(),
+                rsa_path.to_str().unwrap().to_string(),
+                pem_path.to_str().unwrap().to_string(),
+                CancellationToken::new(),
+            )
+            .unwrap(),
+        );
         let mut config = create_mock_full_node_config();
 
         let node_id = format!("node-{}", i);
@@ -98,11 +136,26 @@ pub async fn create_node_runtime_network(
         config.udp_gossip_address = quorum_config.udp_gossip_address;
         config.kademlia_peer_id = Some(quorum_config.kademlia_peer_id);
 
-        let node = NodeRuntime::new(&config, events_tx.clone()).await.unwrap();
+        let node = NodeRuntime::new(&config, events_tx.clone(), factory.clone(), labels.clone())
+            .await
+            .unwrap();
         nodes.push_back(node);
     }
 
     for i in validator_count..=validator_count + miner_count {
+        let miner_prometheus_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
+        let factory = Arc::new(
+            PrometheusFactory::new(
+                miner_prometheus_addr.ip().to_string(),
+                miner_prometheus_addr.port(),
+                false,
+                HashMap::new(),
+                rsa_path.to_str().unwrap().to_string(),
+                pem_path.to_str().unwrap().to_string(),
+                CancellationToken::new(),
+            )
+            .unwrap(),
+        );
         let mut miner_config = create_mock_full_node_config();
 
         let node_id = format!("node-{}", i);
@@ -117,9 +170,14 @@ pub async fn create_node_runtime_network(
         miner_config.udp_gossip_address = quorum_config.udp_gossip_address;
         miner_config.kademlia_peer_id = Some(quorum_config.kademlia_peer_id);
 
-        let miner_node = NodeRuntime::new(&miner_config, events_tx.clone())
-            .await
-            .unwrap();
+        let miner_node = NodeRuntime::new(
+            &miner_config,
+            events_tx.clone(),
+            factory.clone(),
+            labels.clone(),
+        )
+        .await
+        .unwrap();
 
         nodes.push_back(miner_node);
     }

@@ -7,11 +7,14 @@ use bulldag::graph::BullDag;
 use ethereum_types::U256;
 use events::{SyncPeerData, Vote};
 use mempool::MempoolReadHandleFactory;
+use metric_exporter::metric_factory::PrometheusFactory;
 use miner::conflict_resolver::Resolver;
 use primitives::{
     NodeId, NodeType, NodeTypeBytes, PKShareBytes, PayloadBytes, PublicKey, QuorumId, QuorumKind,
     QuorumPublicKey, RawSignature, Signature,
 };
+use prometheus::labels;
+use prometheus::IntGauge;
 use secp256k1::Message;
 use serde::{Deserialize, Serialize};
 use signer::engine::{QuorumData, SignerEngine, VALIDATION_THRESHOLD};
@@ -86,6 +89,7 @@ pub struct ConsensusModule {
     pub votes_pool: HashMap<QuorumId, HashMap<TransactionDigest, HashSet<Vote>>>,
     pub(crate) validator_core_manager: ValidatorCoreManager,
     pub miner_election_results: Option<BTreeMap<U256, Claim>>,
+    pub certified_pending_transactions: IntGauge
 }
 
 impl ConsensusModule {
@@ -95,6 +99,7 @@ impl ConsensusModule {
         state_reader: StateStoreReadHandleFactory,
         claim_reader: ClaimStoreReadHandleFactory,
         cores: usize,
+        certified_pending_transactions: IntGauge,
     ) -> Result<Self> {
         let quorum_module_config = QuorumModuleConfig {
             membership_config: None,
@@ -123,6 +128,7 @@ impl ConsensusModule {
             validator_core_manager,
             votes_pool: Default::default(),
             miner_election_results: None,
+            certified_pending_transactions
         })
     }
 
@@ -337,7 +343,7 @@ impl ConsensusModule {
                 self.quorum_certified_txns
                     .entry(vote.txn.id().clone())
                     .or_insert((vote.txn.clone(), cert));
-
+                self.certified_pending_transactions.set(self.quorum_certified_txns.len() as i64);
                 return Ok(());
             }
         }

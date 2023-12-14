@@ -72,7 +72,7 @@ impl Node {
         };
 
         // Prometheus factory for metrics
-        let factory = Arc::new(Mutex::new(
+        let factory = Arc::new(
             PrometheusFactory::new(
                 config.prometheus_bind_addr.clone(),
                 config.prometheus_bind_port,
@@ -83,7 +83,7 @@ impl Node {
                 cancel_token.child_token(),
             )
             .unwrap(),
-        ));
+        );
 
         let (runtime_component_manager, updated_node_config, db_read_handle, mempool_read_handle) =
             setup_runtime_components(
@@ -133,7 +133,7 @@ impl Node {
         events_tx: EventPublisher,
         runtime_component_manager: RuntimeComponentManager,
         router_handle: JoinHandle<()>,
-        factory: Arc<Mutex<metric_exporter::metric_factory::PrometheusFactory>>,
+        factory: Arc<PrometheusFactory>,
     ) -> Result<()> {
         info!("Node {} is up and running", id);
 
@@ -141,8 +141,7 @@ impl Node {
         let (sender, receiver) = tokio::sync::mpsc::channel::<()>(100);
 
         // Assuming async context
-        let locked_factory = factory.lock().await;
-        let server = locked_factory.serve(receiver);
+        let server = factory.serve(receiver);
         server
             .await
             .map_err(|e| NodeError::Other(format!("Prometheus server failed to start: {:?}", e)))?;

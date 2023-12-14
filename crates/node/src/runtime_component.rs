@@ -19,7 +19,7 @@ where
 {
     async fn setup(
         args: A,
-        factory: Arc<Mutex<PrometheusFactory>>,
+        factory: Arc<PrometheusFactory>,
         labels: HashMap<String, String>,
     ) -> Result<RuntimeComponentHandle<D>>;
     async fn stop(&mut self) -> Result<()>;

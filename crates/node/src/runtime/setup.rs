@@ -24,7 +24,7 @@ pub async fn setup_runtime_components(
     original_config: &NodeConfig,
     router: &EventRouter,
     events_tx: EventPublisher,
-    factory: Arc<Mutex<PrometheusFactory>>,
+    factory: Arc<PrometheusFactory>,
     labels: HashMap<String, String>,
 ) -> Result<(
     RuntimeComponentManager,

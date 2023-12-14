@@ -31,18 +31,17 @@ impl RuntimeComponent<NodeRuntimeComponentConfig, NodeRuntimeComponentResolvedDa
 {
     async fn setup(
         args: NodeRuntimeComponentConfig,
-        factory: Arc<Mutex<PrometheusFactory>>,
+        factory: Arc<PrometheusFactory>,
         labels: HashMap<String, String>,
     ) -> crate::Result<RuntimeComponentHandle<NodeRuntimeComponentResolvedData>> {
         let mut events_rx = args.events_rx;
-        let node_runtime = NodeRuntime::new(&args.config, args.events_tx)
+        let node_runtime = NodeRuntime::new(&args.config, args.events_tx,factory.clone(),labels.clone())
             .await
             .map_err(|err| NodeError::Other(err.to_string()))?;
 
         let state_read_handle = node_runtime.state_read_handle();
         let mempool_read_handle_factory = node_runtime.mempool_read_handle_factory();
-        let factory_clone = factory.lock().await;
-        let unvoted_pending_transactions = factory_clone
+        let unvoted_pending_transactions = factory
             .build_int_gauge(
                 "unvoted_pending_transactions",
                 "No of pending transactions in mempool",

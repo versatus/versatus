@@ -58,6 +58,8 @@ impl NodeRuntime {
     pub async fn new(
         config: &NodeConfig,
         events_tx: EventPublisher,
+        factory: Arc<PrometheusFactory>,
+        labels: HashMap<String, String>,
     ) -> std::result::Result<Self, anyhow::Error> {
         let dag: Arc<RwLock<BullDag<Block, String>>> = Arc::new(RwLock::new(BullDag::new()));
 
@@ -110,6 +112,14 @@ impl NodeRuntime {
         };
 
         let miner = miner::Miner::new(miner_config, config.id.clone()).map_err(NodeError::from)?;
+        let certified_pending_transactions = factory
+            .build_int_gauge(
+                "certified_pending_transactions",
+                "No of certified transactions to be included in proposal block",
+                labels.clone(),
+            )
+            .map_err(|e| NodeError::Other(format!("Failed to build prometheus metric :{:?}", e)))?;
+
         let consensus_driver = ConsensusModule::new(
             ConsensusModuleConfig {
                 keypair: config.keypair.clone(),
@@ -121,6 +131,7 @@ impl NodeRuntime {
             database.claim_store_factory(),
             // TODO: Replace with a configurable number
             10,
+            certified_pending_transactions
         )?;
 
         Ok(Self {
@@ -414,6 +425,7 @@ impl NodeRuntime {
             })
             .collect();
 
+        self.consensus_driver.certified_pending_transactions.set(self.consensus_driver.quorum_certified_txns.len() as i64);
         Ok(ProposalBlock::build(
             ref_hash, round, epoch, txns_list, claim_list, from, sig_engine,
         ))
