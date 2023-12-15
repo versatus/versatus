@@ -15,13 +15,6 @@ pub struct StatusOpts {
     /// Get the config that the server was built with.
     #[clap(long)]
     pub config: bool,
-    #[clap(long)]
-    pub job: Option<StorageJob>,
-}
-
-#[derive(Debug, Parser)]
-pub enum StorageJob {
-    Unknown,
 }
 
 /// Make a status RPC query against a running agent.
@@ -34,7 +27,6 @@ pub async fn run(opts: &StatusOpts, config: &ServiceConfig) -> Result<()> {
         status,
         service_response,
         config,
-        job: _,
     } = *opts;
     if status {
         println!("{:?}", client.0.status().await);
