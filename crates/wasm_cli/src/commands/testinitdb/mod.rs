@@ -1,19 +1,24 @@
 use anyhow::Result;
-use bonsaidb::core::connection::{Connection, StorageConnection};
-use bonsaidb::core::permissions::bonsai;
-use bonsaidb::core::schema::DefaultSerialization;
-use bonsaidb::core::transmog_pot::Pot;
 use bonsaidb::local::Storage;
 use bonsaidb::{
-    core::schema::{Collection, SerializedCollection},
+    core::schema::SerializedCollection,
     local::config::{Builder, StorageConfiguration},
 };
+use bonsaidb_core::connection::{Connection, StorageConnection};
+use bonsaidb_core::schema::{Collection, Schema};
 use clap::Parser;
-use ethereum_types::{Address, H160, U256};
+use ethereum_types::U256;
+use primitives::Address;
+use serde::{Deserialize, Serialize};
 
-const DEFAULT_BALANCE: &str = "10000";
+const DEFAULT_BALANCE: U256 = U256([10000; 4]);
+const DEFAULT_ADDRESS: Address = primitives::Address([0; 20]);
 
-#[derive(Collection, Default, Clone, Parser, Debug)]
+#[derive(Debug, Schema)]
+#[schema(name = "my-schema", collections = [TestInitDBOpts, AccountInfo, ProtocolInputs ])]
+struct MySchema;
+
+#[derive(Collection, Serialize, Deserialize, Clone, Parser, Debug)]
 #[collection(name = "test-init-db")]
 pub struct TestInitDBOpts {
     /// This is the path to the database to be created/used. #716, this path is what we'll feed
@@ -31,7 +36,8 @@ pub struct TestInitDBOpts {
     #[clap(short, long)]
     pub default_balance: Option<u128>,
 }
-#[derive(Collection, Clone, Parser, Debug)]
+
+#[derive(Collection, Serialize, Deserialize, Clone, Parser, Debug)]
 #[collection(name = "account-info")]
 pub struct AccountInfo {
     /// Address of the smart contract's blockchain account
@@ -40,7 +46,7 @@ pub struct AccountInfo {
     pub account_balance: U256,
 }
 
-#[derive(Collection, Clone, Parser, Debug)]
+#[derive(Collection, Serialize, Deserialize, Clone, Parser, Debug)]
 #[collection(name = "protocol-inputs")]
 pub struct ProtocolInputs {
     /// The block number/height of the block currently being processed
@@ -49,28 +55,16 @@ pub struct ProtocolInputs {
     pub block_time: u64,
 }
 
-fn main_init() -> Result<(), bonsaidb::core::Error> {
-    let storage = Storage::open(
-        StorageConfiguration::new("testinit.bonsaidb").with_schema::<TestInitDBOpts>()?,
-    )?;
-    let account_info = storage.create_database::<AccountInfo>("account-info", true)?;
-    let protocol_inputs = storage.create_database::<ProtocolInputs>("protocol-inputs", true)?;
-
-    insert_info(&account_info, "0x0000000000000000000000000000000000000001")?;
-    insert_info(&account_info, "0x0000000000000000000000000000000000000002")?;
-    // ^^ This seems like a bad way of doing things.
-    // Not sure on how to give detailed connection, ie, having seperate connections for
-    // each variable from struct that is inputed
-    insert_info(&account_info, DEFAULT_BALANCE)?;
-    Ok(())
-}
-
 // Template for inserting information via connection. Will need to do so to get mock information
 // to be stored in the two tables requested.
-fn insert_info<C: Connection>(connection: &C, value: &str) -> Result<(), bonsaidb::core::Error> {
+fn insert_info<C: Connection>(
+    connection: &C,
+    account_address: Address,
+    account_balance: U256,
+) -> Result<(), bonsaidb::core::Error> {
     AccountInfo {
-        account_address: H160([u8, 20]),
-        account_balance: U256([u64; 4]),
+        account_address,
+        account_balance,
     }
     .push_into(connection)?;
     Ok(())
@@ -80,6 +74,26 @@ fn insert_info<C: Connection>(connection: &C, value: &str) -> Result<(), bonsaid
 /// This allows some standalone testing of smart contracts without needing access to a testnet and
 /// can also potentially be integrated into common CI/CD frameworks.
 pub fn run(opts: &TestInitDBOpts) -> Result<()> {
+    let storage = Storage::open(
+        StorageConfiguration::new(&opts.dbpath)
+            .with_schema::<TestInitDBOpts>()?
+            .with_schema::<AccountInfo>()?
+            .with_schema::<ProtocolInputs>()?
+            .with_schema::<MySchema>()?,
+    )?;
+
+    storage.create_database::<AccountInfo>("account-info", true)?;
+    let account_info = storage.database::<AccountInfo>("account-info")?;
+    storage.create_database::<ProtocolInputs>("protocol-inputs", true)?;
+    let protocol_inputs = storage.database::<ProtocolInputs>("protocol-info")?;
+    storage.create_database::<MySchema>("another-db", true)?;
+    let another_db = storage.database::<MySchema>("another-db")?;
+
+    let _ = insert_info(&account_info, DEFAULT_ADDRESS, DEFAULT_BALANCE);
+
+    // let config = StorageConfiguration::new(opts.dbpath);
+    // let mut db = Database::open::<TestInitDBOpts>(config)?;
+
     // #716, here we want to create a new database to be used by the rest of the functionality in
     // issue #716. This database could be SQLite3 or similar, but with some caveats:
     //  - The database can be written to a single file

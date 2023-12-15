@@ -8102,6 +8102,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bonsaidb",
+ "bonsaidb-core",
  "clap 3.2.25",
  "cli",
  "criterion 0.5.1",
@@ -8625,8 +8626,12 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bonsaidb",
+ "bonsaidb-core",
  "clap 3.2.25",
  "ethereum-types",
+ "primitives",
+ "secp256k1",
+ "serde",
  "telemetry",
  "wasm_loader",
  "wasm_runtime",
