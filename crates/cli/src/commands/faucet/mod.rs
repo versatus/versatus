@@ -1,12 +1,7 @@
-use std::{collections::HashMap, net::SocketAddr, path::PathBuf, str::FromStr};
+use std::net::SocketAddr;
 
 use clap::{Parser, Subcommand};
 use faucet::faucet::{Faucet, FaucetConfig};
-use primitives::Address;
-use serde_json;
-use vrrb_core::transactions::Token;
-use vrrb_core::{account::Account, helpers::read_or_generate_keypair_file};
-use wallet::v2::{AddressAlias, Wallet, WalletConfig};
 
 use crate::result::{CliError, Result};
 
@@ -37,9 +32,7 @@ pub struct FaucetOpts {
 }
 
 pub async fn exec(args: FaucetOpts) -> Result<()> {
-    let sub_cmd = args.subcommand;
-
-    match sub_cmd {
+    match args.subcommand {
         FaucetCmd::Run => {
             let config = FaucetConfig {
                 rpc_server_address: args.rpc_server_address,
@@ -62,6 +55,5 @@ pub async fn exec(args: FaucetOpts) -> Result<()> {
                 Err(CliError::Other("Failed to create faucet".to_string()))
             }
         }
-        _ => Err(CliError::InvalidCommand(format!("{sub_cmd:?}"))),
     }
 }

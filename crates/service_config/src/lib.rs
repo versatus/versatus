@@ -27,7 +27,7 @@ pub struct ServiceCollectionConfig {
 }
 
 /// A structure representing the necessary configuration items required for a network service
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ServiceConfig {
     /// The name of this service definition
@@ -35,7 +35,7 @@ pub struct ServiceConfig {
     /// The address to bind to for RPC calls
     pub rpc_address: String,
     /// The port to bind to for RPC calls
-    pub rpc_port: u32,
+    pub rpc_port: u16,
     /// A preshared key for authenticating RPC calls
     pub pre_shared_key: String,
     /// A TLS private key for RPC transport privacy

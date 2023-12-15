@@ -8,7 +8,7 @@ use secp256k1::{
     Message,
 };
 use serde::{Deserialize, Serialize};
-use utils::{create_payload, hash_data, payload::digest_data_to_bytes};
+use utils::{create_payload, hash_data};
 use vrrb_core::claim::Claim;
 use vrrb_vrf::{vrng::VRNG, vvrf::VVRF};
 
@@ -84,13 +84,13 @@ pub fn genesis_block_header_hashed_payload(
         next_block_reward,
     );
 
-    Message::from(secp256k1::hashes::sha256::Hash::hash(&hashed.as_bytes()))
+    Message::from(secp256k1::hashes::sha256::Hash::hash(hashed.as_bytes()))
 }
 
 impl BlockHeader {
     //TODO: miners needs to wait on threshold signature before passing to this fxn
     pub fn genesis(
-        seed: u64,
+        _seed: u64,
         round: u128,
         epoch: Epoch,
         miner_claim: Claim,

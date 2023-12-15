@@ -6,7 +6,7 @@ use primitives::{KademliaPeerId, NodeId, PublicKey};
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{Actor, ActorImpl, Handler};
-use vrrb_config::{BootstrapQuorumConfig, NodeConfig, QuorumMembershipConfig};
+use vrrb_config::{NodeConfig, QuorumMembershipConfig};
 
 use crate::{NodeError, RuntimeComponent, RuntimeComponentHandle};
 

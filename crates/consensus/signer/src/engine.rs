@@ -204,7 +204,7 @@ impl SignerEngine {
 
     pub fn verify_batch<T: AsRef<[u8]> + std::fmt::Debug>(
         &self,
-        batch_sigs: &Vec<(NodeId, Signature)>,
+        batch_sigs: &[(NodeId, Signature)],
         data: &T,
     ) -> Result<(), Error> {
         let errs = batch_sigs

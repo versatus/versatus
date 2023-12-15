@@ -39,6 +39,12 @@ jobs:
         uses: dsherret/rust-toolchain-file@v1
       - name: Check Formatting
         run: cargo fmt --all -- --check
+      - name: Install taplo-cli
+        uses: baptiste0928/cargo-install@v2.2.0
+        with:
+          crate: taplo-cli
+      - name: Run taplo linter
+        run: taplo format --check --verbose
 
   # tests all crates in parallel
   test-block:
@@ -84,6 +90,28 @@ jobs:
         with:
           command: test
           args: -p cli
+
+  test-compute-agent:
+    name: test compute_cli
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dev-dependencies
+        run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: Checkout sources
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -p compute_cli
 
   test-consensus:
     name: test consensus
@@ -437,6 +465,51 @@ jobs:
         with:
           command: test
           args: -p vrrb_rpc
+
+  test-internal-rpc:
+    name: test internal_rpc
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dev-dependencies
+        run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: Checkout sources
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -p internal_rpc
+
+  test-wasm-runtime:
+    name: test wasm_runtime
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dev-dependencies
+        run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: Checkout sources
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -p wasm_runtime
+
 
   test-wallet:
     name: test wallet
