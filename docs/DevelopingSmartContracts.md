@@ -16,7 +16,7 @@ In order to best-support smart contract development in a broad range of language
 
 You can find a brief article that describes why Versatus chose Web Assembly [here](https://incomplete.io/wasm/why-wasm-versatus/index.html).
 
-Essentially what this means is that if your favourite programming language can be compiled down to Web Assembly, there is a very good chance that it can be used to write smart contracts on Versatus. If your language of choice isn't supported today, we'll include some notes below that enumerate the requirements for adding a new language in case you want to add your own.
+Essentially what this means is that if your favourite programming language can be compiled down to Web Assembly, there is a very good chance that it can be used to write smart contracts on Versatus. If your language of choice isn't supported by Versatus today, we'll include some notes below that enumerate the requirements for adding a new language in case you want to add your own.
 
 ## Language Standard Libraries
 
@@ -41,7 +41,7 @@ Each language has its own Github repository:
 
 ## Off-Chain Testing
 
-In order to keep things developer-friendly, Versatus provides its smart contract runtime for common development platforms as a way to execute and test smart contracts in isolation in a developer's workspace or any CI/CD pipeline.
+In order to keep things developer-friendly, Versatus provides its smart contract runtime for common development platforms as a standlone tool to execute and test smart contracts in isolation in a developer's workspace or any CI/CD pipeline.
 
 > [!NOTE]
 > mattgeddes@ to fill in the specific commands here as they're available.
