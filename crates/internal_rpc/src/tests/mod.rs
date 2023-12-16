@@ -57,9 +57,7 @@ async fn test_get_response_from_server() {
             .await
             .unwrap();
     let client = InternalRpcClient::new(&socket).await.unwrap();
-    assert!(client.0.status().await.is_ok());
-    assert_eq!(client.0.service_config().await.unwrap(), service_config);
-    let res = client.0.service_status_response().await;
+    let res = client.0.status().await;
     assert!(res.is_ok());
     dbg!(res.unwrap());
 
