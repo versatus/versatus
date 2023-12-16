@@ -78,6 +78,7 @@ pub enum NetworkEvent {
     #[deprecated(note = "prefer TransactionVoteCreated")]
     BroadcastTransactionVote(Box<Vote>),
     TransactionVoteCreated(Vote),
+    TransactionVoteForwarded(Vote),
 
     Ping(NodeId),
 

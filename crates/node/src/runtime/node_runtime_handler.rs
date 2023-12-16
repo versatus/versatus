@@ -285,30 +285,47 @@ impl Handler<EventMessage> for NodeRuntime {
                 // check to see if txn is already in mempool, return if present
                 info!(
                     "Node {} added transaction with hash {} to mempool",
-                    &self.id,
+                    &self.config_ref().id,
                     txn_hash.digest_string()
                 );
 
-                let vote = self.handle_txn_added_to_mempool(txn_hash)?;
+                let vote = self.handle_txn_added_to_mempool(txn_hash);
 
-                self.send_event_to_network(Event::TransactionVoteCreated(vote))
-                    .await?;
+                match vote {
+                    Ok(vote) => {
+                        self.send_event_to_network(Event::TransactionVoteCreated(vote))
+                            .await?;
+                    }
+                    Err(err) => {
+                        telemetry::error!("failed to create vote: {}", err);
+                    }
+                    _ => {}
+                }
             }
             Event::TransactionVoteCreated(vote) => {
                 let txn_id = vote.txn.id();
                 info!(
-                    "Node {} received vote for {} from {}",
+                    "Node runtime {} received vote for {} from {}",
                     self.config_ref().id,
                     txn_id,
                     vote.farmer_id
                 );
 
-                //self.belongs_to_correct_quorum(QuorumKind::Harvester, "handle transaction votes")?;
+                //forward vote to other network nodes
+                self.send_event_to_network(Event::TransactionVoteForwarded(vote.clone()))
+                    .await?;
 
-                println!(
-                    "node {} received vote from farmer {}",
-                    &self.config_ref().id,
-                    &vote.farmer_id
+                if let Err(err) = self.handle_vote_received(vote).await {
+                    telemetry::error!("failed to handle vote for {}: {}", txn_id, err);
+                }
+            }
+            Event::TransactionVoteForwarded(vote) => {
+                let txn_id = vote.txn.id();
+                info!(
+                    "Node runtime for {} received forwarded vote for {} from {}",
+                    self.config_ref().id,
+                    txn_id,
+                    vote.farmer_id
                 );
 
                 if let Err(err) = self.handle_vote_received(vote).await {

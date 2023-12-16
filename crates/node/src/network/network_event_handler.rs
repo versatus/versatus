@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use dyswarm::types::Message as DyswarmMessage;
 use events::{Event, EventMessage, EventPublisher, PeerData, Topic};
 use primitives::{NodeId, NETWORK_TOPIC_STR, RUNTIME_TOPIC_STR};
+use tracing::info;
 use vrrb_core::transactions::Transaction;
 
 use crate::{network::NetworkEvent, NodeError, Result};
@@ -130,6 +131,12 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
             }
             NetworkEvent::TransactionVoteCreated(vote) => {
                 let evt = Event::TransactionVoteCreated(vote);
+                if let Err(err) = self.send_event_to_runtime(evt).await {
+                    telemetry::error!("{}", err);
+                }
+            }
+            NetworkEvent::TransactionVoteForwarded(vote) => {
+                let evt = Event::TransactionVoteForwarded(vote);
                 if let Err(err) = self.send_event_to_runtime(evt).await {
                     telemetry::error!("{}", err);
                 }

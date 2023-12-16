@@ -516,6 +516,12 @@ impl NetworkModule {
             .await
     }
 
+    pub async fn rebroadcast_transaction_vote(&mut self, vote: Vote) -> Result<()> {
+        telemetry::info!("Broadcasting transaction vote to network");
+        self.broadcast_event_to_known_peers(NetworkEvent::TransactionVoteForwarded(vote))
+            .await
+    }
+
     pub(crate) async fn broadcast_block(&mut self, block: Block) -> Result<()> {
         self.broadcast_event_to_known_peers(NetworkEvent::BlockCreated(block))
             .await

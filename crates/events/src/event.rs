@@ -346,6 +346,7 @@ pub enum Event {
     BroadcastTransactionVote(Vote),
 
     TransactionVoteCreated(Vote),
+    TransactionVoteForwarded(Vote),
 
     BuildProposalBlock(ConvergenceBlock),
 

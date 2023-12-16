@@ -51,6 +51,10 @@ impl Handler<EventMessage> for NetworkModule {
                 info!("Broadcasting transaction vote to network");
                 self.broadcast_transaction_vote(vote).await?;
             }
+            Event::TransactionVoteForwarded(vote) => {
+                info!("Broadcasting transaction vote to network");
+                self.rebroadcast_transaction_vote(vote).await?;
+            }
             Event::ClaimCreated(claim) => {
                 info!("Broadcasting claim to peers");
                 self.broadcast_claim(claim).await?;
