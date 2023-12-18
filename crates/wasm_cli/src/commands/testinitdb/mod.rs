@@ -1,3 +1,5 @@
+use std::path::{Path, PathBuf};
+
 use anyhow::Result;
 use bonsaidb::local::Storage;
 use bonsaidb::{
@@ -5,21 +7,21 @@ use bonsaidb::{
     local::config::{Builder, StorageConfiguration},
 };
 use bonsaidb_core::connection::{Connection, StorageConnection};
-use bonsaidb_core::schema::{Collection, Schema};
+use bonsaidb_core::schema::{Collection, Schema, SchemaName};
 use clap::Parser;
 use ethereum_types::U256;
 use primitives::Address;
 use serde::{Deserialize, Serialize};
+use telemetry::instrument::Instrumented;
 
 const DEFAULT_BALANCE: U256 = U256([10000; 4]);
 const DEFAULT_ADDRESS: Address = primitives::Address([0; 20]);
 
 #[derive(Debug, Schema)]
-#[schema(name = "my-schema", collections = [TestInitDBOpts, AccountInfo, ProtocolInputs ])]
-struct MySchema;
+#[schema(name = "db-schema", collections = [AccountInfo, ProtocolInputs ])]
+struct DBSchema;
 
-#[derive(Collection, Serialize, Deserialize, Clone, Parser, Debug)]
-#[collection(name = "test-init-db")]
+#[derive(Clone, Parser, Debug)]
 pub struct TestInitDBOpts {
     /// This is the path to the database to be created/used. #716, this path is what we'll feed
     /// into the database driver.
@@ -34,7 +36,7 @@ pub struct TestInitDBOpts {
     /// Default balance for new test accounts created. The protocol supports values up to
     /// [ethnum::U256] in size, but u128 ought to be fine for now.
     #[clap(short, long)]
-    pub default_balance: Option<u128>,
+    pub default_balance: Option<U256>,
 }
 
 #[derive(Collection, Serialize, Deserialize, Clone, Parser, Debug)]
@@ -57,7 +59,7 @@ pub struct ProtocolInputs {
 
 // Template for inserting information via connection. Will need to do so to get mock information
 // to be stored in the two tables requested.
-fn insert_info<C: Connection>(
+fn insert_account_info<C: Connection>(
     connection: &C,
     account_address: Address,
     account_balance: U256,
@@ -70,26 +72,39 @@ fn insert_info<C: Connection>(
     Ok(())
 }
 
+fn insert_meta_data<C: Connection>(
+    connection: &C,
+    block_height: u64,
+    block_time: u64,
+) -> Result<(), bonsaidb::core::Error> {
+    ProtocolInputs {
+        block_height,
+        block_time,
+    }
+    .push_into(connection)?;
+    Ok(())
+}
+
 /// Initialises a new database for keeping standalone state typically provided by a blockchain.
 /// This allows some standalone testing of smart contracts without needing access to a testnet and
 /// can also potentially be integrated into common CI/CD frameworks.
 pub fn run(opts: &TestInitDBOpts) -> Result<()> {
     let storage = Storage::open(
         StorageConfiguration::new(&opts.dbpath)
-            .with_schema::<TestInitDBOpts>()?
             .with_schema::<AccountInfo>()?
             .with_schema::<ProtocolInputs>()?
-            .with_schema::<MySchema>()?,
+            .with_schema::<DBSchema>()?,
     )?;
 
     storage.create_database::<AccountInfo>("account-info", true)?;
     let account_info = storage.database::<AccountInfo>("account-info")?;
     storage.create_database::<ProtocolInputs>("protocol-inputs", true)?;
-    let protocol_inputs = storage.database::<ProtocolInputs>("protocol-info")?;
-    storage.create_database::<MySchema>("another-db", true)?;
-    let another_db = storage.database::<MySchema>("another-db")?;
+    let protocol_inputs = storage.database::<ProtocolInputs>("protocol-inputs")?;
+    // storage.create_database::<DBSchema>("db-schema", true)?;
+    // let db_schema = storage.database::<DBSchema>("db-schema")?;
 
-    let _ = insert_info(&account_info, DEFAULT_ADDRESS, DEFAULT_BALANCE);
+    insert_account_info(&account_info, DEFAULT_ADDRESS, DEFAULT_BALANCE);
+    insert_meta_data(&protocol_inputs, 10, 100);
 
     // let config = StorageConfiguration::new(opts.dbpath);
     // let mut db = Database::open::<TestInitDBOpts>(config)?;
@@ -129,4 +144,14 @@ pub fn run(opts: &TestInitDBOpts) -> Result<()> {
     //     Anytime the test subcommand is executed, these two fields should be updated. I'll
     //     include details under that subcommand's code.
     Ok(())
+}
+
+#[test]
+fn init_db() {
+    run(&TestInitDBOpts {
+        dbpath: ("././bonsaidb").to_string(),
+        force: Some(true),
+        default_balance: Some(DEFAULT_BALANCE),
+    })
+    .unwrap()
 }
