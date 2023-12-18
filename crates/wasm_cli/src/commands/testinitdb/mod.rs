@@ -1,5 +1,3 @@
-use std::path::{Path, PathBuf};
-
 use anyhow::Result;
 use bonsaidb::local::Storage;
 use bonsaidb::{
@@ -7,15 +5,25 @@ use bonsaidb::{
     local::config::{Builder, StorageConfiguration},
 };
 use bonsaidb_core::connection::{Connection, StorageConnection};
-use bonsaidb_core::schema::{Collection, Schema, SchemaName};
+use bonsaidb_core::schema::{Collection, Schema};
 use clap::Parser;
 use ethereum_types::U256;
 use primitives::Address;
 use serde::{Deserialize, Serialize};
-use telemetry::instrument::Instrumented;
 
 const DEFAULT_BALANCE: U256 = U256([10000; 4]);
-const DEFAULT_ADDRESS: Address = primitives::Address([0; 20]);
+const DEFAULT_ADDRESSES: &[Address; 10] = &[
+    Address([0; 20]),
+    Address([1; 20]),
+    Address([2; 20]),
+    Address([3; 20]),
+    Address([4; 20]),
+    Address([5; 20]),
+    Address([6; 20]),
+    Address([7; 20]),
+    Address([8; 20]),
+    Address([9; 20]),
+];
 
 #[derive(Debug, Schema)]
 #[schema(name = "db-schema", collections = [AccountInfo, ProtocolInputs ])]
@@ -103,8 +111,10 @@ pub fn run(opts: &TestInitDBOpts) -> Result<()> {
     // storage.create_database::<DBSchema>("db-schema", true)?;
     // let db_schema = storage.database::<DBSchema>("db-schema")?;
 
-    insert_account_info(&account_info, DEFAULT_ADDRESS, DEFAULT_BALANCE);
-    insert_meta_data(&protocol_inputs, 10, 100);
+    for i in 0..DEFAULT_ADDRESSES.iter().len() {
+        insert_account_info(&account_info, DEFAULT_ADDRESSES[i].clone(), DEFAULT_BALANCE).unwrap();
+    }
+    insert_meta_data(&protocol_inputs, 10, 100).expect("failed to updated metadata");
 
     // let config = StorageConfiguration::new(opts.dbpath);
     // let mut db = Database::open::<TestInitDBOpts>(config)?;
