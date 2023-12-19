@@ -5,11 +5,13 @@ use bonsaidb::{
     local::config::{Builder, StorageConfiguration},
 };
 use bonsaidb_core::connection::{Connection, StorageConnection};
-use bonsaidb_core::schema::{Collection, Schema};
+use bonsaidb_core::schema::{Collection, Schema, SerializedView, View, ViewSchema};
 use clap::Parser;
 use ethereum_types::U256;
 use primitives::Address;
 use serde::{Deserialize, Serialize};
+
+use crate::commands::testbalance::*;
 
 const DEFAULT_BALANCE: U256 = U256([10000; 4]);
 const DEFAULT_ADDRESSES: &[Address; 10] = &[
@@ -25,6 +27,7 @@ const DEFAULT_ADDRESSES: &[Address; 10] = &[
     Address([9; 20]),
 ];
 
+//Instantiate Schema for collections to be grouped together.
 #[derive(Debug, Schema)]
 #[schema(name = "db-schema", collections = [AccountInfo, ProtocolInputs ])]
 struct DBSchema;
@@ -44,7 +47,7 @@ pub struct TestInitDBOpts {
 }
 
 #[derive(Collection, Serialize, Deserialize, Clone, Parser, Debug)]
-#[collection(name = "account-info")]
+#[collection(name = "account-info", views = [AccountBalance])]
 pub struct AccountInfo {
     /// Address of the smart contract's blockchain account
     pub account_address: Address,
