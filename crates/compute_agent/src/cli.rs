@@ -1,7 +1,6 @@
 use clap::{Parser, Subcommand};
 
-use crate::commands::daemon::DaemonOpts;
-use crate::commands::status::StatusOpts;
+use crate::commands::{daemon::DaemonOpts, request::RequestOpts, status::StatusOpts};
 
 #[derive(Parser)]
 #[clap(author, version, about)]
@@ -38,4 +37,6 @@ pub enum ComputeCommands {
     Daemon(DaemonOpts),
     /// Shows status of a running agent
     Status(StatusOpts),
+    /// Request jobs from the server
+    Request(RequestOpts),
 }
