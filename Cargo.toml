@@ -7,6 +7,11 @@
 # readme = "README.md"
 # default-run = "versa"
 
+[workspace.package]
+version = "0.1.0"
+authors = ["Versatus Labs <info@versatus.io>"]
+edition = "2021"
+
 # [profile.release]
 # opt-level = 3
 # lto = "thin"
@@ -27,37 +32,6 @@
 # name = "versa-storage"
 # path = "crates/storage_agent/src/main.rs"
 
-# [dependencies]
-# faucet = { workspace = true }
-# tokio = { workspace = true }
-# telemetry = { workspace = true }
-# cli = { workspace = true }
-# anyhow = { workspace = true }
-# node = { workspace = true }
-# vrrb_config = { workspace = true }
-# clap = { workspace = true }
-# wasm_loader = { workspace = true }
-# wasm_runtime = { workspace = true }
-# web3_pkg = { workspace = true }
-# platform = { workspace = true }
-# vrrb_rpc = { workspace = true }
-# primitives = { workspace = true }
-# sha2 = { workspace = true }
-# integral-db = { workspace = true }
-# service_config = { workspace = true }
-# serde_derive = { workspace = true }
-# serde_json = { workspace = true }
-# serde = { workspace = true }
-# sha3 = { workspace = true }
-# prometheus = { workspace = true }
-# hyper = { workspace = true }
-# hyper-rustls = { workspace = true }
-# rand = { workspace = true }
-# lazy_static = { workspace = true }
-# wasmer = { workspace = true }
-# metric_exporter = { workspace = true }
-# internal_rpc = { workspace = true }
-
 [workspace]
 resolver = "2"
 members = [
@@ -66,7 +40,6 @@ members = [
   "crates/faucet",
   "crates/consensus",
   "crates/consensus/quorum",
-  # "crates/consensus/dkg_engine",
   "crates/consensus/signer",
   "crates/consensus/job_pool",
   "crates/consensus/job_scheduler",
@@ -151,14 +124,13 @@ decentrust = { git = "https://github.com/vrrb-io/decentrust", branch = "main" }
 dyswarm = { git = "https://github.com/vrrb-io/dyswarm" }
 integral-db = { git = "https://github.com/versatus/integral-db" }
 
+# NOTE: External crates
 secp256k1 = { version = "0.25", features = [
   "rand",
   "serde",
   "bitcoin_hashes",
   "global-context",
 ] }
-
-# NOTE: External crates
 bitmask-enum = "2.2"
 clap = { version = "3.2", features = ["derive"] }
 assert_cmd = "2.0"
@@ -247,7 +219,7 @@ bs58 = "0.4"
 ring = "0.16"
 prost = "0.11"
 pbjson = "0.5"
-pbjson-types = "0"
+pbjson-types = "0.5"
 tonic = { version = "0.9", features = ["gzip"] }
 tonic-reflection = "0.9"
 maglev = "0.2"
@@ -262,18 +234,6 @@ ipfs-api = "0.17"
 rustls = "0.21"
 rustls-pemfile = "1.0"
 hyper-rustls = { version = "0.24", features = ["acceptor"] }
-microkv = "0.2"
-
-# [dev-dependencies]
-# cuckoofilter.workspace = true
-# reqwest.workspace = true
-# serial_test.workspace = true
-# rand.workspace = true
-# hex.workspace = true
-# criterion.workspace = true
-# ethereum-types.workspace = true
-# uuid.workspace = true
-
 
 # [[bench]]
 # name = "poc"

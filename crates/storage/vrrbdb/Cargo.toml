@@ -23,7 +23,6 @@ serial_test = { workspace = true }
 telemetry = { workspace = true }
 ethereum-types = { workspace = true }
 integral-db = { workspace = true }
-microkv = { workspace = true }
 hex = { workspace = true }
 block = { workspace = true }
 ritelinked = { workspace = true }

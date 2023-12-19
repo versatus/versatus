@@ -11,15 +11,12 @@ block = { workspace = true }
 vrrb_core = { workspace = true }
 telemetry = { workspace = true }
 primitives = { workspace = true }
-anyhow = { workspace = true }
 thiserror = { workspace = true }
 ritelinked = { workspace = true }
-sha256 = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true }
 hex = { workspace = true }
 secp256k1 = { workspace = true }
-bytebuffer = { workspace = true }
 uuid = { workspace = true }
 lru_time_cache = { workspace = true }
 hbbft = { workspace = true }
@@ -32,9 +29,7 @@ theater = { workspace = true }
 utils = { workspace = true }
 cuckoofilter = { workspace = true }
 ethereum-types = { workspace = true }
-quorum = { workspace = true }
 messr = { workspace = true }
-mempool = { workspace = true }
 vrrb_config = { workspace = true }
 signer = { workspace = true }
 

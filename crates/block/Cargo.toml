@@ -6,13 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-sha256 = { workspace = true }
 rand = { workspace = true }
 uuid = { workspace = true }
-bytebuffer = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true }
-blake3 = { workspace = true }
 secp256k1 = { workspace = true }
 hex = { workspace = true }
 thiserror = { workspace = true }
