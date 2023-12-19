@@ -1,40 +1,24 @@
+# Does this need to be a package?
 [package]
 name = "versatus"
 description = "Rust implementation of Versatus protocol"
-version.workspace = true
 authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
 edition.workspace = true
+license.workspace = true
+version.workspace = true
 readme = "README.md"
-default-run = "versa"
 
 [workspace.package]
-version = "0.1.0"
 authors = ["Versatus Labs <info@versatus.io>"]
+homepage = "https://versatus.io"
+repository = "https://github.com/versatus/versatus"
 edition = "2021"
-
-[profile.release]
-opt-level = 3
-lto = "thin"
-
-# Note: These should probably be specified in their respective Cargo toml files
-[[bin]]
-name = "versa"
-path = "crates/cli/src/main.rs"
-
-[[bin]]
-name = "versa-wasm"
-path = "crates/wasm_cli/src/main.rs"
-
-[[bin]]
-name = "versa-compute"
-path = "crates/compute_agent/src/main.rs"
-
-[[bin]]
-name = "versa-storage"
-path = "crates/storage_agent/src/main.rs"
+license = "MIT"
+version = "0.1.0"
 
 [workspace]
-resolver = "2"
 members = [
   "crates/primitives",
   "crates/events",
@@ -71,9 +55,10 @@ members = [
   "crates/platform",
   "crates/metric_exporter",
 ]
+resolver = "2"
 
 [workspace.dependencies]
-# NOTE: Internal crates 
+# Internal crates 
 cli = { path = "crates/cli" }
 internal_rpc = { path = "crates/internal_rpc" }
 node = { path = "crates/node" }
@@ -91,11 +76,9 @@ telemetry = { path = "crates/telemetry" }
 validator = { path = "crates/validator" }
 utils = { path = "crates/utils" }
 events = { path = "crates/events" }
-
 storage = { path = "crates/storage" }
 vrrbdb = { path = "crates/storage/vrrbdb" }
 storage_utils = { path = "crates/storage/utils" }
-
 consensus = { path = "crates/consensus" }
 quorum = { path = "crates/consensus/quorum" }
 signer = { path = "crates/consensus/signer" }
@@ -112,7 +95,7 @@ web3_pkg = { path = "crates/web3_pkg" }
 platform = { path = "crates/platform" }
 metric_exporter = { path = "crates/metric_exporter" }
 
-# NOTE: Github crates
+# Github crates
 patriecia = { git = "https://github.com/versatus/patriecia" }
 trecho = { git = "https://github.com/vrrb-io/trecho" }
 theater = { git = "https://github.com/vrrb-io/theater" }
@@ -125,7 +108,7 @@ decentrust = { git = "https://github.com/vrrb-io/decentrust", branch = "main" }
 dyswarm = { git = "https://github.com/vrrb-io/dyswarm" }
 integral-db = { git = "https://github.com/versatus/integral-db" }
 
-# NOTE: External crates
+# External crates
 secp256k1 = { version = "0.25", features = [
   "rand",
   "serde",
@@ -235,6 +218,10 @@ ipfs-api = "0.17"
 rustls = "0.21"
 rustls-pemfile = "1.0"
 hyper-rustls = { version = "0.24", features = ["acceptor"] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
 
 [[bench]]
 name = "poc"
