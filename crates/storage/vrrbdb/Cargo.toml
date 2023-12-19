@@ -19,7 +19,6 @@ bincode = { workspace = true }
 storage_utils = { workspace = true }
 rocksdb = { workspace = true }
 serde_json = { workspace = true }
-serial_test = { workspace = true }
 telemetry = { workspace = true }
 ethereum-types = { workspace = true }
 integral-db = { workspace = true }
@@ -29,3 +28,4 @@ ritelinked = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }
+serial_test = { workspace = true }

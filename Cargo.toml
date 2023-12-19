@@ -1,36 +1,37 @@
-# [package]
-# name = "versatus"
-# description = "Rust implementation of Versatus protocol"
-# version = "0.1.0"
-# authors = ["Versatus Labs <info@versatus.io>"]
-# edition = "2021"
-# readme = "README.md"
-# default-run = "versa"
+[package]
+name = "versatus"
+description = "Rust implementation of Versatus protocol"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+readme = "README.md"
+default-run = "versa"
 
 [workspace.package]
 version = "0.1.0"
 authors = ["Versatus Labs <info@versatus.io>"]
 edition = "2021"
 
-# [profile.release]
-# opt-level = 3
-# lto = "thin"
+[profile.release]
+opt-level = 3
+lto = "thin"
 
-# [[bin]]
-# name = "versa"
-# path = "crates/cli/src/main.rs"
+# Note: These should probably be specified in their respective Cargo toml files
+[[bin]]
+name = "versa"
+path = "crates/cli/src/main.rs"
 
-# [[bin]]
-# name = "versa-wasm"
-# path = "crates/wasm_cli/src/main.rs"
+[[bin]]
+name = "versa-wasm"
+path = "crates/wasm_cli/src/main.rs"
 
-# [[bin]]
-# name = "versa-compute"
-# path = "crates/compute_agent/src/main.rs"
+[[bin]]
+name = "versa-compute"
+path = "crates/compute_agent/src/main.rs"
 
-# [[bin]]
-# name = "versa-storage"
-# path = "crates/storage_agent/src/main.rs"
+[[bin]]
+name = "versa-storage"
+path = "crates/storage_agent/src/main.rs"
 
 [workspace]
 resolver = "2"
@@ -235,6 +236,6 @@ rustls = "0.21"
 rustls-pemfile = "1.0"
 hyper-rustls = { version = "0.24", features = ["acceptor"] }
 
-# [[bench]]
-# name = "poc"
-# harness = false
+[[bench]]
+name = "poc"
+harness = false

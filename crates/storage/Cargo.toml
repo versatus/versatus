@@ -8,8 +8,10 @@ edition = "2021"
 [dependencies]
 vrrbdb = { workspace = true }
 storage_utils = { workspace = true }
-serial_test = { workspace = true }
 ethereum-types = { workspace = true }
 integral-db = { workspace = true }
 anyhow = { workspace = true }
 parking_lot = { workspace = true }
+
+[dev-dependencies]
+serial_test = { workspace = true }
