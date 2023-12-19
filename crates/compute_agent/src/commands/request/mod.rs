@@ -3,7 +3,10 @@ use clap::Parser;
 use service_config::ServiceConfig;
 
 #[derive(Parser)]
-pub struct RequestOpts;
+pub struct RequestOpts {
+    #[clap(long)]
+    cid: String,
+}
 
 // Should return the UUID of the job
 pub async fn run(_opts: &RequestOpts, _config: &ServiceConfig) -> Result<()> {
