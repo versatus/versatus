@@ -1,9 +1,14 @@
+use anyhow::Ok;
 use anyhow::Result;
+use bonsaidb::local::config::StorageConfiguration;
+use bonsaidb_core::connection::Database;
+use bonsaidb_core::document::BorrowedDocument;
+use bonsaidb_core::document::HasHeader;
+use bonsaidb_core::schema::ReduceResult;
 use bonsaidb_core::schema::SerializedCollection;
-use bonsaidb_core::{
-    connection::StorageConnection,
-    schema::{view, CollectionName, Schema, Schematic, View},
-};
+use bonsaidb_core::schema::View;
+use bonsaidb_core::schema::ViewMapResult;
+use bonsaidb_core::schema::ViewMappedValue;
 use clap::Parser;
 use ethereum_types::U256;
 use primitives::Address;
@@ -14,6 +19,21 @@ const DEFAULT_BALANCE: U256 = U256([10000; 4]);
 #[derive(Debug, Clone, View)]
 #[view(collection = AccountInfo, key = Option<String>, value = U256, name = "account-balance")]
 pub struct AccountBalance;
+
+impl MapReduce for AccountBalance {
+    fn map<'doc>(&self, document: &'doc BorrowedDocument<'_>) -> ViewMapResult<'doc, Self> {
+        let bal = AccountInfo::document_contents(document)?;
+        document.header.emit_key_and_value(bal.category, 2)
+    }
+
+    fn reduce(
+        &self,
+        mappings: &[ViewMappedValue<Self::View>],
+        _rereduce: bool,
+    ) -> ReduceResult<Self::View> {
+        Ok(mappings.iter().map(|mapping| mapping.value).sum())
+    }
+}
 
 #[derive(Parser, Debug)]
 pub struct TestBalanceOpts {
@@ -32,6 +52,8 @@ pub struct TestBalanceOpts {
 /// Checks the balance of an address matches the value provided and returns Ok/0 to the operating
 /// system if it does, otherwise returns Err/1 to the operating system if they don't match.
 pub fn run(opts: &TestBalanceOpts) -> Result<()> {
+    drop(std::fs::remove_dir_all("bonsaidb"));
+    let db = Database::open::<AccountInfo>(StorageConfiguration::new(&opts))?;
     let balance = db
         .view::<AccountBalance>()
         .with_key(
