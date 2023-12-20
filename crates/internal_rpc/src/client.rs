@@ -1,7 +1,6 @@
 use crate::api::RpcResult;
 use jsonrpsee::core::client::Client;
 use jsonrpsee::ws_client::WsClientBuilder;
-use std::net::SocketAddr;
 
 /// The websocket internal RPC client used for
 /// requesting services and obtaining responses
@@ -13,7 +12,7 @@ pub struct InternalRpcClient(pub Client);
 impl InternalRpcClient {
     /// Accepts a URL to a server, and attempts to build a client bound to that URL.
     /// The URL to the server MUST include the port.
-    pub async fn new(socket: &SocketAddr) -> RpcResult<Self> {
+    pub async fn new(socket: &str) -> RpcResult<Self> {
         let client = WsClientBuilder::default()
             .build(format!("ws://{socket}"))
             .await?;

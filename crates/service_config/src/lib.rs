@@ -2,7 +2,6 @@ use anyhow::{anyhow, Result};
 use serde_derive::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::BufReader;
-use std::net;
 
 /// High level wrapper struct to allow us to add things to this configuration file later that
 /// aren't network service parameters. Some runtime-configuration parameters are best suited as
@@ -52,10 +51,8 @@ pub struct ServiceConfig {
 }
 impl ServiceConfig {
     /// A concatinated RPC address & port.
-    pub fn rpc_socket_addr(&self) -> Result<net::SocketAddr> {
+    pub fn rpc_socket_addr(&self) -> String {
         format!("{}:{}", self.rpc_address, self.rpc_port)
-            .parse()
-            .map_err(|e| anyhow!("failed to parse String into SocketAddr: {e:?}"))
     }
 }
 
