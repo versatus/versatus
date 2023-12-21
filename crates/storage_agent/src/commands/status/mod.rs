@@ -11,7 +11,7 @@ pub struct StatusOpts;
 pub async fn run(_opts: &StatusOpts, config: &ServiceConfig) -> Result<()> {
     // XXX: This where we would make the status RPC call to the named service (global option) from
     // the service config file (global option) and show the result.
-    let client = InternalRpcClient::new(&config.rpc_socket_addr()).await?;
+    let client = InternalRpcClient::new(config.rpc_socket_addr()?).await?;
 
     println!("{}", client.0.status().await?);
 

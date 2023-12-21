@@ -41,7 +41,7 @@ async fn test_client_connection_to_server() {
     )
     .await
     .unwrap();
-    let client = InternalRpcClient::new(&socket).await.unwrap();
+    let client = InternalRpcClient::new(socket).await.unwrap();
     assert!(client.is_connected());
 
     handle.stop().unwrap();
@@ -56,7 +56,7 @@ async fn test_get_response_from_server() {
         InternalRpcServer::start(&service_config, platform::services::ServiceType::Compute)
             .await
             .unwrap();
-    let client = InternalRpcClient::new(&socket).await.unwrap();
+    let client = InternalRpcClient::new(socket).await.unwrap();
     let res = client.0.status().await;
     assert!(res.is_ok());
     dbg!(res.unwrap());
