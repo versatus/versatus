@@ -4,6 +4,7 @@ use bonsaidb::local::config::{Builder, StorageConfiguration};
 use bonsaidb::local::Database;
 use bonsaidb_core::key::NextValueError;
 use bonsaidb_core::permissions::bonsai::DatabaseAction;
+use bonsaidb_core::schema::Collection;
 use clap::Parser;
 use ethereum_types::U256;
 use primitives::Address;
@@ -20,7 +21,7 @@ pub struct TestBalanceOpts {
     pub dbpath: String,
     /// The address of the account to check the balance of.
     #[clap(short, long)]
-    pub address: Address,
+    pub address: Option<String>,
     /// Balance value we expect.
     #[clap(short, long)]
     pub balance: U256,
@@ -37,7 +38,7 @@ pub fn run(opts: &TestBalanceOpts) -> Result<()> {
     let mut address = [0; 20];
     address.copy_from_slice(&address_bytes);
 
-    let db = Database::open::<AccountBalance>;
+    let db = Database::open(opts.dbpath);
 
     // drop(std::fs::remove_dir_all(&opts.dbpath));
     // let db = Database::open::<AccountSchema>(StorageConfiguration::new(&opts.dbpath))?;
