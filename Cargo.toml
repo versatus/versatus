@@ -57,6 +57,10 @@ lazy_static = { workspace = true }
 wasmer = { workspace = true }
 metric_exporter = { workspace = true }
 internal_rpc = { workspace = true }
+mktemp = { workspace = true }
+oci-spec = { workspace = true }
+env_logger = { workspace = true }
+uds = { workspace = true }
 
 [workspace]
 members = [
@@ -89,6 +93,7 @@ members = [
   "crates/wasm_loader",
   "crates/wasm_cli",
   "crates/wasm_runtime",
+  "crates/compute_runtime",
   "crates/compute_agent",
   "crates/storage_agent",
   "crates/service_config",
@@ -262,7 +267,10 @@ microkv = "0.2.9"
 rustls = "0.21"
 rustls-pemfile = "1.0"
 hyper-rustls = { version = "0.24", features = ["acceptor"] }
-
+mktemp = "0.5"
+oci-spec = "0.6.4"
+env_logger = "0.10"
+uds = "0.4"
 
 [dev-dependencies]
 cuckoofilter.workspace = true
