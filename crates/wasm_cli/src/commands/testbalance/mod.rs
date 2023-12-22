@@ -1,39 +1,16 @@
-use anyhow::Ok;
 use anyhow::Result;
-use bonsaidb::local::config::StorageConfiguration;
-use bonsaidb_core::connection::Database;
-use bonsaidb_core::document::BorrowedDocument;
-use bonsaidb_core::document::HasHeader;
-use bonsaidb_core::schema::ReduceResult;
-use bonsaidb_core::schema::SerializedCollection;
-use bonsaidb_core::schema::View;
-use bonsaidb_core::schema::ViewMapResult;
-use bonsaidb_core::schema::ViewMappedValue;
+use bonsaidb::core::schema::SerializedCollection;
+use bonsaidb::local::config::{Builder, StorageConfiguration};
+use bonsaidb::local::Database;
+use bonsaidb_core::key::NextValueError;
+use bonsaidb_core::permissions::bonsai::DatabaseAction;
 use clap::Parser;
 use ethereum_types::U256;
 use primitives::Address;
 
 use crate::commands::testinitdb::*;
 
-const DEFAULT_BALANCE: U256 = U256([10000; 4]);
-#[derive(Debug, Clone, View)]
-#[view(collection = AccountInfo, key = Option<String>, value = U256, name = "account-balance")]
-pub struct AccountBalance;
-
-impl MapReduce for AccountBalance {
-    fn map<'doc>(&self, document: &'doc BorrowedDocument<'_>) -> ViewMapResult<'doc, Self> {
-        let bal = AccountInfo::document_contents(document)?;
-        document.header.emit_key_and_value(bal.category, 2)
-    }
-
-    fn reduce(
-        &self,
-        mappings: &[ViewMappedValue<Self::View>],
-        _rereduce: bool,
-    ) -> ReduceResult<Self::View> {
-        Ok(mappings.iter().map(|mapping| mapping.value).sum())
-    }
-}
+// const DEFAULT_BALANCE: U256 = U256([10000; 4]);
 
 #[derive(Parser, Debug)]
 pub struct TestBalanceOpts {
@@ -52,38 +29,36 @@ pub struct TestBalanceOpts {
 /// Checks the balance of an address matches the value provided and returns Ok/0 to the operating
 /// system if it does, otherwise returns Err/1 to the operating system if they don't match.
 pub fn run(opts: &TestBalanceOpts) -> Result<()> {
-    drop(std::fs::remove_dir_all("bonsaidb"));
-    let db = Database::open::<AccountInfo>(StorageConfiguration::new(&opts))?;
-    let balance = db
-        .view::<AccountBalance>()
-        .with_key(
-            &Some(DEFAULT_BALANCE)
-                .expect("Incorrect Balance")
-                .to_string(),
-        )
-        .query_with_collection_docs()?;
-    for mapping in &balance {
-        let bal = AccountInfo::document_contents(mapping.document)?;
-        println!(
-            "Balance: {} \"{}\"",
-            mapping.document.header.id, bal.account_balance
-        );
+    // store the open DB in a variable like `let db = DB::Open();`
+    // you'll use the dbpath to open that db. Then you can use the
+    // get method and give it the address to find. If it finds that address
+    // you can assert whether the balance is the same.
+    let address_bytes = &opts.address.clone().unwrap().into_bytes()[..20];
+    let mut address = [0; 20];
+    address.copy_from_slice(&address_bytes);
+
+    let db = Database::open::<AccountBalance>;
+
+    // drop(std::fs::remove_dir_all(&opts.dbpath));
+    // let db = Database::open::<AccountSchema>(StorageConfiguration::new(&opts.dbpath))?;
+
+    let key = AccountAddress { address };
+    let inserted = AccountBalance {
+        value: DEFAULT_BALANCE,
     }
-    // pub fn run(opts: &TestBalanceOpts) -> Result<()> {
-    //     let balance = StorageConnection::list_databases(&AccountInfo {
-    //         account_address: Address,
-    //         account_balance: U256,
-    //     })
-    //     .view::<AccountBalance>()
-    //     .with_key(&Some(U256.to_string()))
-    //     .query_with_docs()?;
-    //     for mapping in &balance {
-    //         let bal = AccountInfo::document_contents(mapping.document)?;
-    //         println!(
-    //             "Balance: {} \"{}\"",
-    //             mapping.document.header.id, bal.account_balance
-    //         );
-    //     }
+    .insert_into(&key, &db)?;
+    let retrieved = AccountBalance::get(&key, &db)?.expect("document not found");
+    assert_eq!(inserted, retrieved);
+
+    assert!(matches!(
+        AccountBalance {
+            value: DEFAULT_BALANCE,
+        }
+        .push_into(&db)
+        .unwrap_err()
+        .error,
+        bonsaidb::core::Error::DocumentPush(_, NextValueError::Unsupported)
+    ));
     // #716 Here we should do a query for the provided address, and compare its balance with the
     // balance provided. If they match, we should return success. If they don't, we should return
     // failure. It may even be worth returning a different failure if the account doesn't exist.

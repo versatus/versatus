@@ -1,5 +1,5 @@
 use anyhow::Result;
-use bonsaidb::core::key::{Key, NextValueError};
+use bonsaidb::core::key::Key;
 use bonsaidb::core::schema::{Collection, Schema, SerializedCollection};
 use bonsaidb::local::config::{Builder, StorageConfiguration};
 use bonsaidb::local::Database;
@@ -8,8 +8,8 @@ use ethereum_types::U256;
 use primitives::Address;
 use serde::{Deserialize, Serialize};
 
-const DEFAULT_BALANCE: U256 = U256([10000; 4]);
-const DEFAULT_ADDRESSES: &[Address; 10] = &[
+pub const DEFAULT_BALANCE: U256 = U256([10000; 4]);
+pub const DEFAULT_ADDRESSES: &[Address; 10] = &[
     Address([0; 20]),
     Address([1; 20]),
     Address([2; 20]),
@@ -45,18 +45,18 @@ pub struct TestInitDBOpts {
 //Schema for AccountBalance
 #[derive(Debug, Schema)]
 #[schema(name = "primary-keys", collections = [AccountBalance])]
-struct AccountSchema;
+pub struct AccountSchema;
 
 //Collection of account balances relative to key (address) inserted.
 #[derive(Debug, Serialize, Deserialize, Collection, Eq, PartialEq)]
 #[collection(name = "account-balance", primary_key = AccountAddress)]
-struct AccountBalance {
+pub struct AccountBalance {
     value: U256,
 }
 
 //Key used to pull account's relative balance.
 #[derive(Key, Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
-struct AccountAddress {
+pub struct AccountAddress {
     pub address: [u8; 20],
 }
 
