@@ -36,7 +36,7 @@ pub struct ServiceConfig {
     /// The address to bind to for RPC calls
     pub rpc_address: String,
     /// The port to bind to for RPC calls
-    pub rpc_port: u32,
+    pub rpc_port: u16,
     /// A preshared key for authenticating RPC calls
     pub pre_shared_key: String,
     /// A TLS private key for RPC transport privacy
