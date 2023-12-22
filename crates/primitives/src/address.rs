@@ -1,5 +1,5 @@
+use bonsaidb::core::key::{KeyEncoding, KeyKind};
 use secp256k1::{rand::rngs::OsRng, Secp256k1};
-use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use sha3::Keccak256;
 use std::str::FromStr;
@@ -26,6 +26,22 @@ impl Address {
     pub fn public_key_bytes(&self) -> ByteVec {
         // TODO: revisit later
         self.to_string().into_bytes()
+    }
+}
+
+impl KeyEncoding for Address {
+    type Error = std::convert::Infallible;
+    const LENGTH: Option<usize> = None;
+    fn as_ord_bytes(
+        &self,
+    ) -> std::result::Result<std::borrow::Cow<'_, [u8]>, std::convert::Infallible> {
+        Ok(std::borrow::Cow::Borrowed(&self.0))
+    }
+    fn describe<Visitor>(visitor: &mut Visitor)
+    where
+        Visitor: bonsaidb::core::key::KeyVisitor,
+    {
+        visitor.visit_type(KeyKind::Bytes)
     }
 }
 
