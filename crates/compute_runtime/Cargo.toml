@@ -8,9 +8,9 @@ edition = "2021"
 [dependencies]
 bitmask-enum = { workspace = true }
 anyhow = { workspace = true }
-mktemp = { workspace = true }
-oci-spec = { workspace = true }
+mktemp = "0.5"
+oci-spec = "0.6"
 telemetry = { workspace = true }
 derive_builder = { workspace = true }
-env_logger = { workspace = true }
-uds = { workspace = true }
+env_logger = "0.10"
+uds = "0.4"
