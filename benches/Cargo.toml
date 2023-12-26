@@ -1,0 +1,19 @@
+[package]
+name = "benches"
+edition = "2021"
+version = "0.0.0"
+readme = "README.md"
+publish = false
+autobins = false
+
+[dependencies]
+criterion = { version = "0.5", features = [ "stable", "async_futures" ] }
+ethereum-types = "0.13"
+rand = "0.8"
+sha2 = "0.10"
+tokio = { version = "1.21", features = [ "sync" ] }
+
+[[bench]]
+name = "poc"
+path = "src/main.rs"
+harness = false

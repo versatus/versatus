@@ -31,7 +31,7 @@ fn xor_claim_hashes(seed: &u64, claim_hashes: &[U256]) -> Vec<U256> {
 }
 
 async fn concurrent_xor_claim_hashes(seed: u64, claim_hashes: Vec<U256>, tx: Sender<U256>) {
-    claim_hashes.iter().map(|h| {
+    claim_hashes.iter().for_each(|h| {
         let hash = *h;
         let inner_seed = seed;
         let sender = tx.clone();

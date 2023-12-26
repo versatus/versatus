@@ -1,5 +1,6 @@
 [package]
 name = "cli"
+default-run = "versa"
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true

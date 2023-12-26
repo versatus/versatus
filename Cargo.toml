@@ -42,6 +42,7 @@ members = [
   "crates/wasm_runtime",
   "crates/web3_pkg"
 ]
+exclude = [ "benches" ]
 resolver = "2"
 
 [workspace.dependencies]
@@ -77,17 +78,16 @@ wasm_loader = { path = "crates/wasm_loader" }
 wasm_runtime = { path = "crates/wasm_runtime" }
 
 # Github crates
-bulldag = { git = "https://github.com/vrrb-io/bulldag", branch = "main" }
-dyswarm = { git = "https://github.com/vrrb-io/dyswarm" }
-decentrust = { git = "https://github.com/vrrb-io/decentrust", branch = "main" }
-hbbft = { git = "https://github.com/vrrb-io/hbbft", branch = "master" }
+bulldag = { git = "https://github.com/versatus/bulldag" }
+dyswarm = { git = "https://github.com/versatus/dyswarm" }
+hbbft = { git = "https://github.com/versatus/hbbft" }
 integral-db = { git = "https://github.com/versatus/integral-db" }
-kademlia-dht = { git = "https://github.com/vrrb-io/kademlia-dht-rs" }
-messr = { git = "https://github.com/vrrb-io/messr" }
+kademlia-dht = { git = "https://github.com/versatus/kademlia-dht-rs" }
+messr = { git = "https://github.com/versatus/messr" }
 patriecia = { git = "https://github.com/versatus/patriecia" }
-rendezvous_dht = { git = "https://github.com/vrrb-io/rendezvous_dht" }
-theater = { git = "https://github.com/vrrb-io/theater" }
-trecho = { git = "https://github.com/vrrb-io/trecho" }
+rendezvous_dht = { git = "https://github.com/versatus/rendezvous_dht" }
+theater = { git = "https://github.com/versatus/theater" }
+trecho = { git = "https://github.com/versatus/trecho" }
 
 # External crates
 anyhow = "1.0"
@@ -105,7 +105,6 @@ chrono = "0.4"
 clap = { version = "3.2", features = ["derive"] }
 config = "0.13"
 concurrent-queue = "2.0"
-criterion = { version = "0.5", features = ["stable", "async_futures"] }
 crossbeam-channel = "0.5"
 cuckoofilter = "0.5"
 dashmap = "5.4"
