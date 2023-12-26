@@ -1084,7 +1084,6 @@ dependencies = [
  "telemetry",
  "thiserror",
  "tokio",
- "tracing",
  "utils",
  "uuid",
  "vrrb_config",
@@ -2112,7 +2111,6 @@ version = "0.1.0"
 dependencies = [
  "axum",
  "chrono",
- "log",
  "primitives",
  "serde",
  "serde_json",
@@ -3899,7 +3897,6 @@ dependencies = [
  "messr",
  "miner",
  "patriecia",
- "pickledb",
  "primitives",
  "public-ip",
  "quorum",
@@ -3923,7 +3920,6 @@ dependencies = [
  "timer",
  "tokio",
  "tokio-util",
- "tracing",
  "trecho",
  "utils",
  "uuid",
@@ -4299,16 +4295,6 @@ checksum = "e1d3afd2628e69da2be385eb6f2fd57c8ac7977ceeff6dc166ff1657b0e386a9"
 dependencies = [
  "fixedbitset",
  "indexmap 2.1.0",
-]
-
-[[package]]
-name = "pickledb"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c53a5ade47760e8cc4986bdc5e72daeffaaaee64cbc374f9cfe0a00c1cd87b1f"
-dependencies = [
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -7605,7 +7591,6 @@ dependencies = [
  "chrono",
  "hex",
  "jsonrpsee",
- "log",
  "primitives",
  "rand 0.8.5",
  "ritelinked",

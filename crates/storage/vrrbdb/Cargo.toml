@@ -19,7 +19,6 @@ patriecia = { workspace = true }
 parking_lot = { workspace = true }
 bincode = { workspace = true }
 storage_utils = { workspace = true }
-rocksdb = { workspace = true }
 serde_json = { workspace = true }
 telemetry = { workspace = true }
 ethereum-types = { workspace = true }
@@ -27,6 +26,7 @@ integral-db = { workspace = true }
 hex = { workspace = true }
 block = { workspace = true }
 ritelinked = { workspace = true }
+rocksdb = "0.19"
 
 [dev-dependencies]
 rand = { workspace = true }

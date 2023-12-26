@@ -26,7 +26,6 @@ blake3 = { workspace = true }
 hex = { workspace = true }
 thiserror = { workspace = true }
 telemetry = { workspace = true }
-log = { workspace = true }
 ritelinked = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }

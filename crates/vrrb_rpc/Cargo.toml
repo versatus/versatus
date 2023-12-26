@@ -19,8 +19,8 @@ telemetry = { workspace = true }
 primitives = { workspace = true }
 storage = { workspace = true }
 mempool = { workspace = true }
-axum = { workspace = true }
-axum-server = { workspace = true }
+axum = "0.5"
+axum-server = { version = "0.4", features = ["tls-rustls"] }
 tower = { workspace = true }
 tower-http = { workspace = true }
 hyper = { workspace = true }

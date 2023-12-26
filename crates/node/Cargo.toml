@@ -28,7 +28,6 @@ bytebuffer = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true }
 blake3 = { workspace = true }
-pickledb = { workspace = true }
 tokio = { workspace = true }
 tokio-util = { workspace = true }
 hex = { workspace = true }
@@ -36,7 +35,6 @@ thiserror = { workspace = true }
 ritelinked = { workspace = true }
 bincode = { workspace = true }
 uuid = { workspace = true }
-tracing = { workspace = true }
 miner = { workspace = true }
 public-ip = { workspace = true }
 anyhow = { workspace = true }
