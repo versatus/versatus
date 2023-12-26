@@ -12,8 +12,8 @@ vrrb_core = { workspace = true }
 block = { workspace = true }
 vrrb_vrf = { workspace = true }
 rand_chacha = { workspace = true }
-format-bytes = { workspace = true }
-thread_local = { workspace = true }
+format-bytes = "0.3"
+thread_local = "1.1"
 thiserror = { workspace = true }
 rand = { workspace = true }
 sha256 = { workspace = true }

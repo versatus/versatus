@@ -31,7 +31,7 @@ strum = { workspace = true }
 strum_macros = { workspace = true }
 storage = { workspace = true }
 vrrb_core = { workspace = true }
-tabled = { workspace = true }
+tabled = "0.10"
 jsonrpsee = { workspace = true }
 primitives = { workspace = true }
 secp256k1 = { workspace = true }

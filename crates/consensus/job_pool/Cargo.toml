@@ -10,8 +10,8 @@ version.workspace = true
 [dependencies]
 crossbeam-channel = { workspace = true }
 once_cell = { workspace = true }
-waker-fn = { workspace = true }
+waker-fn = "1.1"
 uuid = { workspace = true }
-concurrent-queue = { workspace = true }
+concurrent-queue = "2.0"
 thiserror = { workspace = true }
 vrrb_core = { workspace = true }

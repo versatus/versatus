@@ -21,8 +21,8 @@ storage = { workspace = true }
 mempool = { workspace = true }
 axum = "0.5"
 axum-server = { version = "0.4", features = ["tls-rustls"] }
-tower = { workspace = true }
-tower-http = { workspace = true }
+tower = "0.4"
+tower-http = { version = "0.3", features = ["trace"] }
 hyper = { workspace = true }
 jsonrpsee = { workspace = true }
 async-trait = { workspace = true }

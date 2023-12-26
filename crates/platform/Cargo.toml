@@ -9,7 +9,7 @@ version.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-bitmask-enum = { workspace = true }
+bitmask-enum = "2.2"
 serde = { workspace = true }
 thiserror = { workspace = true }
 nix = { version = "0.27", features = ["feature"] }

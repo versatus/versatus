@@ -16,5 +16,7 @@ mempool = { workspace = true }
 vrrb_core = { workspace = true }
 telemetry = { workspace = true }
 thiserror = { workspace = true }
-wiremock = { workspace = true }
-url = { workspace = true }
+url = "2.3"
+
+[dev-dependencies]
+wiremock = "0.5"

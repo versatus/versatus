@@ -10,7 +10,7 @@ version.workspace = true
 [dependencies]
 telemetry = { workspace = true }
 wasmer = { workspace = true }
-wasmparser = { workspace = true }
+wasmparser = "0.107"
 derive_builder = { workspace = true }
 anyhow = { workspace = true }
 env_logger = "0.10"

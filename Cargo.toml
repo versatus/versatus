@@ -1,5 +1,5 @@
 [workspace.package]
-authors = ["Versatus Labs <info@versatus.io>"]
+authors = [ "Versatus Labs <info@versatus.io>" ]
 homepage = "https://versatus.io"
 repository = "https://github.com/versatus/versatus"
 edition = "2021"
@@ -92,30 +92,18 @@ trecho = { git = "https://github.com/versatus/trecho" }
 # External crates
 anyhow = "1.0"
 async-trait = "0.1"
-assert_cmd = "2.0"
 bincode = "1.3"
-bitmask-enum = "2.2"
 blake3 = "0.3"
-bs58 = "0.4"
-bytes = "1.3"
 bytebuffer = "0.2"
 chrono = "0.4"
-clap = { version = "3.2", features = ["derive"] }
-config = "0.13"
-concurrent-queue = "2.0"
+clap = { version = "3.2", features = [ "derive" ] }
 crossbeam-channel = "0.5"
 cuckoofilter = "0.5"
-dashmap = "5.4"
 derive_builder = "0.12"
-dirs = "4.0"
 ethereum-types = "0.13"
-futures = { version = "0.3", features = ["thread-pool"] }
-format-bytes = "0.3"
 hex = "0.4"
-hyper = { version = "0.14", features = ["full"] }
-hyper-rustls = { version = "0.24", features = ["acceptor"] }
+hyper = { version = "0.14", features = [ "full" ] }
 indexmap = "1.9"
-ipfs-api = "0.17"
 jsonrpsee = { version = "0.16", features = [
   "macros",
   "client-core",
@@ -124,68 +112,36 @@ jsonrpsee = { version = "0.16", features = [
   "http-client",
   "ws-client"
 ] }
-keccak-hash = "0.9"
-laminar = "0.5"
 lazy_static = "1.4"
-left-right = "0.11"
 lru_time_cache = "0.11"
-maglev = "0.2"
-num_cpus = "1.14"
 once_cell = "1.16"
 parking_lot = "0.12"
-pbjson = "0.5"
-pbjson-types = "0.5"
-poem = "1.3"
-prometheus = { version = "0.13", features = ["process"] }
-prost = "0.11"
-public-ip = "0.2"
-qp2p = "0.30"
-rand = { version = "0.8", features = ["std"] }
+prometheus = { version = "0.13", features = [ "process" ] }
+rand = { version = "0.8", features = [ "std" ] }
 rand_chacha = "0.3"
-raptorq = "1.7"
 rayon = "1.6"
-reqwest = { version = "0.11", features = ["rustls-tls"] }
-ritelinked = { version = "0.3", features = ["serde"] }
-ring = "0.16"
-rost = "0.4"
-rustls = "0.21"
-rustls-pemfile = "1.0"
+reqwest = { version = "0.11", features = [ "rustls-tls" ] }
+ritelinked = { version = "0.3", features = [ "serde" ] }
 secp256k1 = { version = "0.25", features = [
   "rand",
   "serde",
   "bitcoin_hashes",
   "global-context",
 ] }
-serde = { version = "1.0", features = ["derive"] }
+serde = { version = "1.0", features = [ "derive" ] }
 serde_derive = "1.0"
 serde_json = "1.0"
 serial_test = "0.9"
 sha2 = "0.10"
 sha256 = "1.1"
-sha3 = "0.10"
 strum = "0.21"
 strum_macros = "0.21"
-tabled = "0.10"
-thread_local = "1.1"
 thiserror = "1.0"
-timer = "0.2"
-tonic = { version = "0.9", features = ["gzip"] }
-tonic-reflection = "0.9"
-tokio = { version = "1.21", features = ["full"] }
-tokio-util = { version = "0.7", features = ["rt"] }
-tower = "0.4"
-tower-http = { version = "0.3", features = ["trace"] }
-url = "2.3"
-uuid = { version = "1.3", features = ["v4", "serde"] }
-waker-fn = "1.1"
+tokio = { version = "1.21", features = [ "full" ] }
+uuid = { version = "1.3", features = [ "v4", "serde" ] }
 wasmer = "4.0"
-wasmer-middlewares = "4.0"
 wasmer-wasix = "0.9"
 wasmer-wasix-types = "0.9"
-wasmer-vm = "4.0"
-wasmparser = "0.107"
-wiremock = "0.5"
-writium = "0.18"
 
 [profile.release]
 opt-level = 3

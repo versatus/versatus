@@ -11,8 +11,8 @@ version.workspace = true
 anyhow = { workspace = true }
 clap = { workspace = true }
 derive_builder = { workspace = true }
-futures = { workspace = true }
-ipfs-api = { workspace = true }
+futures = { version = "0.3", features = ["thread-pool"] }
+ipfs-api = "0.17"
 serde = { workspace = true }
 serde_derive = { workspace = true }
 serde_json = { workspace = true }

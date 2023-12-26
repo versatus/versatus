@@ -8,7 +8,7 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
-num_cpus = { workspace = true }
+num_cpus = "1.14"
 once_cell = { workspace = true }
 primitives = { workspace = true }
 job_pool = { workspace = true }
