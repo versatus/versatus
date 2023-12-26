@@ -34,6 +34,3 @@ ethereum-types = { workspace = true }
 messr = { workspace = true }
 vrrb_config = { workspace = true }
 signer = { workspace = true }
-
-[dev-dependencies]
-serial_test = { workspace = true }

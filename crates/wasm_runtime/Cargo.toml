@@ -19,4 +19,3 @@ wasmer-vm = "4.0"
 wasmer-middlewares = "4.0"
 wasmer-wasix = { workspace = true }
 wasmer-wasix-types = { workspace = true }
-vrrb_core = { workspace = true }

@@ -12,8 +12,6 @@ thiserror = { workspace = true }
 serde = { workspace = true }
 hbbft = { workspace = true }
 secp256k1 = { workspace = true }
-serde_json = { workspace = true }
-jsonrpsee = { workspace = true }
 kademlia-dht = { workspace = true }
 sha2 = { workspace = true }
 hex = { workspace = true }

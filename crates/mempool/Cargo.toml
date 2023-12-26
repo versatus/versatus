@@ -8,7 +8,6 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
-evmap = "10.0"
 serde_json = { workspace = true }
 serde = { workspace = true }
 vrrb_core = { workspace = true }
@@ -16,8 +15,6 @@ primitives = { workspace = true }
 left-right = "0.11"
 indexmap = { workspace = true }
 fxhash = "0.2"
-sha256 = { workspace = true }
-bytebuffer = { workspace = true }
 ritelinked = { workspace = true }
 chrono = {workspace = true }
 rand = { workspace = true }

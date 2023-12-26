@@ -13,5 +13,6 @@ wasmer = { workspace = true }
 wasmparser = "0.107"
 derive_builder = { workspace = true }
 anyhow = { workspace = true }
-env_logger = "0.10"
+
+[dev-dependencies]
 test-log = "0.2"

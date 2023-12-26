@@ -15,19 +15,15 @@ events = { workspace = true }
 telemetry = { workspace = true }
 vrrb_config = { workspace = true }
 storage = { workspace = true }
-wallet = { workspace = true }
 validator = { workspace = true }
 reward = { workspace = true }
 vrrb_rpc = { workspace = true }
 patriecia = { workspace = true }
-trecho = { workspace = true }
 secp256k1 = { workspace = true }
 sha256 = { workspace = true }
 rand = { workspace = true }
-bytebuffer = { workspace = true }
 serde_json = { workspace = true }
 serde = { workspace = true }
-blake3 = { workspace = true }
 tokio = { workspace = true }
 tokio-util = { version = "0.7", features = ["rt"] }
 hex = { workspace = true }
@@ -36,7 +32,6 @@ ritelinked = { workspace = true }
 bincode = { workspace = true }
 uuid = { workspace = true }
 miner = { workspace = true }
-public-ip = "0.2"
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 derive_builder = { workspace = true }
@@ -50,12 +45,8 @@ signer = { workspace = true }
 indexmap = { workspace = true }
 raptorq = "1.7"
 crossbeam-channel = { workspace = true }
-job_scheduler = { workspace = true }
 rayon = { workspace = true }
 lazy_static = { workspace = true }
-dashmap = "5.4"
-timer = "0.2"
-laminar = "0.5"
 ethereum-types = { workspace = true }
 quorum = { workspace = true }
 sha2 = { workspace = true }
@@ -63,7 +54,6 @@ bulldag = { workspace = true }
 vrrb_http = { workspace = true }
 messr = { workspace = true }
 utils = { workspace = true }
-maglev = "0.2"
 dyswarm = { workspace = true }
 chrono = { workspace = true }
 integral-db = { workspace = true }

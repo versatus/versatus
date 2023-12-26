@@ -9,15 +9,15 @@ version.workspace = true
 
 [dependencies]
 vrrb_core = { workspace = true }
-block = { workspace = true }
 vrrb_vrf = { workspace = true }
 rand_chacha = { workspace = true }
-format-bytes = "0.3"
 thread_local = "1.1"
 thiserror = { workspace = true }
 rand = { workspace = true }
-sha256 = { workspace = true }
 hex = { workspace = true }
 primitives = { workspace = true }
 serde = { workspace = true }
 ethereum-types = { workspace = true }
+
+[dev-dependencies]
+sha256 = { workspace = true }
