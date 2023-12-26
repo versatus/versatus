@@ -47,18 +47,13 @@ resolver = "2"
 [workspace.dependencies]
 # Internal crates
 block = { path = "crates/block" }
-cli = { path = "crates/cli" }
-consensus = { path = "crates/consensus" }
-dkg_engine = { path = "crates/consensus/dkg_engine" }
 events = { path = "crates/events" }
 faucet = { path = "crates/faucet" }
 internal_rpc = { path = "crates/internal_rpc" }
 job_pool = { path = "crates/consensus/job_pool" }
 job_scheduler = { path = "crates/consensus/job_scheduler" }
-metric_exporter = { path = "crates/metric_exporter" }
 mempool = { path = "crates/mempool" }
 miner = { path = "crates/miner" }
-network = { path = "crates/network" }
 node = { path = "crates/node" }
 platform = { path = "crates/platform" }
 primitives = { path = "crates/primitives" }
@@ -80,7 +75,6 @@ vrrb_vrf = { path = "crates/consensus/vrrb_vrf" }
 wallet = { path = "crates/wallet" }
 wasm_loader = { path = "crates/wasm_loader" }
 wasm_runtime = { path = "crates/wasm_runtime" }
-web3_pkg = { path = "crates/web3_pkg" }
 
 # Github crates
 bulldag = { git = "https://github.com/vrrb-io/bulldag", branch = "main" }

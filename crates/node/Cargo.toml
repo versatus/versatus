@@ -44,7 +44,6 @@ jsonrpsee = { workspace = true }
 bytes = { workspace = true }
 theater = { workspace = true }
 kademlia-dht = { workspace = true }
-dkg_engine = { workspace = true }
 hbbft = { workspace = true }
 mempool = { workspace = true }
 signer = { workspace = true }
