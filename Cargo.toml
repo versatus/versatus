@@ -262,6 +262,7 @@ microkv = "0.2.9"
 rustls = "0.21"
 rustls-pemfile = "1.0"
 hyper-rustls = { version = "0.24", features = ["acceptor"] }
+env_logger = "0.10"
 
 
 [dev-dependencies]
