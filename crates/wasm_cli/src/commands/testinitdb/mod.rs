@@ -33,7 +33,7 @@ pub struct TestInitDBOpts {
     /// exist. If it exists, we should exit with a failure and an error message indicating that the
     /// database already exists and to use --force.
     #[clap(short, long)]
-    pub force: Option<bool>,
+    pub force: bool,
     /// Default balance for new test accounts created. The protocol supports values up to
     /// [ethnum::U256] in size, but u128 ought to be fine for now.
     #[clap(short, long)]
@@ -89,18 +89,42 @@ pub struct AccountAddress {
 /// This allows some standalone testing of smart contracts without needing access to a testnet and
 /// can also potentially be integrated into common CI/CD frameworks.
 pub fn run(opts: &TestInitDBOpts) -> Result<()> {
-    let address_bytes = &opts.address.clone().unwrap().into_bytes()[..20];
-    let mut address = [0; 20];
-    address.copy_from_slice(&address_bytes);
+    let db = if opts.force {
+        drop(std::fs::remove_dir_all(&opts.dbpath));
+        Database::open::<AccountSchema>(StorageConfiguration::new(&opts.dbpath))?
+    } else {
+        Database::open::<AccountSchema>(StorageConfiguration::new(&opts.dbpath)).map_err(|e| {
+            anyhow::anyhow!(
+                "Failed to create new database at path '{}'.
+Use `--force` to overwrite the database at the existing path.
+FAIL: {e:?}",
+                &opts.dbpath
+            )
+        })?
+    };
 
-    drop(std::fs::remove_dir_all(&opts.dbpath));
-    let db = Database::open::<AccountSchema>(StorageConfiguration::new(&opts.dbpath))?;
-
-    let key = AccountAddress { address };
-    AccountBalance {
-        value: DEFAULT_BALANCE,
+    // Insert default test address bytes
+    for address in DEFAULT_ADDRESSES.iter() {
+        let key = AccountAddress { address: address.0 };
+        AccountBalance {
+            value: DEFAULT_BALANCE,
+        }
+        .insert_into(&key, &db)?;
     }
-    .insert_into(&key, &db)?;
+
+    if let Some(address) = &opts.address {
+        // TODO: abstract this into a local function
+        let address_bytes = &address.clone().into_bytes()[..20];
+        let mut address = [0; 20];
+        address.copy_from_slice(&address_bytes);
+
+        let key = AccountAddress { address };
+        AccountBalance {
+            value: opts.default_balance.unwrap_or_default(),
+        }
+        .insert_into(&key, &db)?;
+    }
+
     Ok(())
 }
 
@@ -108,9 +132,9 @@ pub fn run(opts: &TestInitDBOpts) -> Result<()> {
 fn init_db() {
     run(&TestInitDBOpts {
         dbpath: ("./bonsaidb").to_string(),
-        force: Some(true),
+        force: true,
         default_balance: Some(DEFAULT_BALANCE),
-        address: Some(DEFAULT_ADDRESSES[0].to_string()),
+        address: None,
     })
     .unwrap()
 }
