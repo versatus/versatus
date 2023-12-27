@@ -5,7 +5,7 @@ use hyper::{
     service::{make_service_fn, service_fn},
     Body, Request, Response, Server,
 };
-use internal_rpc::server::InternalRpcServer;
+use internal_rpc::{client::InternalRpcClient, server::InternalRpcServer};
 use lazy_static::lazy_static;
 use platform::{platform_stats::CgroupStats, services::ServiceType};
 use prometheus::{labels, opts, register_counter, Counter, Encoder, TextEncoder};
