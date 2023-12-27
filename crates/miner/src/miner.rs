@@ -322,7 +322,6 @@ impl Miner {
 
         #[cfg(not(mainnet))]
         let genesis_rewards = GenesisRewards(LinkedHashMap::new());
-        let header = header;
 
         let genesis = GenesisBlock {
             header,

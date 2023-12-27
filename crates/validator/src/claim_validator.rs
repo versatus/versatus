@@ -68,11 +68,11 @@ impl ClaimValidator {
                         claim.eligibility.to_string(),
                     ));
                 }
-            },
+            }
             Eligibility::None => {
                 return Err(ClaimValidatorError::NotEligibleClaim);
-            },
-            Eligibility::Miner => {},
+            }
+            Eligibility::Miner => {}
         }
 
         let stakes = claim.get_stake_txns();
@@ -112,7 +112,7 @@ impl ClaimValidator {
                         if !status {
                             return Err(ClaimValidatorError::InvalidStakeCertificate);
                         }
-                    },
+                    }
                 }
 
                 Ok(())

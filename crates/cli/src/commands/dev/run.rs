@@ -1,21 +1,19 @@
 use config::{Config, ConfigError, File};
 use node::test_utils::create_test_network_from_config;
-use node::Node;
-use primitives::{
-    Address, KademliaPeerId, NodeId, NodeType, DEFAULT_VRRB_DATA_DIR_PATH, DEFAULT_VRRB_DB_PATH,
-};
+
+use primitives::{Address, NodeType, DEFAULT_VRRB_DATA_DIR_PATH, DEFAULT_VRRB_DB_PATH};
 use secp256k1::PublicKey;
 use serde::Deserialize;
-use serde_json::{from_str as json_from_str, from_value as json_from_value, Value as JsonValue};
+
 use std::str::FromStr;
 use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::PathBuf,
 };
 use telemetry::{error, info};
-use utils::payload::digest_data_to_bytes;
+
 use uuid::Uuid;
-use vrrb_config::{BootstrapConfig, NodeConfig, QuorumMember};
+use vrrb_config::{BootstrapConfig, NodeConfig};
 
 use crate::{
     commands::{
@@ -308,14 +306,14 @@ pub async fn run(args: RunOpts) -> Result<()> {
     // TODO: prevent parsing errors when no kademlia peer id is present
     let mut whitelisted_nodes = args
         .whitelist_path
-        .and_then(|whitelist| {
+        .map(|whitelist| {
             let mut finalized_whitelist = Vec::with_capacity(GENESIS_QUORUM_SIZE);
             if let Err(e) =
                 deserialize_whitelisted_quorum_members(whitelist, &mut finalized_whitelist)
             {
                 error!("failed to deserialize whitelist: {e}");
             }
-            Some(finalized_whitelist)
+            finalized_whitelist
         })
         .unwrap_or_default();
 

@@ -1,12 +1,7 @@
-use std::{collections::HashMap, net::SocketAddr, path::PathBuf, str::FromStr};
+use std::net::SocketAddr;
 
 use clap::{Parser, Subcommand};
-use primitives::Address;
-use serde_json;
-use faucet::faucet::{FaucetConfig, Faucet};
-use vrrb_core::{account::Account, helpers::read_or_generate_keypair_file};
-use vrrb_core::transactions::Token;
-use wallet::v2::{AddressAlias, Wallet, WalletConfig};
+use faucet::faucet::{Faucet, FaucetConfig};
 
 use crate::result::{CliError, Result};
 
@@ -37,10 +32,7 @@ pub struct FaucetOpts {
 }
 
 pub async fn exec(args: FaucetOpts) -> Result<()> {
-
-    let sub_cmd = args.subcommand;
-
-    match sub_cmd {
+    match args.subcommand {
         FaucetCmd::Run => {
             let config = FaucetConfig {
                 rpc_server_address: args.rpc_server_address,
@@ -49,20 +41,19 @@ pub async fn exec(args: FaucetOpts) -> Result<()> {
                 transfer_amount: 10,
             };
 
-            let faucet = Faucet::new(config)
-                .await;
+            let faucet = Faucet::new(config).await;
 
             if let Err(err) = faucet {
                 return Err(CliError::Other(format!("Failed to create faucet: {}", err)));
             }
             if let Ok(faucet) = faucet {
-                faucet.start().await.map_err(|err| {
-                    CliError::Other(format!("Failed to start faucet: {}", err))
-                })
+                faucet
+                    .start()
+                    .await
+                    .map_err(|err| CliError::Other(format!("Failed to start faucet: {}", err)))
             } else {
                 Err(CliError::Other("Failed to create faucet".to_string()))
             }
-        },
-        _ => Err(CliError::InvalidCommand(format!("{sub_cmd:?}"))),
+        }
     }
 }

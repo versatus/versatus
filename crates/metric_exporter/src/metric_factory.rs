@@ -359,8 +359,8 @@ impl PrometheusFactory {
                     info!("Received SIGHUP,reloading server with new certificate");
                     continue;
                 }
+                return Ok(());
             }
-            Ok(())
         }
     }
 }

@@ -2,6 +2,7 @@ use anyhow::{anyhow, Result};
 use serde_derive::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::BufReader;
+use std::net::SocketAddr;
 
 /// High level wrapper struct to allow us to add things to this configuration file later that
 /// aren't network service parameters. Some runtime-configuration parameters are best suited as
@@ -27,7 +28,7 @@ pub struct ServiceCollectionConfig {
 }
 
 /// A structure representing the necessary configuration items required for a network service
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ServiceConfig {
     /// The name of this service definition
@@ -35,7 +36,7 @@ pub struct ServiceConfig {
     /// The address to bind to for RPC calls
     pub rpc_address: String,
     /// The port to bind to for RPC calls
-    pub rpc_port: u32,
+    pub rpc_port: u16,
     /// A preshared key for authenticating RPC calls
     pub pre_shared_key: String,
     /// A TLS private key for RPC transport privacy
@@ -48,6 +49,22 @@ pub struct ServiceConfig {
     pub exporter_address: String,
     /// Prometheus exporter bind port
     pub exporter_port: String,
+}
+impl ServiceConfig {
+    /// A concatinated RPC address & port.
+    pub fn rpc_socket_addr(&self) -> Result<SocketAddr> {
+        let socket = if self.rpc_address.contains("::") && !self.rpc_address.starts_with('[') {
+            format!("[{}]:{}", self.rpc_address, self.rpc_port).parse()
+        } else {
+            format!("{}:{}", self.rpc_address, self.rpc_port).parse()
+        };
+        socket.map_err(|e| {
+            anyhow!(
+                "failed to parse RPC address {} into SocketAddr: {e:?}",
+                self.rpc_address
+            )
+        })
+    }
 }
 
 impl Config {

@@ -16,7 +16,7 @@ impl InternalRpcServer {
         service_config: &ServiceConfig,
         service_type: ServiceType,
     ) -> anyhow::Result<(ServerHandle, SocketAddr)> {
-        let rpc = InternalRpc::new(service_config, service_type)?;
+        let rpc = InternalRpc::new(service_type)?;
         let server = ServerBuilder::default()
             .build(format!(
                 "{}:{}",
@@ -34,7 +34,6 @@ impl InternalRpcServer {
 /// Represents all information available to the server and client.
 /// Calls to the [`InternalRpcApi`] rely on this structure.
 struct InternalRpc {
-    pub(crate) service_config: ServiceConfig,
     /// An enum representing the service type. Compute, Storage, for example. More to come in the future.
     pub(crate) service_type: ServiceType,
     /// The time of the creation of the `InternalRpc`, used to get the uptime of a service.
@@ -47,10 +46,9 @@ struct InternalRpc {
 }
 
 impl InternalRpc {
-    pub fn new(service_config: &ServiceConfig, service_type: ServiceType) -> anyhow::Result<Self> {
+    pub fn new(service_type: ServiceType) -> anyhow::Result<Self> {
         let extra_service_capabilities = ServiceCapabilities::try_from(platform::uname()?)?;
         Ok(Self {
-            service_config: service_config.clone(),
             service_type: service_type.clone(),
             service_start: std::time::Instant::now(),
             service_capabilities: match service_type {
@@ -69,44 +67,8 @@ impl InternalRpc {
 
 #[async_trait]
 impl InternalRpcApiServer for InternalRpc {
-    fn service_status_response(&self) -> RpcResult<ServiceStatusResponse> {
+    async fn status(&self) -> RpcResult<ServiceStatusResponse> {
         Ok(ServiceStatusResponse::from(self))
-    }
-
-    fn name(&self) -> RpcResult<String> {
-        Ok(self.service_config.name.clone())
-    }
-
-    fn rpc_address(&self) -> RpcResult<String> {
-        Ok(self.service_config.rpc_address.clone())
-    }
-
-    fn rpc_port(&self) -> RpcResult<u32> {
-        Ok(self.service_config.rpc_port)
-    }
-
-    fn pre_shared_key(&self) -> RpcResult<String> {
-        Ok(self.service_config.pre_shared_key.clone())
-    }
-
-    fn tls_private_key_file(&self) -> RpcResult<String> {
-        Ok(self.service_config.tls_private_key_file.clone())
-    }
-
-    fn tls_public_cert_file(&self) -> RpcResult<String> {
-        Ok(self.service_config.tls_public_cert_file.clone())
-    }
-
-    fn tls_ca_cert_file(&self) -> RpcResult<String> {
-        Ok(self.service_config.tls_ca_cert_file.clone())
-    }
-
-    fn exporter_address(&self) -> RpcResult<String> {
-        Ok(self.service_config.exporter_address.clone())
-    }
-
-    fn exporter_port(&self) -> RpcResult<String> {
-        Ok(self.service_config.exporter_port.clone())
     }
 }
 

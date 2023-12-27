@@ -99,10 +99,10 @@ impl Absorb<MempoolOp> for Mempool {
         match op {
             MempoolOp::Add(record) => {
                 self.pool.insert(record.txn_id.clone(), *record.clone());
-            },
+            }
             MempoolOp::Remove(id) => {
                 self.pool.remove(id);
-            },
+            }
         }
     }
 
@@ -329,7 +329,7 @@ impl LeftRightMempool {
         match self.get(&txn.id()) {
             Some(found) if matches!(found.status, TxnStatus::Validated) => {
                 Ok(found.validated_timestamp)
-            },
+            }
             _ => Err(MempoolError::TransactionNotFound(txn.id())),
         }
     }
