@@ -8,14 +8,14 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
-thiserror = { workspace = true }
 derive_builder = { workspace = true }
 serde = { workspace = true }
 serde_derive = { workspace = true }
 serde_json = { workspace = true }
 telemetry = { workspace = true }
+thiserror = { workspace = true }
 wasmer = { workspace = true }
-wasmer-vm = "4.0"
 wasmer-middlewares = "4.0"
+wasmer-vm = "4.0"
 wasmer-wasix = { workspace = true }
 wasmer-wasix-types = { workspace = true }

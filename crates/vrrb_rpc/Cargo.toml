@@ -8,28 +8,28 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
-block = { workspace = true }
-thiserror = { workspace = true }
-tokio = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-vrrb_core = { workspace = true }
-vrrb_config = { workspace = true }
-telemetry = { workspace = true }
-primitives = { workspace = true }
-storage = { workspace = true }
-mempool = { workspace = true }
-axum = "0.5"
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+axum = { workspace = true }
 axum-server = { version = "0.4", features = ["tls-rustls"] }
-tower = "0.4"
-tower-http = { version = "0.3", features = ["trace"] }
+block = { workspace = true }
+events = { workspace = true }
 hyper = { workspace = true }
 jsonrpsee = { workspace = true }
-async-trait = { workspace = true }
-anyhow = { workspace = true }
-events = { workspace = true }
+mempool = { workspace = true }
+primitives = { workspace = true }
 secp256k1 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 sha2 = { workspace = true }
+storage = { workspace = true }
+telemetry = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tower = "0.4"
+tower-http = { version = "0.3", features = ["trace"] }
+vrrb_config = { workspace = true }
+vrrb_core = { workspace = true }
 
 [dev-dependencies]
 hyper = { workspace = true }

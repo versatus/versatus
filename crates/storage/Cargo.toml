@@ -8,9 +8,9 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
-vrrbdb = { workspace = true }
-storage_utils = { workspace = true }
+anyhow = { workspace = true }
 ethereum-types = { workspace = true }
 integral-db = { workspace = true }
-anyhow = { workspace = true }
 parking_lot = { workspace = true }
+storage_utils = { workspace = true }
+vrrbdb = { workspace = true }

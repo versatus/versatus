@@ -16,24 +16,24 @@ name = "wallet-rpc-tests"
 path = "tests/wallet_rpc_tests.rs"
 
 [dependencies]
-rand = { workspace = true }
-uuid = { workspace = true }
-serde_json = { workspace = true }
-serde = { workspace = true }
+chrono = { workspace = true }
 hex = { workspace = true }
-thiserror = { workspace = true }
-telemetry = { workspace = true }
-ritelinked = { workspace = true }
-storage = { workspace = true }
-vrrb_core = { workspace = true }
 jsonrpsee = { workspace = true }
 primitives = { workspace = true }
+rand = { workspace = true }
+ritelinked = { workspace = true }
 secp256k1 = { workspace = true }
-vrrb_rpc = { workspace = true }
-utils = { workspace = true }
-chrono = { workspace = true }
-tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 sha2 = { workspace = true }
+storage = { workspace = true }
+telemetry = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+utils = { workspace = true }
+uuid = { workspace = true }
+vrrb_core = { workspace = true }
+vrrb_rpc = { workspace = true }
 
 [dev-dependencies]
 serial_test = { workspace = true }

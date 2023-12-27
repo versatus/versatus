@@ -8,13 +8,13 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
-vrf = "0.2.4"
-rand_chacha = { workspace = true }
 hex = { workspace = true }
-rand = { workspace = true }
-rand_core = "0.6.3"
-parity-wordlist = "1.3.1"
+parity-wordlist = "1.3"
 primitives = { workspace = true }
+rand = { workspace = true }
+rand_chacha = { workspace = true }
+rand_core = "0.6"
+vrf = "0.2"
 
 [dev-dependencies]
 vrrb_core = { workspace = true }

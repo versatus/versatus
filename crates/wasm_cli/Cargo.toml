@@ -15,9 +15,9 @@ path = "src/main.rs"
 [dependencies]
 anyhow = { workspace = true }
 clap = { workspace = true }
+telemetry = { workspace = true }
+wasm_loader = { workspace = true }
+wasm_runtime = { workspace = true }
 wasmer = { workspace = true }
 wasmer-wasix = { workspace = true }
 wasmer-wasix-types = { workspace = true }
-wasm_loader = { workspace = true }
-wasm_runtime = { workspace = true }
-telemetry = { workspace = true }

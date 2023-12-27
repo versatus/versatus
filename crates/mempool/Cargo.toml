@@ -8,22 +8,22 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
-serde_json = { workspace = true }
-serde = { workspace = true }
-vrrb_core = { workspace = true }
-primitives = { workspace = true }
-left-right = "0.11"
-indexmap = { workspace = true }
-fxhash = "0.2"
-ritelinked = { workspace = true }
-chrono = {workspace = true }
-rand = { workspace = true }
-thiserror = { workspace = true }
-secp256k1 = { workspace = true }
-reqwest = { workspace = true }
-tokio = { workspace = true }
 anyhow = { workspace = true }
+chrono = {workspace = true }
+fxhash = "0.2"
+indexmap = { workspace = true }
+left-right = "0.11"
+primitives = { workspace = true }
+rand = { workspace = true }
+reqwest = { workspace = true }
+ritelinked = { workspace = true }
+secp256k1 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 telemetry = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+vrrb_core = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }

@@ -8,9 +8,9 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
+concurrent-queue = "2.0"
 crossbeam-channel = { workspace = true }
 once_cell = { workspace = true }
-waker-fn = "1.1"
-uuid = { workspace = true }
-concurrent-queue = "2.0"
 thiserror = { workspace = true }
+uuid = { workspace = true }
+waker-fn = "1.1"

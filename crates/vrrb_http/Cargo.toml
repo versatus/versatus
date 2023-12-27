@@ -8,15 +8,15 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
-tokio = { workspace = true }
-reqwest = { workspace = true }
-serde_json = { workspace = true }
 anyhow = { workspace = true }
 mempool = { workspace = true }
-vrrb_core = { workspace = true }
+reqwest = { workspace = true }
+serde_json = { workspace = true }
 telemetry = { workspace = true }
 thiserror = { workspace = true }
+tokio = { workspace = true }
 url = "2.3"
+vrrb_core = { workspace = true }
 
 [dev-dependencies]
 wiremock = "0.5"

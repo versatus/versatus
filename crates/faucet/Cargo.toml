@@ -8,12 +8,12 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
-axum = { version = "0.5.17", features = ["macros"] }
+axum = { workspace = true }
+chrono = { workspace = true }
+primitives = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-tokio = { workspace = true }
-chrono = { workspace = true }
 telemetry = { workspace = true }
-wallet = { workspace = true }
+tokio = { workspace = true }
 vrrb_core = { workspace = true }
-primitives = { workspace = true }
+wallet = { workspace = true }

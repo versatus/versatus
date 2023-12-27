@@ -12,11 +12,11 @@ doctest = false
 
 [dependencies]
 hbbft = { workspace = true }
-thiserror = { workspace = true }
-serde = { workspace = true }
 primitives = { workspace = true }
-vrrb_core = { workspace = true }
-vrrb_config = { workspace = true }
-uuid = { workspace = true }
 secp256k1 = { workspace = true }
+serde = { workspace = true }
 sha2 = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+vrrb_config = { workspace = true }
+vrrb_core = { workspace = true }

@@ -7,27 +7,25 @@ edition.workspace = true
 license.workspace = true
 version.workspace = true
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-rand = { workspace = true }
-uuid = { workspace = true }
-serde_json = { workspace = true }
-serde = { workspace = true }
-secp256k1 = { workspace = true }
-hex = { workspace = true }
-thiserror = { workspace = true }
-ritelinked = { workspace = true }
-reward = { workspace = true }
-primitives = { workspace = true }
-vrrb_core = { workspace = true }
-telemetry = { workspace = true }
-utils = { workspace = true }
-vrrb_vrf = { workspace = true }
 bulldag = { workspace = true }
-sha2 = { workspace = true }
 chrono = { workspace = true }
-tokio = { workspace = true }
 ethereum-types = { workspace = true }
 hbbft = { workspace = true }
+hex = { workspace = true }
+primitives = { workspace = true }
+rand = { workspace = true }
+reward = { workspace = true }
+ritelinked = { workspace = true }
+secp256k1 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
 signer = { workspace = true }
+telemetry = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+utils = { workspace = true }
+uuid = { workspace = true }
+vrrb_core = { workspace = true }
+vrrb_vrf = { workspace = true }

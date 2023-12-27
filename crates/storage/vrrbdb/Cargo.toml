@@ -9,24 +9,24 @@ version.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-sha2 = { workspace = true }
-secp256k1 = { workspace = true }
-serde = { workspace = true }
-thiserror = { workspace = true }
-vrrb_core = { workspace = true }
-primitives = { workspace = true }
-patriecia = { workspace = true }
-parking_lot = { workspace = true }
 bincode = { workspace = true }
-storage_utils = { workspace = true }
-serde_json = { workspace = true }
-telemetry = { workspace = true }
-ethereum-types = { workspace = true }
-integral-db = { workspace = true }
-hex = { workspace = true }
 block = { workspace = true }
+ethereum-types = { workspace = true }
+hex = { workspace = true }
+integral-db = { workspace = true }
+parking_lot = { workspace = true }
+patriecia = { workspace = true }
+primitives = { workspace = true }
 ritelinked = { workspace = true }
 rocksdb = "0.19"
+secp256k1 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+storage_utils = { workspace = true }
+telemetry = { workspace = true }
+thiserror = { workspace = true }
+vrrb_core = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }

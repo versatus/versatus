@@ -17,31 +17,31 @@ name = "versa"
 path = "src/main.rs"
 
 [dependencies]
-clap = { workspace = true }
-faucet = { workspace = true }
-tokio = { workspace = true }
-node = { workspace = true }
-vrrb_config = { workspace = true }
-vrrb_rpc = { workspace = true }
-primitives = { workspace = true }
-telemetry = { workspace = true }
-storage = { workspace = true }
 anyhow = { workspace = true }
-thiserror = { workspace = true }
-uuid = { workspace = true }
-vrrb_core = { workspace = true }
-hbbft = { workspace = true }
-sha256 = { workspace = true }
-secp256k1 = { workspace = true }
-serde = { workspace = true }
-config = "0.13"
-wallet = { workspace = true }
-serde_json = { workspace = true }
 chrono = { workspace = true }
+clap = { workspace = true }
+config = "0.13"
 events = { workspace = true }
-utils = { workspace = true }
+faucet = { workspace = true }
+hbbft = { workspace = true }
 hex = { workspace = true }
 kademlia-dht = { workspace = true }
+node = { workspace = true }
+primitives = { workspace = true }
+secp256k1 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha256 = { workspace = true }
+storage = { workspace = true }
+telemetry = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+utils = { workspace = true }
+uuid = { workspace = true }
+vrrb_config = { workspace = true }
+vrrb_core = { workspace = true }
+vrrb_rpc = { workspace = true }
+wallet = { workspace = true }
 
 [dev-dependencies]
 assert_cmd = "2.0"

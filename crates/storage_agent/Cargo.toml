@@ -1,10 +1,12 @@
 [package]
 name = "storage_cli"
 description = "Versatus Storage Agent CLI"
-version = "0.1.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+edition.workspace = true
+license.workspace = true
+version.workspace = true
 
 [[bin]]
 name = "versa-storage"
@@ -13,12 +15,12 @@ path = "src/main.rs"
 [dependencies]
 anyhow = { workspace = true }
 clap = { workspace = true }
-internal_rpc = { workspace = true }
-telemetry = { workspace = true }
-service_config = { workspace = true }
-tokio = { workspace = true }
-prometheus = { workspace = true }
 hyper = { workspace = true }
-rand = { workspace = true }
+internal_rpc = { workspace = true }
 lazy_static = { workspace = true }
 platform = { workspace = true }
+prometheus = { workspace = true }
+rand = { workspace = true }
+service_config = { workspace = true }
+telemetry = { workspace = true }
+tokio = { workspace = true }

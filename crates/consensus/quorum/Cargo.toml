@@ -8,16 +8,16 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
-vrrb_core = { workspace = true }
-vrrb_vrf = { workspace = true }
-rand_chacha = { workspace = true }
-thread_local = "1.1"
-thiserror = { workspace = true }
-rand = { workspace = true }
+ethereum-types = { workspace = true }
 hex = { workspace = true }
 primitives = { workspace = true }
+rand = { workspace = true }
+rand_chacha = { workspace = true }
 serde = { workspace = true }
-ethereum-types = { workspace = true }
+thiserror = { workspace = true }
+thread_local = "1.1"
+vrrb_core = { workspace = true }
+vrrb_vrf = { workspace = true }
 
 [dev-dependencies]
 sha256 = { workspace = true }

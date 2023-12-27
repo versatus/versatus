@@ -1,28 +1,30 @@
 [package]
 name = "validator"
-version = "0.1.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+edition.workspace = true
+license.workspace = true
+version.workspace = true
 
 [dependencies]
-serde_json = "1.0.64"
-serde = { workspace = true }
-mempool = { workspace = true }
-left-right = "0.11.5"
-patriecia = { workspace = true }
-secp256k1 = { workspace = true }
 bincode = { workspace = true }
-storage = { workspace = true }
-vrrb_core = { workspace = true }
-primitives = { workspace = true }
 chrono = { workspace = true }
-thiserror = { workspace = true }
-telemetry = { workspace = true }
-rayon = { workspace = true }
 hbbft = { workspace = true }
 integral-db = { workspace = true }
+left-right = "0.11"
+mempool = { workspace = true }
+patriecia = { workspace = true }
+primitives = { workspace = true }
+rayon = { workspace = true }
+secp256k1 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 sha2 = { workspace = true }
+storage = { workspace = true }
+telemetry = { workspace = true }
+thiserror = { workspace = true }
+vrrb_core = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }

@@ -8,11 +8,11 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
+anyhow = { workspace = true }
+derive_builder = { workspace = true }
 telemetry = { workspace = true }
 wasmer = { workspace = true }
 wasmparser = "0.107"
-derive_builder = { workspace = true }
-anyhow = { workspace = true }
 
 [dev-dependencies]
 test-log = "0.2"

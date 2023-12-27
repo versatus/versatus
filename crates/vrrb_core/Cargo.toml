@@ -8,25 +8,25 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
-telemetry = { workspace = true }
-primitives = { workspace = true }
-thiserror = { workspace = true }
-ritelinked = { workspace = true }
-serde_json = { workspace = true }
-serde = { workspace = true }
-hex = { workspace = true }
-secp256k1 = { workspace = true }
-lru_time_cache = { workspace = true }
-hbbft = { workspace = true }
-rand = { workspace = true }
 bincode = { workspace = true }
-sha2 = { workspace = true }
+bs58 = "0.4"
 chrono = { workspace = true }
-utils = { workspace = true }
 cuckoofilter = { workspace = true }
 ethereum-types = { workspace = true }
-bs58 = "0.4"
+hbbft = { workspace = true }
+hex = { workspace = true }
+lru_time_cache = { workspace = true }
+primitives = { workspace = true }
+rand = { workspace = true }
 ring = "0.16"
+ritelinked = { workspace = true }
+secp256k1 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+telemetry = { workspace = true }
+thiserror = { workspace = true }
+utils = { workspace = true }
 
 [dev-dependencies]
 serial_test = { workspace = true }

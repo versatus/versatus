@@ -8,19 +8,19 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
-ritelinked = { workspace = true }
-serde_json = { workspace = true }
-serde = { workspace = true }
-chrono = { workspace = true }
-bulldag = { workspace = true }
-secp256k1 = { workspace = true }
-primitives = { workspace = true }
-vrrb_core = { workspace = true }
-reward = { workspace = true }
 block = { workspace = true }
-thiserror = { workspace = true }
-utils = { workspace = true }
-sha2 = { workspace = true }
+bulldag = { workspace = true }
+chrono = { workspace = true }
 ethereum-types = { workspace = true }
 hbbft = { workspace = true }
+primitives = { workspace = true }
+reward = { workspace = true }
+ritelinked = { workspace = true }
+secp256k1 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
 signer = { workspace = true }
+thiserror = { workspace = true }
+utils = { workspace = true }
+vrrb_core = { workspace = true }
