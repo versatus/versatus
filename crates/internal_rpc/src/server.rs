@@ -1,12 +1,15 @@
 use std::net::SocketAddr;
 
 use crate::api::{InternalRpcApiServer, RpcResult};
+use jsonrpsee::core::__reexports::serde_json;
 use jsonrpsee::{
     core::async_trait,
     server::{ServerBuilder, ServerHandle},
 };
 use platform::services::*;
 use service_config::ServiceConfig;
+use web3_pkg::web3_pkg::Web3Package;
+use web3_pkg::web3_store::Web3Store;
 
 pub struct InternalRpcServer;
 impl InternalRpcServer {
@@ -62,6 +65,35 @@ impl InternalRpc {
             },
             version: VersionNumber::cargo_pkg(),
         })
+    }
+
+    async fn get_object(&self, cid: &str) -> RpcResult<Vec<u8>> {
+        let store = Web3Store::local()?;
+        let obj = store.read_object(cid).await?;
+        Ok(obj)
+    }
+    async fn get_dag_object(&self, cid: &str) -> RpcResult<Vec<(String, Vec<u8>)>> {
+        let store = Web3Store::local()?;
+        let obj = store.read_dag(cid).await?;
+        let pkg: Web3Package = serde_json::from_slice(&obj)?;
+        let mut objs = Vec::new();
+        for obj in &pkg.pkg_objects {
+            let blob = store.read_object(&obj.object_cid.cid).await?;
+            objs.push((obj.object_cid.cid.clone(), blob))
+        }
+        Ok(objs)
+    }
+
+    async fn pin_object(&self, cid: &str, recursive: bool) -> RpcResult<Vec<String>> {
+        let store = Web3Store::local()?;
+        let obj = store.pin_object(cid, recursive).await?;
+        Ok(obj)
+    }
+
+    async fn is_pinned(&self, cid: &str) -> RpcResult<bool> {
+        let store = Web3Store::local()?;
+        let is_pinned = store.is_pinned(cid).await?;
+        Ok(is_pinned)
     }
 }
 
