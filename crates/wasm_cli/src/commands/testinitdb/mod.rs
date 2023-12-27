@@ -8,6 +8,7 @@ use ethereum_types::U256;
 use primitives::Address;
 use serde::{Deserialize, Serialize};
 
+#[cfg(test)]
 pub const DEFAULT_DB_PATH: &str = "./bonsaidb";
 pub const DEFAULT_BALANCE: U256 = U256([10000; 4]);
 pub const DEFAULT_ADDRESSES: &[Address; 10] = &[
