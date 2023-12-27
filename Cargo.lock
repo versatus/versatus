@@ -6773,6 +6773,8 @@ checksum = "14c39fd04924ca3a864207c66fc2cd7d22d7c016007f9ce846cbb9326331930a"
 name = "telemetry"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "env_logger 0.10.1",
  "primitives",
  "thiserror",
  "tracing",
@@ -7677,9 +7679,7 @@ dependencies = [
  "internal_rpc",
  "lazy_static",
  "metric_exporter",
- "mktemp",
  "node",
- "oci-spec",
  "platform",
  "primitives",
  "prometheus",
@@ -7694,7 +7694,6 @@ dependencies = [
  "sha3 0.10.8",
  "telemetry",
  "tokio",
- "uds",
  "uuid",
  "vrrb_config",
  "vrrb_rpc",
