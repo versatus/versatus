@@ -51,7 +51,7 @@ pub struct AccountSchema;
 #[derive(Debug, Serialize, Deserialize, Collection, Eq, PartialEq)]
 #[collection(name = "account-balance", primary_key = AccountAddress)]
 pub struct AccountBalance {
-    value: U256,
+    pub(crate) value: U256,
 }
 
 //Key used to pull account's relative balance.

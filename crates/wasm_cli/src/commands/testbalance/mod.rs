@@ -1,10 +1,13 @@
+use std::sync::Arc;
+
 use anyhow::Result;
 use bonsaidb::core::schema::SerializedCollection;
 use bonsaidb::local::config::{Builder, StorageConfiguration};
-use bonsaidb::local::Database;
+use bonsaidb::local::{Database, Storage, StorageId};
+use bonsaidb_core::connection::StorageConnection;
 use bonsaidb_core::key::NextValueError;
 use bonsaidb_core::permissions::bonsai::DatabaseAction;
-use bonsaidb_core::schema::Collection;
+use bonsaidb_core::schema::{Collection, Schema};
 use clap::Parser;
 use ethereum_types::U256;
 use primitives::Address;
@@ -13,7 +16,7 @@ use crate::commands::testinitdb::*;
 
 // const DEFAULT_BALANCE: U256 = U256([10000; 4]);
 
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Clone)]
 pub struct TestBalanceOpts {
     /// This is the path to the database to be created/used. #716, this path is what we'll feed
     /// into the database driver.
@@ -30,6 +33,8 @@ pub struct TestBalanceOpts {
 /// Checks the balance of an address matches the value provided and returns Ok/0 to the operating
 /// system if it does, otherwise returns Err/1 to the operating system if they don't match.
 pub fn run(opts: &TestBalanceOpts) -> Result<()> {
+    drop(std::fs::remove_dir_all(&opts.dbpath));
+    let db = Database::open::<AccountSchema>(StorageConfiguration::new(&opts.dbpath))?;
     // store the open DB in a variable like `let db = DB::Open();`
     // you'll use the dbpath to open that db. Then you can use the
     // get method and give it the address to find. If it finds that address
@@ -38,19 +43,17 @@ pub fn run(opts: &TestBalanceOpts) -> Result<()> {
     let mut address = [0; 20];
     address.copy_from_slice(&address_bytes);
 
-    let db = Database::open(opts.dbpath);
-
-    // drop(std::fs::remove_dir_all(&opts.dbpath));
-    // let db = Database::open::<AccountSchema>(StorageConfiguration::new(&opts.dbpath))?;
-
     let key = AccountAddress { address };
     let inserted = AccountBalance {
         value: DEFAULT_BALANCE,
     }
+    // Pushes mock AccountBalance into db.
     .insert_into(&key, &db)?;
     let retrieved = AccountBalance::get(&key, &db)?.expect("document not found");
+    // Checks if insert/retrieve was successful.
     assert_eq!(inserted, retrieved);
 
+    // Checks if inserted value == stored value.
     assert!(matches!(
         AccountBalance {
             value: DEFAULT_BALANCE,
@@ -73,7 +76,7 @@ pub fn run(opts: &TestBalanceOpts) -> Result<()> {
 fn test_bal() {
     run(&TestBalanceOpts {
         dbpath: ("././bonsaidb").to_string(),
-        address: primitives::Address([7; 20]),
+        address: Some(primitives::Address([7; 20]).to_string()),
         balance: ethereum_types::U256([10000; 4]),
     })
     .unwrap()
