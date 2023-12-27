@@ -8,6 +8,7 @@ use ethereum_types::U256;
 use primitives::Address;
 use serde::{Deserialize, Serialize};
 
+pub const DEFAULT_DB_PATH: &str = "./bonsaidb";
 pub const DEFAULT_BALANCE: U256 = U256([10000; 4]);
 pub const DEFAULT_ADDRESSES: &[Address; 10] = &[
     Address([0; 20]),
@@ -39,7 +40,7 @@ pub struct TestInitDBOpts {
     #[clap(short, long)]
     pub default_balance: Option<U256>,
     #[clap(short, long)]
-    pub address: Option<String>,
+    pub address: Option<Address>,
 }
 
 //Schema for AccountBalance
@@ -113,12 +114,7 @@ FAIL: {e:?}",
     }
 
     if let Some(address) = &opts.address {
-        // TODO: abstract this into a local function
-        let address_bytes = &address.clone().into_bytes()[..20];
-        let mut address = [0; 20];
-        address.copy_from_slice(&address_bytes);
-
-        let key = AccountAddress { address };
+        let key = AccountAddress { address: address.0 };
         AccountBalance {
             value: opts.default_balance.unwrap_or_default(),
         }
@@ -131,7 +127,7 @@ FAIL: {e:?}",
 #[test]
 fn init_db() {
     run(&TestInitDBOpts {
-        dbpath: ("./bonsaidb").to_string(),
+        dbpath: (DEFAULT_DB_PATH).to_string(),
         force: true,
         default_balance: Some(DEFAULT_BALANCE),
         address: None,

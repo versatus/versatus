@@ -1,13 +1,7 @@
-use std::sync::Arc;
-
 use anyhow::Result;
 use bonsaidb::core::schema::SerializedCollection;
 use bonsaidb::local::config::{Builder, StorageConfiguration};
-use bonsaidb::local::{Database, Storage, StorageId};
-use bonsaidb_core::connection::StorageConnection;
-use bonsaidb_core::key::NextValueError;
-use bonsaidb_core::permissions::bonsai::DatabaseAction;
-use bonsaidb_core::schema::{Collection, Schema};
+use bonsaidb::local::Database;
 use clap::Parser;
 use ethereum_types::U256;
 use primitives::Address;
@@ -24,7 +18,7 @@ pub struct TestBalanceOpts {
     pub dbpath: String,
     /// The address of the account to check the balance of.
     #[clap(short, long)]
-    pub address: Option<String>,
+    pub address: Option<Address>,
     /// Balance value we expect.
     #[clap(short, long)]
     pub balance: U256,
@@ -33,36 +27,24 @@ pub struct TestBalanceOpts {
 /// Checks the balance of an address matches the value provided and returns Ok/0 to the operating
 /// system if it does, otherwise returns Err/1 to the operating system if they don't match.
 pub fn run(opts: &TestBalanceOpts) -> Result<()> {
-    drop(std::fs::remove_dir_all(&opts.dbpath));
-    let db = Database::open::<AccountSchema>(StorageConfiguration::new(&opts.dbpath))?;
-    // store the open DB in a variable like `let db = DB::Open();`
-    // you'll use the dbpath to open that db. Then you can use the
-    // get method and give it the address to find. If it finds that address
-    // you can assert whether the balance is the same.
-    let address_bytes = &opts.address.clone().unwrap().into_bytes()[..20];
-    let mut address = [0; 20];
-    address.copy_from_slice(&address_bytes);
+    let db =
+        Database::open::<AccountSchema>(StorageConfiguration::new(&opts.dbpath)).map_err(|e| {
+            anyhow::anyhow!(
+                "Failed to retrieve database at path '{}': {e:?}",
+                &opts.dbpath
+            )
+        })?;
 
-    let key = AccountAddress { address };
-    let inserted = AccountBalance {
-        value: DEFAULT_BALANCE,
-    }
-    // Pushes mock AccountBalance into db.
-    .insert_into(&key, &db)?;
+    // TODO: Make a test that shows what the output of this method is.
+    // Create a helper function with this logic, then use that helper
+    // function in a test to show case its effectiveness.
+    let key = AccountAddress {
+        address: opts.address.as_ref().unwrap().0,
+    };
     let retrieved = AccountBalance::get(&key, &db)?.expect("document not found");
-    // Checks if insert/retrieve was successful.
-    assert_eq!(inserted, retrieved);
 
-    // Checks if inserted value == stored value.
-    assert!(matches!(
-        AccountBalance {
-            value: DEFAULT_BALANCE,
-        }
-        .push_into(&db)
-        .unwrap_err()
-        .error,
-        bonsaidb::core::Error::DocumentPush(_, NextValueError::Unsupported)
-    ));
+    assert_eq!(opts.balance, retrieved.contents.value);
+
     // #716 Here we should do a query for the provided address, and compare its balance with the
     // balance provided. If they match, we should return success. If they don't, we should return
     // failure. It may even be worth returning a different failure if the account doesn't exist.
@@ -75,9 +57,9 @@ pub fn run(opts: &TestBalanceOpts) -> Result<()> {
 #[test]
 fn test_bal() {
     run(&TestBalanceOpts {
-        dbpath: ("././bonsaidb").to_string(),
-        address: Some(primitives::Address([7; 20]).to_string()),
-        balance: ethereum_types::U256([10000; 4]),
+        dbpath: (DEFAULT_DB_PATH).to_string(),
+        address: Some(DEFAULT_ADDRESSES[7].clone()),
+        balance: DEFAULT_BALANCE,
     })
     .unwrap()
 }
