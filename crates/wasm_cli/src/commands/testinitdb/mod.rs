@@ -116,10 +116,16 @@ FAIL: {e:?}",
 
     if let Some(address) = &opts.address {
         let key = AccountAddress { address: address.0 };
-        AccountBalance {
-            value: opts.default_balance.unwrap_or_default(),
-        }
-        .insert_into(&key, &db)?;
+        let value = if let Some(balance) = opts.default_balance {
+            balance
+        } else {
+            println!(
+                "Default balance is None. Initializing account for address '{:?}' with value 0u256",
+                &opts.address
+            );
+            Default::default()
+        };
+        AccountBalance { value }.insert_into(&key, &db)?;
     }
 
     Ok(())

@@ -8,17 +8,20 @@ use primitives::Address;
 
 use crate::commands::testinitdb::*;
 
-// const DEFAULT_BALANCE: U256 = U256([10000; 4]);
-
 #[derive(Parser, Debug, Clone)]
 pub struct TestBalanceOpts {
     /// This is the path to the database to be created/used. #716, this path is what we'll feed
     /// into the database driver.
+    // TODO: Make this an option, and look for the db path in the file tree
+    // using std::fs or std::env if we choose to allow it.
+    // REASON: If the db path is the current directory, we should infer this.
+    // Otherwise, we should look for the db path in parent directories only
+    // erring when one isn't found.
     #[clap(short, long)]
     pub dbpath: String,
     /// The address of the account to check the balance of.
     #[clap(short, long)]
-    pub address: Option<Address>,
+    pub address: Address,
     /// Balance value we expect.
     #[clap(short, long)]
     pub balance: U256,
@@ -35,13 +38,16 @@ pub fn run(opts: &TestBalanceOpts) -> Result<()> {
             )
         })?;
 
-    // TODO: Make a test that shows what the output of this method is.
-    // Create a helper function with this logic, then use that helper
-    // function in a test to show case its effectiveness.
     let key = AccountAddress {
-        address: opts.address.as_ref().unwrap().0,
+        address: opts.address.0,
     };
-    let retrieved = AccountBalance::get(&key, &db)?.expect("document not found");
+    let retrieved = AccountBalance::get(&key, &db)
+        .map_err(|e| anyhow::anyhow!("failed to open document: {e:?}"))?
+        .ok_or(anyhow::anyhow!(
+            "failed to retrieve account balance for account address '{:?}' at database path '{}'",
+            &opts.address,
+            &opts.dbpath
+        ))?;
 
     assert_eq!(opts.balance, retrieved.contents.value);
 
@@ -58,7 +64,7 @@ pub fn run(opts: &TestBalanceOpts) -> Result<()> {
 fn test_bal() {
     run(&TestBalanceOpts {
         dbpath: (DEFAULT_DB_PATH).to_string(),
-        address: Some(DEFAULT_ADDRESSES[7].clone()),
+        address: DEFAULT_ADDRESSES[7].clone(),
         balance: DEFAULT_BALANCE,
     })
     .unwrap()
