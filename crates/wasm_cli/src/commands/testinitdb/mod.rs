@@ -1,8 +1,11 @@
 use anyhow::Result;
+use bonsaidb::core::connection::Connection;
 use bonsaidb::core::key::Key;
 use bonsaidb::core::schema::{Collection, Schema, SerializedCollection};
 use bonsaidb::local::config::{Builder, StorageConfiguration};
-use bonsaidb::local::Database;
+use bonsaidb::local::Storage;
+use bonsaidb_core::connection::StorageConnection;
+use bonsaidb_local::Database;
 use clap::Parser;
 use ethereum_types::U256;
 use primitives::Address;
@@ -46,8 +49,8 @@ pub struct TestInitDBOpts {
 
 //Schema for AccountBalance
 #[derive(Debug, Schema)]
-#[schema(name = "primary-keys", collections = [AccountBalance])]
-pub struct AccountSchema;
+#[schema(name = "primary-info", collections = [AccountBalance, ProtocolInputs])]
+pub struct ProtocolSchema;
 
 //Collection of account balances relative to key (address) inserted.
 #[derive(Debug, Serialize, Deserialize, Collection, Eq, PartialEq)]
@@ -62,30 +65,37 @@ pub struct AccountAddress {
     pub address: [u8; 20],
 }
 
-// // Keeping these below, as we will need a seperate database for metadata.
-
-// #[derive(Collection, Serialize, Deserialize, Clone, Parser, Debug)]
-// #[collection(name = "protocol-inputs")]
+// //Collection of meta-data
+// #[derive(Debug, Serialize, Deserialize, Collection, Eq, PartialEq)]
+// #[collection(name = "meta-data")]
 // pub struct ProtocolInputs {
-//     /// The block number/height of the block currently being processed
 //     pub block_height: u64,
-//     /// The timestamp of the block currently being processed
 //     pub block_time: u64,
 // }
+// // Keeping these below, as we will need a seperate database for metadata.
 
-// // Template for inserting information via connection.
-// fn insert_meta_data<C: Connection>(
-//     connection: &C,
-//     block_height: u64,
-//     block_time: u64,
-// ) -> Result<(), bonsaidb::core::Error> {
-//     ProtocolInputs {
-//         block_height,
-//         block_time,
-//     }
-//     .push_into(connection)?;
-//     Ok(())
-// }
+#[derive(Collection, Serialize, Deserialize, Clone, Parser, Debug)]
+#[collection(name = "protocol-inputs")]
+pub struct ProtocolInputs {
+    /// The block number/height of the block currently being processed
+    pub block_height: u64,
+    /// The timestamp of the block currently being processed
+    pub block_time: u64,
+}
+
+// Template for inserting information via connection.
+fn insert_meta_data<C: Connection>(
+    connection: &C,
+    block_height: u64,
+    block_time: u64,
+) -> Result<(), bonsaidb::core::Error> {
+    ProtocolInputs {
+        block_height,
+        block_time,
+    }
+    .push_into(connection)?;
+    Ok(())
+}
 
 /// Initialises a new database for keeping standalone state typically provided by a blockchain.
 /// This allows some standalone testing of smart contracts without needing access to a testnet and
@@ -93,17 +103,39 @@ pub struct AccountAddress {
 pub fn run(opts: &TestInitDBOpts) -> Result<()> {
     let db = if opts.force {
         drop(std::fs::remove_dir_all(&opts.dbpath));
-        Database::open::<AccountSchema>(StorageConfiguration::new(&opts.dbpath))?
+        Storage::open(StorageConfiguration::new(&opts.dbpath).with_schema::<ProtocolSchema>()?)?
     } else {
-        Database::open::<AccountSchema>(StorageConfiguration::new(&opts.dbpath)).map_err(|e| {
-            anyhow::anyhow!(
-                "Failed to create new database at path '{}'.
+        Storage::open(StorageConfiguration::new(&opts.dbpath).with_schema::<ProtocolSchema>()?)
+            .map_err(|e| {
+                anyhow::anyhow!(
+                    "Failed to create new database at path '{}'.
 Use `--force` to overwrite the database at the existing path.
 FAIL: {e:?}",
-                &opts.dbpath
-            )
-        })?
+                    &opts.dbpath
+                )
+            })?
     };
+
+    //     let db = if opts.force {
+    //         drop(std::fs::remove_dir_all(&opts.dbpath));
+    //         Database::open::<ProtocolSchema>(StorageConfiguration::new(&opts.dbpath))?
+    //     } else {
+    //         Database::open::<ProtocolSchema>(StorageConfiguration::new(&opts.dbpath)).map_err(|e| {
+    //             anyhow::anyhow!(
+    //                 "Failed to create new database at path '{}'.
+    // Use `--force` to overwrite the database at the existing path.
+    // FAIL: {e:?}",
+    //                 &opts.dbpath
+    //             )
+    //         })?
+    //     };
+
+    // Establish database connections
+    let meta_data_connection = db.create_database::<ProtocolInputs>("protocol-inputs", true)?;
+    let account_connection = db.create_database::<AccountBalance>("account-balance", true)?;
+
+    // Insert mock meta data
+    insert_meta_data(&meta_data_connection, 10, 100)?;
 
     // Insert default test address bytes
     for address in DEFAULT_ADDRESSES.iter() {
@@ -111,7 +143,7 @@ FAIL: {e:?}",
         AccountBalance {
             value: DEFAULT_BALANCE,
         }
-        .insert_into(&key, &db)?;
+        .insert_into(&key, &account_connection)?;
     }
 
     if let Some(address) = &opts.address {
@@ -125,7 +157,7 @@ FAIL: {e:?}",
             );
             Default::default()
         };
-        AccountBalance { value }.insert_into(&key, &db)?;
+        AccountBalance { value }.insert_into(&key, &account_connection)?;
     }
 
     Ok(())

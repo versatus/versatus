@@ -31,7 +31,7 @@ pub struct TestBalanceOpts {
 /// system if it does, otherwise returns Err/1 to the operating system if they don't match.
 pub fn run(opts: &TestBalanceOpts) -> Result<()> {
     let db =
-        Database::open::<AccountSchema>(StorageConfiguration::new(&opts.dbpath)).map_err(|e| {
+        Database::open::<ProtocolSchema>(StorageConfiguration::new(&opts.dbpath)).map_err(|e| {
             anyhow::anyhow!(
                 "Failed to retrieve database at path '{}': {e:?}",
                 &opts.dbpath

@@ -10,6 +10,7 @@ edition = "2021"
 anyhow = { workspace = true }
 bonsaidb = { workspace = true }
 bonsaidb-core = { workspace = true }
+bonsaidb-local = { workspace = true }
 clap = { workspace = true }
 wasmer = { workspace = true }
 wasmer-wasix = { workspace = true }

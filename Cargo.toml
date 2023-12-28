@@ -32,6 +32,7 @@ faucet = { workspace = true }
 tokio = { workspace = true }
 bonsaidb = { workspace = true }
 bonsaidb-core = { workspace = true }
+bonsaidb-local = { workspace = true }
 telemetry = { workspace = true }
 cli = { workspace = true }
 anyhow = { workspace = true }
@@ -168,6 +169,7 @@ sha256 = "1.1.1"
 rand = { version = "0.8.5", features = ["std"] }
 bonsaidb = { version = "*", features = ["local"] }
 bonsaidb-core = "0.5.0"
+bonsaidb-local = "0.5.0"
 bytebuffer = "0.2.1"
 serde_json = "1.0.64"
 serde = { version = "1.0.144", features = ["derive"] }

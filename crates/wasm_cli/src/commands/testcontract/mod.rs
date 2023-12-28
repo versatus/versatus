@@ -79,9 +79,9 @@ pub fn run(opts: &TestContractOpts) -> Result<()> {
         &wasm_bytes,
         MeteringConfig::new(opts.meter_limit, cost_function),
     )?
-    .stdin(&json_data)?
-    .env(&env_vars)?
-    .args(&opts.args)?;
+    .stdin(&json_data)
+    .env(&env_vars)
+    .args(&opts.args);
     wasm.execute()?;
 
     // #716 We shouldn't print the output here, but rather parse it and use it to update the
