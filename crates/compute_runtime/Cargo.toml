@@ -1,0 +1,16 @@
+[package]
+name = "compute_runtime"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bitmask-enum = { workspace = true }
+anyhow = { workspace = true }
+mktemp = "0.5"
+oci-spec = "0.6"
+telemetry = { workspace = true }
+derive_builder = { workspace = true }
+env_logger = { workspace = true }
+uds = "0.4"
