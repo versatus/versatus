@@ -9,6 +9,9 @@ use telemetry::info;
 use tokio::{signal, spawn};
 use tokio_util::sync::CancellationToken;
 
+pub const SERVICE_NAME: &str = "compute";
+pub const SERVICE_SOURCE: &str = "versatus";
+
 /// Structure representing command line options to the daemon subcommand
 #[derive(Parser, Debug)]
 pub struct DaemonOpts;
@@ -20,8 +23,8 @@ pub async fn run(_opts: &DaemonOpts, config: &ServiceConfig) -> Result<()> {
     let (_server_handle, _server_local_addr) =
         InternalRpcServer::start(config, ServiceType::Compute).await?;
     let base_labels = labels! {
-                "service".to_string() => "compute".to_string(),
-                "source".to_string() => "versatus".to_string(),
+                "service".to_string() => SERVICE_NAME.to_string(),
+                "source".to_string() => SERVICE_SOURCE.to_string(),
     };
     let port = config
         .exporter_port
