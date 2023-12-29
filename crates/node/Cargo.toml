@@ -52,9 +52,6 @@ tokio = { workspace = true }
 tokio-util = { version = "0.7", features = ["rt"] }
 utils = { workspace = true }
 maglev = { workspace = true }
-dyswarm = { workspace = true }
-chrono = { workspace = true }
-integral-db = { workspace = true }
 metric_exporter = { workspace = true }
 prometheus = { workspace = true}
 uuid = { workspace = true }

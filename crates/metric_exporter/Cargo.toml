@@ -9,7 +9,6 @@ version.workspace = true
 
 [dependencies]
 hyper = { workspace = true }
-hyper-rustls = { version = "0.24", features = ["acceptor"] }
 platform = { workspace = true }
 prometheus = { workspace = true }
 hyper-rustls = { workspace = true }
