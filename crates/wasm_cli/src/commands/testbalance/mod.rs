@@ -1,7 +1,7 @@
 use anyhow::Result;
-use bonsaidb::core::schema::SerializedCollection;
+use bonsaidb::core::{connection::StorageConnection, schema::SerializedCollection};
 use bonsaidb::local::config::{Builder, StorageConfiguration};
-use bonsaidb::local::Database;
+use bonsaidb::local::Storage;
 use clap::Parser;
 use ethereum_types::U256;
 use primitives::Address;
@@ -30,13 +30,15 @@ pub struct TestBalanceOpts {
 /// Checks the balance of an address matches the value provided and returns Ok/0 to the operating
 /// system if it does, otherwise returns Err/1 to the operating system if they don't match.
 pub fn run(opts: &TestBalanceOpts) -> Result<()> {
-    let db =
-        Database::open::<ProtocolSchema>(StorageConfiguration::new(&opts.dbpath)).map_err(|e| {
-            anyhow::anyhow!(
-                "Failed to retrieve database at path '{}': {e:?}",
-                &opts.dbpath
-            )
-        })?;
+    let storage_connection =
+        Storage::open(StorageConfiguration::new(&opts.dbpath).with_schema::<AccountBalance>()?)
+            .map_err(|e| {
+                anyhow::anyhow!(
+                    "Failed to retrieve database at path '{}': {e:?}",
+                    &opts.dbpath
+                )
+            })?;
+    let db = storage_connection.database::<AccountBalance>("account-balance")?;
 
     let key = AccountAddress {
         address: opts.address.0,
@@ -49,14 +51,9 @@ pub fn run(opts: &TestBalanceOpts) -> Result<()> {
             &opts.dbpath
         ))?;
 
+    // TODO: Make this more robust!
     assert_eq!(opts.balance, retrieved.contents.value);
 
-    // #716 Here we should do a query for the provided address, and compare its balance with the
-    // balance provided. If they match, we should return success. If they don't, we should return
-    // failure. It may even be worth returning a different failure if the account doesn't exist.
-    //
-    // In the case of success, there should be no output to stdout. In the case of failure, a clear
-    // message should be displayed on stderr.
     Ok(())
 }
 
