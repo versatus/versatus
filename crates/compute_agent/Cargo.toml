@@ -18,3 +18,5 @@ hyper = { workspace = true }
 rand = { workspace = true }
 lazy_static = { workspace = true }
 platform = { workspace = true }
+metric_exporter = { workspace = true }
+tokio-util = { workspace = true}

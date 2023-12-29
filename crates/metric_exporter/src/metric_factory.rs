@@ -59,6 +59,7 @@ pub struct PrometheusFactory {
     pub private_key_path: String,
     pub certificate_path: String,
     pub cancellation_token: CancellationToken,
+    pub base_labels: HashMap<String, String>,
 }
 
 impl PrometheusFactory {
@@ -79,6 +80,7 @@ impl PrometheusFactory {
             private_key_path,
             certificate_path,
             cancellation_token,
+            base_labels: base_labels.clone(),
         };
         if include_base_metrics {
             Self::append_base_metrics(base_labels, &mut factory)?;
@@ -297,8 +299,11 @@ impl PrometheusFactory {
     }
     async fn handle_request(
         _req: Request<Body>,
-        factory: PrometheusFactory,
+        mut factory: PrometheusFactory,
     ) -> Result<Response<Body>, PrometheusFactoryError> {
+        if !factory.base_metrics.is_empty() {
+            PrometheusFactory::append_base_metrics(HashMap::new(), &mut factory)?;
+        }
         let response_body = factory.render_metrics()?;
         Ok(Response::new(Body::from(response_body)))
     }
@@ -396,6 +401,10 @@ mod tests {
     use prometheus::labels;
     #[test]
     fn test_reset_factory() {
+        let labels = labels! {
+                "service".to_string() => "compute".to_string(),
+                "source".to_string() => "versatus".to_string(),
+        };
         let mut factory = PrometheusFactory::new(
             String::from("127.0.0.1"),
             8080,
@@ -406,10 +415,6 @@ mod tests {
             CancellationToken::new(),
         )
         .unwrap();
-        let labels = labels! {
-                "service".to_string() => "compute".to_string(),
-                "source".to_string() => "versatus".to_string(),
-        };
         let counter = factory
             .build_counter("counter", " counter metric", labels.clone())
             .unwrap();
