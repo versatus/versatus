@@ -1,4 +1,5 @@
 use clap::Parser;
+use telemetry::tracing;
 
 mod cli;
 pub mod result;

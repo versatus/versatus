@@ -1,190 +1,110 @@
-[package]
-name = "versatus"
-description = "Rust implementation of Versatus protocol"
-version = "0.1.0"
+[workspace.package]
 authors = ["Versatus Labs <info@versatus.io>"]
+homepage = "https://versatus.io"
+repository = "https://github.com/versatus/versatus"
 edition = "2021"
-readme = "README.md"
-default-run = "versa"
-
-[profile.release]
-opt-level = 3
-lto = "thin"
-
-[[bin]]
-name = "versa"
-path = "crates/cli/src/main.rs"
-
-[[bin]]
-name = "versa-wasm"
-path = "crates/wasm_cli/src/main.rs"
-
-[[bin]]
-name = "versa-compute"
-path = "crates/compute_agent/src/main.rs"
-
-[[bin]]
-name = "versa-storage"
-path = "crates/storage_agent/src/main.rs"
-
-[dependencies]
-faucet = { workspace = true }
-tokio = { workspace = true }
-telemetry = { workspace = true }
-cli = { workspace = true }
-anyhow = { workspace = true }
-node = { workspace = true }
-vrrb_config = { workspace = true }
-clap = { workspace = true }
-wasm_loader = { workspace = true }
-wasm_runtime = { workspace = true }
-web3_pkg = { workspace = true }
-platform = { workspace = true }
-vrrb_rpc = { workspace = true }
-primitives = { workspace = true }
-sha2 = { workspace = true }
-integral-db = { workspace = true }
-service_config = { workspace = true }
-serde_derive = { workspace = true }
-serde_json = { workspace = true }
-serde = { workspace = true }
-sha3 = { workspace = true }
-prometheus = { workspace = true }
-hyper = { workspace = true }
-hyper-rustls = { workspace = true }
-rand = { workspace = true }
-lazy_static = { workspace = true }
-wasmer = { workspace = true }
-metric_exporter = { workspace = true }
-internal_rpc = { workspace = true }
-env_logger = { workspace = true }
+license = "MIT"
+version = "0.1.0"
 
 [workspace]
 members = [
-  "crates/primitives",
-  "crates/events",
-  "crates/faucet",
+  "crates/block",
+  "crates/cli",
+  "crates/compute_agent",
+  "crates/compute_runtime",
   "crates/consensus",
-  "crates/consensus/quorum",
-  # "crates/consensus/dkg_engine",
-  "crates/consensus/signer",
   "crates/consensus/job_pool",
   "crates/consensus/job_scheduler",
+  "crates/consensus/quorum",
+  "crates/consensus/signer",
   "crates/consensus/vrrb_vrf",
-  "crates/vrrb_core",
-  "crates/cli",
+  "crates/events",
+  "crates/faucet",
   "crates/internal_rpc",
-  "crates/vrrb_config",
-  "crates/vrrb_rpc",
-  "crates/block",
-  "crates/miner",
-  "crates/wallet",
   "crates/mempool",
+  "crates/metric_exporter",
+  "crates/miner",
   "crates/node",
+  "crates/platform",
+  "crates/primitives",
+  "crates/service_config",
   "crates/storage",
-  "crates/storage/vrrbdb",
   "crates/storage/utils",
+  "crates/storage/vrrbdb",
   "crates/telemetry",
   "crates/utils",
+  "crates/vrrb_config",
+  "crates/vrrb_core",
   "crates/vrrb_http",
-  "crates/wasm_loader",
+  "crates/vrrb_rpc",
+  "crates/wallet",
   "crates/wasm_cli",
+  "crates/wasm_loader",
   "crates/wasm_runtime",
-  "crates/compute_runtime",
-  "crates/compute_agent",
-  "crates/storage_agent",
-  "crates/service_config",
   "crates/web3_pkg",
-  "crates/platform",
-  "crates/metric_exporter",
 ]
+exclude = ["benches"]
+resolver = "2"
 
 [workspace.dependencies]
-# NOTE: Internal crates 
-cli = { path = "crates/cli" }
-internal_rpc = { path = "crates/internal_rpc" }
-node = { path = "crates/node" }
-primitives = { path = "crates/primitives" }
-vrrb_core = { path = "crates/vrrb_core" }
-vrrb_config = { path = "crates/vrrb_config" }
-vrrb_rpc = { path = "crates/vrrb_rpc" }
-faucet = { path = "crates/faucet" }
+# Internal crates
 block = { path = "crates/block" }
-miner = { path = "crates/miner" }
-wallet = { path = "crates/wallet" }
-mempool = { path = "crates/mempool" }
-network = { path = "crates/network" }
-telemetry = { path = "crates/telemetry" }
-validator = { path = "crates/validator" }
-utils = { path = "crates/utils" }
 events = { path = "crates/events" }
-
-storage = { path = "crates/storage" }
-vrrbdb = { path = "crates/storage/vrrbdb" }
-storage_utils = { path = "crates/storage/utils" }
-
-consensus = { path = "crates/consensus" }
-quorum = { path = "crates/consensus/quorum" }
-signer = { path = "crates/consensus/signer" }
-dkg_engine = { path = "crates/consensus/dkg_engine" }
-reward = { path = "crates/consensus/reward" }
+faucet = { path = "crates/faucet" }
+internal_rpc = { path = "crates/internal_rpc" }
 job_pool = { path = "crates/consensus/job_pool" }
 job_scheduler = { path = "crates/consensus/job_scheduler" }
-vrrb_vrf = { path = "crates/consensus/vrrb_vrf" }
+mempool = { path = "crates/mempool" }
+miner = { path = "crates/miner" }
+node = { path = "crates/node" }
+platform = { path = "crates/platform" }
+primitives = { path = "crates/primitives" }
+quorum = { path = "crates/consensus/quorum" }
+reward = { path = "crates/consensus/reward" }
+service_config = { path = "crates/service_config" }
+signer = { path = "crates/consensus/signer" }
+storage = { path = "crates/storage" }
+storage_utils = { path = "crates/storage/utils" }
+telemetry = { path = "crates/telemetry" }
+utils = { path = "crates/utils" }
+validator = { path = "crates/validator" }
+vrrbdb = { path = "crates/storage/vrrbdb" }
+vrrb_config = { path = "crates/vrrb_config" }
+vrrb_core = { path = "crates/vrrb_core" }
 vrrb_http = { path = "crates/vrrb_http" }
+vrrb_rpc = { path = "crates/vrrb_rpc" }
+vrrb_vrf = { path = "crates/consensus/vrrb_vrf" }
+wallet = { path = "crates/wallet" }
 wasm_loader = { path = "crates/wasm_loader" }
 wasm_runtime = { path = "crates/wasm_runtime" }
-service_config = { path = "crates/service_config" }
-web3_pkg = { path = "crates/web3_pkg" }
-platform = { path = "crates/platform" }
-metric_exporter = { path = "crates/metric_exporter" }
 
-# NOTE: Github crates
-patriecia = { git = "https://github.com/versatus/patriecia" }
-trecho = { git = "https://github.com/vrrb-io/trecho" }
-theater = { git = "https://github.com/vrrb-io/theater" }
-hbbft = { git = "https://github.com/vrrb-io/hbbft", branch = "master" }
-bulldag = { git = "https://github.com/vrrb-io/bulldag", branch = "main" }
-kademlia-dht = { git = "https://github.com/vrrb-io/kademlia-dht-rs" }
-rendezvous_dht = { git = "https://github.com/vrrb-io/rendezvous_dht" }
-messr = { git = "https://github.com/vrrb-io/messr" }
-decentrust = { git = "https://github.com/vrrb-io/decentrust", branch = "main" }
-dyswarm = { git = "https://github.com/vrrb-io/dyswarm" }
+# Github crates
+bulldag = { git = "https://github.com/versatus/bulldag" }
+dyswarm = { git = "https://github.com/versatus/dyswarm" }
+hbbft = { git = "https://github.com/versatus/hbbft" }
 integral-db = { git = "https://github.com/versatus/integral-db" }
+kademlia-dht = { git = "https://github.com/versatus/kademlia-dht-rs" }
+messr = { git = "https://github.com/versatus/messr" }
+patriecia = { git = "https://github.com/versatus/patriecia" }
+rendezvous_dht = { git = "https://github.com/versatus/rendezvous_dht" }
+theater = { git = "https://github.com/versatus/theater" }
 
-secp256k1 = { version = "0.25.0", features = [
-  "rand",
-  "serde",
-  "bitcoin_hashes",
-  "global-context",
-] }
-
-# NOTE: External crates
+# External crates
+anyhow = "1.0"
+async-trait = "0.1"
+axum = { version = "0.5", features = ["macros"] }
+bincode = "1.3"
 bitmask-enum = "2.2"
-clap = { version = "3.2.20", features = ["derive"] }
-assert_cmd = "2.0.4"
-sha256 = "1.1.1"
-rand = { version = "0.8.5", features = ["std"] }
-bytebuffer = "0.2.1"
-serde_json = "1.0.64"
-serde = { version = "1.0.144", features = ["derive"] }
-serde_derive = "1.0.144"
-blake3 = "0.3.8"
-log = "0.4.14"
-pickledb = "0.5.1"
-tokio = { version = "1.21.2", features = ["full"] }
-hex = "*"
-thiserror = "1.0"
-ritelinked = { version = "0.3.2", features = ['serde'] }
-bincode = "1.3.3"
-uuid = { version = "1.3.1", features = ["v4", "serde"] }
-tracing = "0.1.36"
-poem = "1.3.43"
-public-ip = "0.2.2"
-anyhow = "1.0.65"
-async-trait = "0.1.58"
-derive_builder = "0.12.0"
-jsonrpsee = { version = "0.16.2", features = [
+chrono = "0.4"
+clap = { version = "3.2", features = ["derive"] }
+crossbeam-channel = "0.5"
+cuckoofilter = "0.5"
+derive_builder = "0.12"
+ethereum-types = "0.13"
+hex = "0.4"
+hyper = { version = "0.14", features = ["full"] }
+indexmap = "1.9"
+jsonrpsee = { version = "0.16", features = [
   "macros",
   "client-core",
   "server-core",
@@ -192,91 +112,35 @@ jsonrpsee = { version = "0.16.2", features = [
   "http-client",
   "ws-client",
 ] }
-bytes = "1.3.0"
-reqwest = { version = "0.11.13", features = ["rustls-tls"] }
-sha2 = "0.10.6"
-sha3 = "0.10.8"
-chrono = "0.4.23"
-lru_time_cache = "0.11.11"
-strum_macros = "0.21.0"
-rocksdb = "0.21.0"
-strum = "0.21.0"
-rayon = "1.6.1"
-config = "0.13.3"
-serial_test = "0.9.0"
-left-right = "0.11.5"
-keccak-hash = "0.9"
+lazy_static = "1.4"
+lru_time_cache = "0.11"
+once_cell = "1.16"
 parking_lot = "0.12"
-rlp = "0.5.1"
-criterion = { version = "0.5.1", features = ["stable", "async_futures"] }
-ethereum-types = "0.13.1"
-concurrent-queue = "2.0.0"
-crossbeam-channel = "0.5.6"
-once_cell = "1.16.0"
-waker-fn = "1.1.0"
-num_cpus = "1.14.0"
-rand_chacha = "0.3.1"
-format-bytes = "0.3.0"
-thread_local = "1.1.4"
-tabled = "0.10.0"
-axum = "0.5.17"
-axum-server = { version = "0.4.4", features = ["tls-rustls"] }
-tower = "0.4.13"
-tower-http = { version = "0.3.4", features = ["trace"] }
-hyper = { version = "0.14.23", features = ["full"] }
-cuckoofilter = "0.5.0"
-indexmap = "1.9.1"
-raptorq = "1.7.0"
-dirs = "4.0.0"
-tracing-subscriber = { version = "0.3.15", features = [
-  "fmt",
-  "registry",
-  "env-filter",
-  "tracing-log",
-  "json",
+prometheus = { version = "0.13", features = ["process"] }
+rand = { version = "0.8", features = ["std"] }
+rand_chacha = "0.3"
+rayon = "1.6"
+reqwest = { version = "0.11", features = ["rustls-tls"] }
+ritelinked = { version = "0.3", features = ["serde"] }
+secp256k1 = { version = "0.25", features = [
+  "rand",
+  "serde",
+  "bitcoin_hashes",
+  "global-context",
 ] }
-prometheus = { version = "0.13.3", features = ["process"] }
-lazy_static = "1.4.0"
-dashmap = "5.4.0"
-timer = "0.2.0"
-laminar = "0.5.0"
-futures = { version = "0.3.24", features = ["thread-pool"] }
-qp2p = "0.30.0"
-wiremock = "0.5.18"
-url = "2.3.1"
-bs58 = "0.4.0"
-ring = "0.16.20"
-prost = "0.11.0"
-pbjson = "0.5"
-pbjson-types = "0.5"
-tonic = { version = "0.9.2", features = ["gzip"] }
-tonic-reflection = "0.9.2"
-maglev = "0.2.1"
-tokio-util = { version = "0.7.8", features = ["rt"] }
-wasmer = "4.0.0"
-wasmer-middlewares = "4.0.0"
-wasmer-wasix = "0.9.0"
-wasmer-wasix-types = "0.9.0"
-wasmer-vm = "4.0.0"
-wasmparser = "0.107.0"
-ipfs-api = "0.17.0"
-microkv = "0.2.9"
-rustls = "0.21"
-rustls-pemfile = "1.0"
-hyper-rustls = { version = "0.24", features = ["acceptor"] }
-env_logger = "0.10"
+serde = { version = "1.0", features = ["derive"] }
+serde_derive = "1.0"
+serde_json = "1.0"
+serial_test = "0.9"
+sha2 = "0.10"
+sha256 = "1.1"
+thiserror = "1.0"
+tokio = { version = "1.21", features = ["full"] }
+uuid = { version = "1.3", features = ["v4", "serde"] }
+wasmer = "4.0"
+wasmer-wasix = "0.9"
+wasmer-wasix-types = "0.9"
 
-[dev-dependencies]
-cuckoofilter.workspace = true
-reqwest.workspace = true
-serial_test.workspace = true
-rand.workspace = true
-hex.workspace = true
-criterion.workspace = true
-ethereum-types.workspace = true
-uuid.workspace = true
-
-
-[[bench]]
-name = "poc"
-harness = false
+[profile.release]
+opt-level = 3
+lto = "thin"

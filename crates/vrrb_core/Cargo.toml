@@ -1,37 +1,32 @@
 [package]
 name = "vrrb_core"
-version = "0.0.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+edition.workspace = true
+license.workspace = true
+version.workspace = true
 
 [dependencies]
-tokio = { workspace = true }
-telemetry = { workspace = true }
-primitives = { workspace = true }
-anyhow = { workspace = true }
-thiserror = { workspace = true }
-ritelinked = { workspace = true }
-sha256 = { workspace = true }
-serde_json = { workspace = true }
-serde = { workspace = true }
-hex = { workspace = true }
-secp256k1 = { workspace = true }
-bytebuffer = { workspace = true }
-uuid = { workspace = true }
-lru_time_cache = { workspace = true }
-hbbft = { workspace = true }
-rand = { workspace = true }
 bincode = { workspace = true }
-sha2 = { workspace = true }
+bs58 = "0.4"
 chrono = { workspace = true }
-async-trait = { workspace = true }
-theater = { workspace = true }
-utils = { workspace = true }
 cuckoofilter = { workspace = true }
 ethereum-types = { workspace = true }
-bs58 = { workspace = true }
-ring = { workspace = true }
+hbbft = { workspace = true }
+hex = { workspace = true }
+lru_time_cache = { workspace = true }
+primitives = { workspace = true }
+rand = { workspace = true }
+ring = "0.16"
+ritelinked = { workspace = true }
+secp256k1 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+telemetry = { workspace = true }
+thiserror = { workspace = true }
+utils = { workspace = true }
 
 [dev-dependencies]
 serial_test = { workspace = true }

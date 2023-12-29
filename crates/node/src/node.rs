@@ -6,7 +6,7 @@ use primitives::{
     KademliaPeerId, NodeType, JSON_RPC_API_TOPIC_STR, NETWORK_TOPIC_STR, RUNTIME_TOPIC_STR,
 };
 use storage::vrrbdb::VrrbDbReadHandle;
-use telemetry::info;
+use telemetry::{info, tracing};
 use tokio::{
     sync::mpsc::{channel, UnboundedReceiver},
     task::JoinHandle,

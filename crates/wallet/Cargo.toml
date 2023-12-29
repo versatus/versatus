@@ -1,9 +1,12 @@
 [package]
 name = "wallet"
-version = "0.1.0"
-edition = "2021"
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+edition.workspace = true
+license.workspace = true
+version.workspace = true
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 name = "wallet"
 path = "src/lib.rs"
@@ -13,31 +16,24 @@ name = "wallet-rpc-tests"
 path = "tests/wallet_rpc_tests.rs"
 
 [dependencies]
-sha256 = { workspace = true }
-rand = { workspace = true }
-uuid = { workspace = true }
-bytebuffer = { workspace = true }
-serde_json = { workspace = true }
-serde = { workspace = true }
-blake3 = { workspace = true }
+chrono = { workspace = true }
 hex = { workspace = true }
-thiserror = { workspace = true }
-telemetry = { workspace = true }
-log = { workspace = true }
-ritelinked = { workspace = true }
-strum = { workspace = true }
-strum_macros = { workspace = true }
-storage = { workspace = true }
-vrrb_core = { workspace = true }
-tabled = { workspace = true }
 jsonrpsee = { workspace = true }
 primitives = { workspace = true }
+rand = { workspace = true }
+ritelinked = { workspace = true }
 secp256k1 = { workspace = true }
-vrrb_rpc = { workspace = true }
-utils = { workspace = true }
-chrono = { workspace = true }
-tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 sha2 = { workspace = true }
+storage = { workspace = true }
+telemetry = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+utils = { workspace = true }
+uuid = { workspace = true }
+vrrb_core = { workspace = true }
+vrrb_rpc = { workspace = true }
 
 [dev-dependencies]
 serial_test = { workspace = true }
