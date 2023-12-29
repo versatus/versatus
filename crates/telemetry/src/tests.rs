@@ -5,7 +5,6 @@ use std::time::Duration;
 
 #[test]
 fn req_stats_ok() {
-    let _ = env_logger::builder().is_test(true).try_init();
     let mut stats = RequestStats::new("Test".to_string(), "req_stats_ok".to_string())
         .expect("Failed to create new stats object");
     stats.start("1sec".to_string()).expect("Failed to start");

@@ -7,7 +7,7 @@ use std::{
     net::{IpAddr, Ipv4Addr, SocketAddr},
     path::PathBuf,
 };
-use telemetry::{error, info};
+use telemetry::{error, info, tracing};
 
 use uuid::Uuid;
 use vrrb_config::NodeConfig;

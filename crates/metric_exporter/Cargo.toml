@@ -1,15 +1,15 @@
 [package]
 name = "metric_exporter"
-version = "0.1.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+edition.workspace = true
+license.workspace = true
+version.workspace = true
 
 [dependencies]
 hyper = { workspace = true }
-tokio = { workspace = true }
-thiserror = { workspace = true }
-rand = { workspace = true }
+hyper-rustls = { version = "0.24", features = ["acceptor"] }
 platform = { workspace = true }
 prometheus = { workspace = true }
 hyper-rustls = { workspace = true }
@@ -17,6 +17,9 @@ rustls = { workspace = true}
 rustls-pemfile = { workspace = true}
 telemetry = { workspace = true}
 tokio-util = { workspace = true}
+rand = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
 
 [[example]]
 name = "metrics_example"

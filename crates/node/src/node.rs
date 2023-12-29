@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use storage::vrrbdb::VrrbDbReadHandle;
-use telemetry::info;
+use telemetry::{info, tracing};
 use tokio::{
     signal,
     sync::mpsc::{channel, UnboundedReceiver},

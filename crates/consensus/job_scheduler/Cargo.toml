@@ -1,15 +1,17 @@
 [package]
 name = "job_scheduler"
-version = "0.1.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+edition.workspace = true
+license.workspace = true
+version.workspace = true
 
 [dependencies]
-num_cpus = { workspace = true }
+job_pool = { workspace = true }
+num_cpus = "1.14"
 once_cell = { workspace = true }
 primitives = { workspace = true }
-job_pool = { workspace = true }
-vrrb_core = { workspace = true }
 rand = { workspace = true }
 thiserror = { workspace = true }
+vrrb_core = { workspace = true }

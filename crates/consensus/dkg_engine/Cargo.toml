@@ -1,19 +1,21 @@
 [package]
 name = "dkg_engine"
-version = "0.1.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "Distributed Key Generator, currently deprecated"
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+edition.workspace = true
+license.workspace = true
+version.workspace = true
 
 [dependencies]
-hbbft = { workspace = true }
-thiserror = { workspace = true }
-serde = { workspace = true }
-# TODO: make this crate use rand from workspace later
-rand = "0.6.5"
 bincode = { workspace = true }
-tokio = { workspace = true }
+hbbft = { workspace = true }
 hex = { workspace = true }
 primitives = { workspace = true }
+rand = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
 vrrb_config = { workspace = true }
 vrrb_core = { workspace = true }
