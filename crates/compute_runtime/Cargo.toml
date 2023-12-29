@@ -1,5 +1,5 @@
 [package]
-name = "platform"
+name = "compute_runtime"
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
@@ -10,6 +10,11 @@ version.workspace = true
 [dependencies]
 anyhow = { workspace = true }
 bitmask-enum = { workspace = true }
-nix = { version = "0.27", features = ["feature"] }
-serde = { workspace = true }
-thiserror = { workspace = true }
+derive_builder = { workspace = true }
+oci-spec = "0.6"
+telemetry = { workspace = true }
+uds = "0.4"
+
+[dev-dependencies]
+env_logger = "0.10"
+mktemp = "0.5"
