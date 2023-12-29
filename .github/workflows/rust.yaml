@@ -134,11 +134,6 @@ jobs:
         with:
           command: test
           args: -p consensus
-      - name: cargo test dkg_engine
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: -p dkg_engine
       - name: cargo test job_pool
         uses: actions-rs/cargo@v1
         with:

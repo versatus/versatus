@@ -1,21 +1,23 @@
 [package]
 name = "quorum"
-version = "0.1.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+edition.workspace = true
+license.workspace = true
+version.workspace = true
 
 [dependencies]
-vrrb_core = { workspace = true }
-block = { workspace = true }
-vrrb_vrf = { workspace = true }
-rand_chacha = { workspace = true }
-format-bytes = { workspace = true }
-thread_local = { workspace = true }
-thiserror = { workspace = true }
-rand = { workspace = true }
-sha256 = { workspace = true }
+ethereum-types = { workspace = true }
 hex = { workspace = true }
 primitives = { workspace = true }
+rand = { workspace = true }
+rand_chacha = { workspace = true }
 serde = { workspace = true }
-ethereum-types = { workspace = true }
+thiserror = { workspace = true }
+thread_local = "1.1"
+vrrb_core = { workspace = true }
+vrrb_vrf = { workspace = true }
+
+[dev-dependencies]
+sha256 = { workspace = true }

@@ -1,14 +1,16 @@
 [package]
 name = "job_pool"
-version = "0.1.0"
-readme = "README.md"
-edition = "2021"
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+edition.workspace = true
+license.workspace = true
+version.workspace = true
 
 [dependencies]
+concurrent-queue = "2.0"
 crossbeam-channel = { workspace = true }
 once_cell = { workspace = true }
-waker-fn = { workspace = true }
-uuid = { workspace = true }
-concurrent-queue = { workspace = true }
 thiserror = { workspace = true }
-vrrb_core = { workspace = true }
+uuid = { workspace = true }
+waker-fn = "1.1"

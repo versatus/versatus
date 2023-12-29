@@ -1,7 +1,7 @@
 use anyhow::Result;
 use futures::TryStreamExt;
 use ipfs_api::{IpfsApi, IpfsClient, TryFromUri};
-use serde::{Deserialize, Serialize};
+use serde_derive::{Deserialize, Serialize};
 use std::io::Cursor;
 
 /// A structure representing a content-addressable Web3 store. Currently closely tied to IPFS
