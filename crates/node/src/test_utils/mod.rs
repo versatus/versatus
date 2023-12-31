@@ -40,6 +40,8 @@ mod mock_config;
 mod node_network;
 mod runtime_network;
 
+pub(crate) const INITIAL_ACCOUNT_CREDITS: u128 = 1_000_000_000_000_000_000_000_000_000;
+
 pub fn produce_accounts(n: usize) -> Vec<(Address, Option<Account>)> {
     (0..n)
         .map(|_| {
@@ -48,7 +50,7 @@ pub fn produce_accounts(n: usize) -> Vec<(Address, Option<Account>)> {
             account
                 .as_mut()
                 .unwrap()
-                .set_credits(1_000_000_000_000_000_000_000_000_000u128);
+                .set_credits(INITIAL_ACCOUNT_CREDITS);
             (kp.1.into(), account)
         })
         .collect()
