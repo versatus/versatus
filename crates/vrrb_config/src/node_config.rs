@@ -107,6 +107,18 @@ pub struct NodeConfig {
     pub threshold_config: ThresholdConfig,
 
     pub whitelisted_nodes: Vec<QuorumMember>,
+
+    /// The IP address for binding Prometheus in the Versatus Protocol.
+    pub prometheus_bind_addr: String,
+
+    /// The port number for binding Prometheus in the Versatus Protocol.
+    pub prometheus_bind_port: u16,
+
+    /// File path for the TLS certificate used by Prometheus in the Versatus Protocol.
+    pub prometheus_cert_path: String,
+
+    /// File path for the private key used by Prometheus for TLS in the Versatus Protocol.
+    pub prometheus_private_key_path: String,
 }
 
 impl NodeConfig {
@@ -159,6 +171,10 @@ impl Default for NodeConfig {
         let ipv4_localhost_with_random_port =
             SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
 
+        let current_dir = std::env::current_dir().expect("Failed to get current directory");
+        let rsa_path = current_dir.join("crates/vrrb_config/tls/sample.rsa");
+        let pem_path = current_dir.join("crates/vrrb_config/tls/sample.pem");
+
         Self {
             id: Uuid::new_v4().to_string(),
             data_dir: PathBuf::from(DEFAULT_VRRB_DATA_DIR_PATH),
@@ -188,6 +204,10 @@ impl Default for NodeConfig {
             threshold_config: ThresholdConfig::default(),
             enable_block_indexing: false,
             whitelisted_nodes: vec![],
+            prometheus_bind_addr: String::from("127.0.0.1"),
+            prometheus_bind_port: ipv4_localhost_with_random_port.port(),
+            prometheus_cert_path: rsa_path.to_str().unwrap().to_string(),
+            prometheus_private_key_path: pem_path.to_str().unwrap().to_string(),
         }
     }
 }

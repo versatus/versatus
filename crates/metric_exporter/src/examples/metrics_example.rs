@@ -8,6 +8,7 @@ use std::thread::sleep;
 use std::time::Duration;
 use telemetry::info;
 use tokio::signal;
+use tokio_util::sync::CancellationToken;
 
 #[tokio::main]
 async fn main() {
@@ -33,6 +34,7 @@ async fn main() {
             HashMap::new(),
             rsa_path.to_str().unwrap().to_string(),
             pem_path.to_str().unwrap().to_string(),
+            CancellationToken::new(),
         )
         .unwrap(),
     );

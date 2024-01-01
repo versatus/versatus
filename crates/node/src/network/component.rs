@@ -1,14 +1,16 @@
+use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::sync::Arc;
 
+use crate::{NodeError, RuntimeComponent, RuntimeComponentHandle};
 use async_trait::async_trait;
 use events::{EventPublisher, EventSubscriber};
+use metric_exporter::metric_factory::PrometheusFactory;
 use primitives::{KademliaPeerId, NodeId, PublicKey};
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use theater::{Actor, ActorImpl, Handler};
 use vrrb_config::{NodeConfig, QuorumMembershipConfig};
-
-use crate::{NodeError, RuntimeComponent, RuntimeComponentHandle};
 
 use crate::network::module::*;
 
@@ -39,6 +41,8 @@ impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolv
 {
     async fn setup(
         args: NetworkModuleComponentConfig,
+        factory: Arc<PrometheusFactory>,
+        labels: HashMap<String, String>,
     ) -> crate::Result<RuntimeComponentHandle<NetworkModuleComponentResolvedData>> {
         let mut network_events_rx = args.network_events_rx;
         let node_config = args.config.clone();
@@ -65,11 +69,14 @@ impl RuntimeComponent<NetworkModuleComponentConfig, NetworkModuleComponentResolv
         let kademlia_dht_resolved_id = network_module.kademlia_peer_id();
         let resolved_kademlia_liveness_address = network_module.kademlia_liveness_addr();
         let resolved_raptorq_gossip_address = network_module.raptorq_gossip_addr();
-
+        let is_bootstrap_node = factory
+            .build_counter("is_bootstrap_node", "Is Bootstrap Node?", labels.clone())
+            .map_err(|e| NodeError::Other(format!("Failed to build prometheus metric :{:?}", e)))?;
         let is_not_bootstrap = !network_module.is_bootstrap();
-
         if is_not_bootstrap {
             network_module.broadcast_join_intent().await?;
+        } else {
+            is_bootstrap_node.inc();
         }
 
         let mut network_module_actor = ActorImpl::new(network_module);

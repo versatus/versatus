@@ -26,6 +26,10 @@ pub fn create_mock_full_node_config() -> NodeConfig {
     let udp_gossip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
     let raptorq_gossip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
     let kademlia_liveness_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
+    let prometheus_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
+    let current_dir = std::env::current_dir().expect("Failed to get current directory");
+    let rsa_path = current_dir.join("crates/node/src/test_utils/mocks/sample.rsa");
+    let private_key_path = current_dir.join("crates/node/src//test_utils/mocks/sample.pem");
 
     NodeConfigBuilder::default()
         .id(id)
@@ -51,6 +55,10 @@ pub fn create_mock_full_node_config() -> NodeConfig {
         .quorum_config(None)
         .threshold_config(ThresholdConfig::default())
         .whitelisted_nodes(vec![])
+        .prometheus_bind_addr(prometheus_addr.ip().to_string())
+        .prometheus_bind_port(prometheus_addr.port())
+        .prometheus_cert_path(rsa_path.to_str().unwrap().to_string())
+        .prometheus_private_key_path(private_key_path.to_str().unwrap().to_string())
         .build()
         .unwrap()
 }
