@@ -5,6 +5,7 @@ use bonsaidb::core::schema::{Collection, SerializedCollection};
 use bonsaidb::local::config::{Builder, StorageConfiguration};
 use bonsaidb::local::Storage;
 use bonsaidb_core::connection::StorageConnection;
+use bonsaidb_local::Database;
 use clap::Parser;
 use ethereum_types::U256;
 use primitives::Address;
@@ -12,6 +13,8 @@ use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
 pub const DEFAULT_DB_PATH: &str = "./bonsaidb";
+pub const DEFAULT_BLOCK_HEIGHT: u64 = 10;
+pub const DEFAULT_BLOCK_TIME: u64 = 1704018000;
 pub const DEFAULT_BALANCE: U256 = U256([10000; 4]);
 pub const DEFAULT_ADDRESSES: &[Address; 10] = &[
     Address([0; 20]),
@@ -85,6 +88,39 @@ fn insert_protocol_inputs<C: Connection>(
     Ok(())
 }
 
+fn insert_test_balances(account_connection: &Database) -> Result<()> {
+    for address in DEFAULT_ADDRESSES.iter() {
+        let key = AccountAddress { address: address.0 };
+        AccountBalance {
+            value: DEFAULT_BALANCE,
+        }
+        .insert_into(&key, account_connection)?;
+    }
+    Ok(())
+}
+
+fn insert_balance_at_address(opts: &TestInitDBOpts, account_connection: &Database) -> Result<()> {
+    if let Some(address) = &opts.address {
+        let key = AccountAddress { address: address.0 };
+        let value = if let Some(balance) = opts.default_balance {
+            balance
+        } else {
+            println!(
+                "Default balance is None. Initializing account for address '{:?}' with value 0u256",
+                &opts.address
+            );
+            Default::default()
+        };
+        AccountBalance { value }.insert_into(&key, account_connection)?;
+    } else if opts.default_balance.is_some() {
+        println!(
+            "A default balance was given without being assigned an address.
+No account was created. Please provide an address and try again."
+        );
+    }
+    Ok(())
+}
+
 /// Initialises a new database for keeping standalone state typically provided by a blockchain.
 /// This allows some standalone testing of smart contracts without needing access to a testnet and
 /// can also potentially be integrated into common CI/CD frameworks.
@@ -118,39 +154,15 @@ FAIL: {e:?}",
     let account_connection =
         storage_connection.create_database::<AccountBalance>(ACCOUNT_BALANCE_NAME, true)?;
 
-    // TODO: Create consts to replace these magic numbers
-    //                                           vvvvvvv
-    insert_protocol_inputs(&protocol_connection, 10, 100)?;
+    insert_protocol_inputs(
+        &protocol_connection,
+        DEFAULT_BLOCK_HEIGHT,
+        DEFAULT_BLOCK_TIME,
+    )?;
 
-    // TODO: Abstract this into its own function, eg `fn insert_test_balances`
-    // Insert default test address bytes
-    for address in DEFAULT_ADDRESSES.iter() {
-        let key = AccountAddress { address: address.0 };
-        AccountBalance {
-            value: DEFAULT_BALANCE,
-        }
-        .insert_into(&key, &account_connection)?;
-    }
+    insert_test_balances(&account_connection)?;
 
-    // TODO: Abstract this into its own function, eg `fn insert_balance_at_address`
-    if let Some(address) = &opts.address {
-        let key = AccountAddress { address: address.0 };
-        let value = if let Some(balance) = opts.default_balance {
-            balance
-        } else {
-            println!(
-                "Default balance is None. Initializing account for address '{:?}' with value 0u256",
-                &opts.address
-            );
-            Default::default()
-        };
-        AccountBalance { value }.insert_into(&key, &account_connection)?;
-    } else if opts.default_balance.is_some() {
-        println!(
-            "A default balance was given without being assigned an address.
-No account was created. Please provide an address and try again."
-        );
-    }
+    insert_balance_at_address(opts, &account_connection)?;
 
     Ok(())
 }
