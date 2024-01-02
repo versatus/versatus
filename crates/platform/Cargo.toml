@@ -7,6 +7,10 @@ edition.workspace = true
 license.workspace = true
 version.workspace = true
 
+[[example]]
+name = "cgroup_stats"
+path = "../../examples/cgroup_stats.rs"
+
 [dependencies]
 anyhow = { workspace = true }
 bitmask-enum = { workspace = true }

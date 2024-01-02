@@ -18,7 +18,7 @@ parking_lot = { workspace = true }
 patriecia = { workspace = true }
 primitives = { workspace = true }
 ritelinked = { workspace = true }
-rocksdb = "0.19"
+rocksdb = "0.21"
 secp256k1 = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
