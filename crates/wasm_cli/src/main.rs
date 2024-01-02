@@ -18,6 +18,10 @@ fn main() -> Result<()> {
         Some(cli::WasmCommands::Validate(opts)) => {
             commands::validate::run(opts)?;
         }
+        Some(cli::WasmCommands::Publish(opts)) => {
+            let rt = tokio::runtime::Runtime::new()?;
+            let _ = rt.block_on(async { commands::publish::run(opts).await })?;
+        }
         None => {}
     }
 
