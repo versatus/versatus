@@ -9,6 +9,8 @@ use wasm_runtime::{
 };
 use wasmer::{Cranelift, Target};
 
+use crate::commands::testinitdb;
+
 #[derive(Parser, Debug)]
 pub struct TestContractOpts {
     /// This is the path to the database to be created/used. #716, this path is what we'll feed
@@ -64,6 +66,8 @@ pub fn run(opts: &TestContractOpts) -> Result<()> {
     // repository, but build it from the contents of the database and command line inputs. We can
     // assume (for now) that all contracts will be ERC20 when dealing with inputs and outputs.
     let json_data = "{ \"replace\": \"me\" }".as_bytes();
+
+    let storage_connection = testinitdb::open_storage(&opts.dbpath)?;
 
     let mut env_vars: HashMap<String, String> = HashMap::new();
     for var in opts.env.iter() {

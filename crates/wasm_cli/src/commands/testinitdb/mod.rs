@@ -121,24 +121,23 @@ No account was created. Please provide an address and try again."
     Ok(())
 }
 
+pub(crate) fn open_storage(path: &String) -> Result<Storage> {
+    Ok(Storage::open(
+        StorageConfiguration::new(path)
+            .with_schema::<AccountBalance>()?
+            .with_schema::<ProtocolInputs>()?,
+    )?)
+}
+
 /// Initialises a new database for keeping standalone state typically provided by a blockchain.
 /// This allows some standalone testing of smart contracts without needing access to a testnet and
 /// can also potentially be integrated into common CI/CD frameworks.
 pub fn run(opts: &TestInitDBOpts) -> Result<()> {
     let storage_connection = if opts.force {
         drop(std::fs::remove_dir_all(&opts.dbpath));
-        Storage::open(
-            StorageConfiguration::new(&opts.dbpath)
-                .with_schema::<AccountBalance>()?
-                .with_schema::<ProtocolInputs>()?,
-        )?
+        open_storage(&opts.dbpath)?
     } else {
-        Storage::open(
-            StorageConfiguration::new(&opts.dbpath)
-                .with_schema::<AccountBalance>()?
-                .with_schema::<ProtocolInputs>()?,
-        )
-        .map_err(|e| {
+        open_storage(&opts.dbpath).map_err(|e| {
             anyhow::anyhow!(
                 "Failed to create new database at path '{}'.
 Use `--force` to overwrite the database at the existing path.
