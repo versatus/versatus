@@ -3,6 +3,7 @@
 use crate::oci::OciManagerBuilder;
 use crate::runtime::{ComputeRuntime, ComputeRuntimeCapabilities};
 use anyhow::{Context, Result};
+use log::info;
 use std::collections::HashMap;
 use telemetry::tracing;
 
@@ -44,6 +45,7 @@ impl ComputeRuntime for KontainWasmRuntime {
         let mut annotations: HashMap<String, String> = HashMap::new();
         annotations.insert("payload_type".to_string(), "unikernel+wasm".to_string());
 
+        info!("Building OCI object");
         let mut oci = OciManagerBuilder::default()
             .runtime_path(runtime_path.to_string())
             .oci_runtime(RUNTIME_PATH.to_string())
@@ -61,6 +63,7 @@ impl ComputeRuntime for KontainWasmRuntime {
         dbg!(oci.rootfs());
 
         oci.spec().context("OCI spec")?;
+        //oci.execute().context("OCI execute")?;
         Ok(())
     }
 }

@@ -14,7 +14,8 @@ derive_builder = { workspace = true }
 oci-spec = "0.6"
 telemetry = { workspace = true }
 uds = "0.4"
+log = "0.4"
+env_logger = "0.10"
 
 [dev-dependencies]
-env_logger = "0.10"
 mktemp = "0.5"

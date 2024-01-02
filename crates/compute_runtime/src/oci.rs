@@ -2,6 +2,7 @@
 
 use anyhow::{anyhow, Context, Result};
 use derive_builder::Builder;
+use log::{debug, info};
 use oci_spec::runtime::{Process, ProcessBuilder, Root, RootBuilder, Spec};
 use std::collections::HashMap;
 use std::fs::File;
@@ -12,13 +13,31 @@ use std::os::unix::net::UnixListener;
 use std::process::Command;
 use std::str;
 use std::thread;
-use telemetry::log::{debug, info};
+use telemetry::request_stats::RequestStats;
 use uds::{UnixListenerExt, UnixSocketAddr, UnixStreamExt};
 
 /// The directory under the temporary tree where we build the container's root filesystem.
 /// Interestingly, it seems as though regardless of what we set this to in the config.json spec
 /// file, some OCI runtimes always insist that it be the string 'rootfs'...
 const CONTAINER_ROOT: &str = "rootfs";
+
+/// Wrap RequestStats and provide a default to satisfy derive_builder used below.
+struct OciStats(RequestStats);
+impl Default for OciStats {
+    fn default() -> Self {
+        OciStats::new()
+    }
+}
+
+impl OciStats {
+    pub fn new() -> Self {
+        info!("Building new stats collector");
+        OciStats {
+            0: RequestStats::new("OciManager".to_string(), "oci-exec".to_string())
+                .expect("Failed to create stats collector"),
+        }
+    }
+}
 
 /// OciManager provides functionality for building and managing container execution using an
 /// OCI-compliant runtime.
@@ -45,6 +64,9 @@ pub struct OciManager {
     /// The internal representation of the container configuration.
     #[builder(setter(skip = true))]
     oci_config: Option<Spec>,
+    /// object for tracing timing of phases of execution
+    #[builder(setter(skip = true))]
+    stats: OciStats,
 }
 
 impl OciManager {
@@ -53,8 +75,9 @@ impl OciManager {
         format!("{}/{}", self.runtime_path, CONTAINER_ROOT)
     }
     /// Prep the container manager temporary directory by creating directories, etc.
-    pub fn prep(&self) -> Result<()> {
+    pub fn prep(&mut self) -> Result<()> {
         // First, create all of the sub directories we'll need to build and run an OCI container.
+        self.stats.0.start("setup".to_string())?;
         debug!(
             "Creating container rootfs under: {}/{}",
             &self.runtime_path, CONTAINER_ROOT
@@ -78,6 +101,7 @@ impl OciManager {
             format!("{}/{}/bin/busybox", self.runtime_path, CONTAINER_ROOT),
         )
         .context("busybox")?;
+        self.stats.0.stop("setup".to_string())?;
         Ok(())
     }
 
@@ -85,6 +109,7 @@ impl OciManager {
     /// customisations.
     pub fn spec(&mut self) -> Result<()> {
         // run container runtime with `spec` option and parse spec
+        self.stats.0.start("spec".to_string())?;
         let cmd = Command::new(&self.oci_runtime)
             .arg("spec")
             .arg("--rootless") // not all runtimes seem to support rootless
@@ -151,12 +176,14 @@ impl OciManager {
         // Stash our modified config object ready to be written out before we build and execute.
         self.oci_config = Some(oci_config.to_owned());
         debug!("Parsed OCI config: {:?}", &self.oci_config);
+        self.stats.0.stop("spec".to_string())?;
         Ok(())
     }
 
     /// Executes a prepped OCI-compliant container
-    pub fn execute(&self) -> Result<()> {
+    pub fn execute(&mut self) -> Result<()> {
         // First, write out our configuration file over the default one generated earlier.
+        self.stats.0.start("exec".to_string())?;
         match &self.oci_config {
             None => return Err(anyhow!("Attempted to run empty container spec")),
             Some(spec) => {
@@ -212,6 +239,7 @@ impl OciManager {
         // TODO: When the caller exists, pass this back up to them.
         info!("Thread output: {}", tret);
 
+        self.stats.0.stop("exec".to_string())?;
         Ok(())
     }
 }

@@ -4,6 +4,7 @@ use crate::oci_runc::OpenComputeRuntime;
 use crate::runtime::{ComputeRuntime, ComputeRuntimeCapabilities};
 use crate::youki::YoukiRuntime;
 
+use log::info;
 use mktemp::Temp;
 
 #[test]
@@ -44,14 +45,15 @@ fn check_oci_runc_caps() {
 // without requiring any external dependencies.
 
 #[test]
-#[ignore]
 fn check_kontain_wasm_setup() {
     let _ = env_logger::builder().is_test(true).try_init();
+    info!("Test output");
     let r = KontainWasmRuntime {};
     let path = Temp::new_dir().unwrap();
     let uuid = "0xdeadbeef"; // TODO: This ought to be a UUID and be passed in
     r.setup(&uuid, &path.to_str().unwrap()).unwrap();
     // TODO: Check that temp_dir exists, then drop it and make sure it no longer exists.
+    std::mem::drop(r);
 }
 
 #[test]

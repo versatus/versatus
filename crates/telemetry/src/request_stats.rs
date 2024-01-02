@@ -23,6 +23,7 @@ pub enum StopWatchError {
 }
 
 /// Simple struct to track start/end times
+#[derive(Debug)]
 struct StopWatch {
     /// Start time for this specific stat.
     start_ms: Option<u128>,
@@ -77,6 +78,7 @@ impl StopWatch {
     }
 }
 
+#[derive(Debug)]
 pub struct RequestStats {
     /// A label to identify this whole collection of stats. This is added to the default output,
     /// but has no special meaning. A good example might be to make this the module name.
@@ -135,7 +137,6 @@ impl Drop for RequestStats {
             if let Ok(val) = &self.values[i].duration() {
                 output += &format!("; {}={} ", &stat, &val.to_string());
             }
-            //output += &format!("{}={}", &stat, &self.values[i].duration()?.to_string());
         }
         info!("RequestStat: {}", output);
     }
