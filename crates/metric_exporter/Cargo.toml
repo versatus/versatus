@@ -9,13 +9,14 @@ version.workspace = true
 
 [dependencies]
 hyper = { workspace = true }
-hyper-rustls = { version = "0.24", features = ["acceptor"] }
 platform = { workspace = true }
 prometheus = { workspace = true }
+hyper-rustls = { workspace = true }
+rustls = { workspace = true}
+rustls-pemfile = { workspace = true}
+telemetry = { workspace = true}
+tokio-util = { workspace = true}
 rand = { workspace = true }
-rustls = "0.21"
-rustls-pemfile = "1.0"
-telemetry = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 

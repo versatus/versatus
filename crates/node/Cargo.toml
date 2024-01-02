@@ -51,12 +51,16 @@ thiserror = { workspace = true }
 tokio = { workspace = true }
 tokio-util = { version = "0.7", features = ["rt"] }
 utils = { workspace = true }
+maglev = { workspace = true }
+metric_exporter = { workspace = true }
+prometheus = { workspace = true}
 uuid = { workspace = true }
 validator = { workspace = true }
 vrrb_config = { workspace = true }
 vrrb_core = { workspace = true }
 vrrb_http = { workspace = true }
 vrrb_rpc = { workspace = true }
+
 
 [dev-dependencies]
 reqwest = { workspace = true }

@@ -14,6 +14,11 @@ async fn main() {
 
     for node in nodes.iter() {
         println!("{}", node.jsonrpc_server_address());
+        println!(
+            "Prometheus Address {:?}:{}",
+            node.prometheus_bind_address(),
+            node.prometheus_bind_port()
+        );
         let pubkey = PublicKey::from_str(&node.keypair.get_miner_public_key().to_string()).unwrap();
         let address = Address::new(pubkey);
         println!("Address: {}", address);
