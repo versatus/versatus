@@ -6,9 +6,15 @@ use std::io::Cursor;
 
 /// A structure representing a content-addressable Web3 store. Currently closely tied to IPFS
 /// specifically, but could be expanded to others, such as Iroh.
+
 pub struct Web3Store {
     client: IpfsClient,
 }
+
+unsafe impl Send for Web3Store {}
+
+
+unsafe impl Sync for Web3Store {}
 
 /// A structure representing stats for a content-addressable Web3 store. Currently closely tied to
 /// IPFS and Kubo specifically, but could be adapted to others.
@@ -123,11 +129,11 @@ impl Web3Store {
     }
 
     /// Checks if object is pinned
-    pub async fn is_pinned(&self, cid: &str,) -> Result<(bool)> {
+    pub async fn is_pinned(&self, cid: &str,) -> Result<bool> {
         let res = self
             .client
             .pin_ls(Some(cid),None).await?;
-        Ok(res.keys.len()>=1)
+        Ok(!res.keys.is_empty())
     }
 
 

@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use crate::api::{InternalRpcApiServer, RpcResult};
+use crate::api::{Data, InternalRpcApiServer, RpcResult};
 use jsonrpsee::core::__reexports::serde_json;
 use jsonrpsee::{
     core::async_trait,
@@ -8,6 +8,7 @@ use jsonrpsee::{
 };
 use platform::services::*;
 use service_config::ServiceConfig;
+use tokio::runtime::Runtime;
 use web3_pkg::web3_pkg::Web3Package;
 use web3_pkg::web3_store::Web3Store;
 
@@ -67,12 +68,12 @@ impl InternalRpc {
         })
     }
 
-    async fn get_object(&self, cid: &str) -> RpcResult<Vec<u8>> {
+    async fn retrieve_object(&self, cid: &str) -> RpcResult<Vec<(String, Vec<u8>)>> {
         let store = Web3Store::local()?;
         let obj = store.read_object(cid).await?;
-        Ok(obj)
+        Ok(vec![(cid.to_string(), obj)])
     }
-    async fn get_dag_object(&self, cid: &str) -> RpcResult<Vec<(String, Vec<u8>)>> {
+    async fn retrieve_dag(&self, cid: &str) -> RpcResult<Vec<(String, Vec<u8>)>> {
         let store = Web3Store::local()?;
         let obj = store.read_dag(cid).await?;
         let pkg: Web3Package = serde_json::from_slice(&obj)?;
@@ -84,13 +85,13 @@ impl InternalRpc {
         Ok(objs)
     }
 
-    async fn pin_object(&self, cid: &str, recursive: bool) -> RpcResult<Vec<String>> {
+    async fn pin_object_ipfs(&self, cid: &str, recursive: bool) -> RpcResult<Vec<String>> {
         let store = Web3Store::local()?;
         let obj = store.pin_object(cid, recursive).await?;
         Ok(obj)
     }
 
-    async fn is_pinned(&self, cid: &str) -> RpcResult<bool> {
+    async fn is_pinned_obj(&self, cid: &str) -> RpcResult<bool> {
         let store = Web3Store::local()?;
         let is_pinned = store.is_pinned(cid).await?;
         Ok(is_pinned)
@@ -101,6 +102,25 @@ impl InternalRpc {
 impl InternalRpcApiServer for InternalRpc {
     async fn status(&self) -> RpcResult<ServiceStatusResponse> {
         Ok(ServiceStatusResponse::from(self))
+    }
+
+    async fn get_data(&self, cid: &str, data_type: Data) -> RpcResult<Vec<(String, Vec<u8>)>> {
+        let rt = Runtime::new()?;
+        rt.block_on(async {
+            return match data_type {
+                Data::Object => self.retrieve_object(cid).await,
+                Data::Dag => self.retrieve_dag(cid).await,
+            };
+        })
+    }
+
+    async fn pin_object(&self, cid: &str, recursive: bool) -> RpcResult<Vec<String>> {
+        let rt = Runtime::new()?;
+        rt.block_on(async { self.pin_object_ipfs(cid, recursive).await })
+    }
+    async fn is_pinned(&self, cid: &str) -> RpcResult<bool> {
+        let rt = Runtime::new()?;
+        rt.block_on(async { self.is_pinned_obj(cid).await })
     }
 }
 
