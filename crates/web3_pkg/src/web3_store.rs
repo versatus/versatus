@@ -11,11 +11,6 @@ pub struct Web3Store {
     client: IpfsClient,
 }
 
-unsafe impl Send for Web3Store {}
-
-
-unsafe impl Sync for Web3Store {}
-
 /// A structure representing stats for a content-addressable Web3 store. Currently closely tied to
 /// IPFS and Kubo specifically, but could be adapted to others.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
