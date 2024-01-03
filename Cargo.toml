@@ -41,7 +41,6 @@ members = [
   "crates/wasm_cli",
   "crates/wasm_loader",
   "crates/wasm_runtime",
-  "crates/web3_pkg",
 ]
 exclude = ["benches"]
 resolver = "2"
@@ -78,7 +77,6 @@ wallet = { path = "crates/wallet" }
 wasm_loader = { path = "crates/wasm_loader" }
 wasm_runtime = { path = "crates/wasm_runtime" }
 metric_exporter = {path = "crates/metric_exporter" }
-web3_pkg = {path = "crates/web3_pkg" }
 
 # Github crates
 bulldag = { git = "https://github.com/versatus/bulldag" }

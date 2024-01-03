@@ -116,21 +116,16 @@ impl Web3Store {
     }
 
     /// Pins the object
-    pub async fn pin_object(&self, cid: &str,recursive:bool) -> Result<Vec<String>> {
-        let res = self
-            .client
-            .pin_add(cid,recursive).await?;
+    pub async fn pin_object(&self, cid: &str, recursive: bool) -> Result<Vec<String>> {
+        let res = self.client.pin_add(cid, recursive).await?;
         Ok(res.pins)
     }
 
     /// Checks if object is pinned
-    pub async fn is_pinned(&self, cid: &str,) -> Result<bool> {
-        let res = self
-            .client
-            .pin_ls(Some(cid),None).await?;
+    pub async fn is_pinned(&self, cid: &str) -> Result<bool> {
+        let res = self.client.pin_ls(Some(cid), None).await?;
         Ok(!res.keys.is_empty())
     }
-
 
     /// A method to retrieve stats from the IPFS service and return them
     pub async fn stats(&self) -> Result<Web3StoreStats> {
