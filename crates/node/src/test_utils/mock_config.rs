@@ -28,8 +28,8 @@ pub fn create_mock_full_node_config() -> NodeConfig {
     let kademlia_liveness_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
     let prometheus_addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
     let current_dir = std::env::current_dir().expect("Failed to get current directory");
-    let rsa_path = current_dir.join("crates/node/src/test_utils/mocks/sample.rsa");
-    let private_key_path = current_dir.join("crates/node/src//test_utils/mocks/sample.pem");
+    let rsa_path = current_dir.join("src/test_utils/mocks/sample.rsa");
+    let private_key_path = current_dir.join("src/test_utils/mocks/sample.pem");
 
     NodeConfigBuilder::default()
         .id(id)
