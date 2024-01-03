@@ -1,6 +1,6 @@
 [package]
 name = "wasm_cli"
-description = "VRRB developer CLI and WASM runtime"
+description = "Versatus developer CLI and WASM runtime"
 authors.workspace = true
 homepage.workspace = true
 repository.workspace = true
@@ -16,8 +16,13 @@ path = "src/main.rs"
 anyhow = { workspace = true }
 clap = { workspace = true }
 telemetry = { workspace = true }
+tokio = { workspace = true }
 wasm_loader = { workspace = true }
 wasm_runtime = { workspace = true }
 wasmer = { workspace = true }
 wasmer-wasix = { workspace = true }
 wasmer-wasix-types = { workspace = true }
+web3_pkg = { workspace = true }
+serde = { workspace = true }
+serde_derive = { workspace = true }
+serde_json = { workspace = true }
