@@ -53,6 +53,10 @@ mod tests {
             .bootstrap_peer_data(None)
             .quorum_config(None)
             .whitelisted_nodes(vec![])
+            .prometheus_bind_addr("127.0.0.1".to_string())
+            .prometheus_bind_port(8080)
+            .prometheus_cert_path("demo".to_string())
+            .prometheus_private_key_path("demo".to_string())
             .build()
             .unwrap();
     }

@@ -14,6 +14,9 @@ platform = { workspace = true }
 serde = { workspace = true }
 service_config = { workspace = true }
 tokio = { workspace = true }
+serde_json = { workspace = true }
+web3_pkg = { workspace = true }
+
 
 [dev-dependencies]
 serial_test = { workspace = true }

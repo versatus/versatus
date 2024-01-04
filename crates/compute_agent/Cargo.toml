@@ -20,7 +20,7 @@ internal_rpc = { workspace = true }
 lazy_static = { workspace = true }
 platform = { workspace = true }
 metric_exporter = { workspace = true }
-tokio-util = { workspace = true}
+tokio-util = { workspace = true }
 prometheus = { workspace = true }
 rand = { workspace = true }
 service_config = { workspace = true }
