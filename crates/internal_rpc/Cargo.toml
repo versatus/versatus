@@ -15,7 +15,7 @@ serde = { workspace = true }
 service_config = { workspace = true }
 tokio = { workspace = true }
 serde_json = { workspace = true }
-web3_pkg = {path = "../web3_pkg" }
+web3_pkg = { path = "../web3_pkg" }
 
 [dev-dependencies]
 serial_test = { workspace = true }
