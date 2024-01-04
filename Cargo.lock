@@ -7566,12 +7566,17 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap 3.2.25",
+ "serde",
+ "serde_derive",
+ "serde_json",
  "telemetry",
+ "tokio",
  "wasm_loader",
  "wasm_runtime",
  "wasmer",
  "wasmer-wasix",
  "wasmer-wasix-types",
+ "web3_pkg",
 ]
 
 [[package]]
