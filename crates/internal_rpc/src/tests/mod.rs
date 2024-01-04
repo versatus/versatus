@@ -1,6 +1,6 @@
 //! tests must be run serially to avoid failures due to the test socket address being used in every test.
 
-use crate::api::Data;
+use crate::api::IPFSDataType;
 use crate::{api::InternalRpcApiClient, client::InternalRpcClient, server::InternalRpcServer};
 use serial_test::serial;
 use service_config::ServiceConfig;
@@ -94,7 +94,7 @@ async fn test_is_retrieve_obj_from_server() {
             .await
             .unwrap();
     let client = InternalRpcClient::new(socket).await.unwrap();
-    let res = client.0.get_data(sample_cid, Data::Object).await.unwrap();
+    let res = client.0.get_data(sample_cid, IPFSDataType::Object).await.unwrap();
     assert!(!res.is_empty());
     handle.stop().unwrap();
     let _ = handle;

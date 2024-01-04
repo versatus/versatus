@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use crate::api::{Data, InternalRpcApiServer, RpcResult};
+use crate::api::{IPFSDataType, InternalRpcApiServer, RpcResult};
 use jsonrpsee::core::__reexports::serde_json;
 use jsonrpsee::{
     core::async_trait,
@@ -104,12 +104,12 @@ impl InternalRpcApiServer for InternalRpc {
         Ok(ServiceStatusResponse::from(self))
     }
 
-    async fn get_data(&self, cid: &str, data_type: Data) -> RpcResult<Vec<(String, Vec<u8>)>> {
+    async fn get_data(&self, cid: &str, data_type: IPFSDataType) -> RpcResult<Vec<(String, Vec<u8>)>> {
         let rt = Runtime::new()?;
         rt.block_on(async {
             return match data_type {
-                Data::Object => self.retrieve_object(cid).await,
-                Data::Dag => self.retrieve_dag(cid).await,
+                IPFSDataType::Object => self.retrieve_object(cid).await,
+                IPFSDataType::Dag => self.retrieve_dag(cid).await,
             };
         })
     }
