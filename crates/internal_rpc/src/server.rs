@@ -104,7 +104,11 @@ impl InternalRpcApiServer for InternalRpc {
         Ok(ServiceStatusResponse::from(self))
     }
 
-    async fn get_data(&self, cid: &str, data_type: IPFSDataType) -> RpcResult<Vec<(String, Vec<u8>)>> {
+    async fn get_data(
+        &self,
+        cid: &str,
+        data_type: IPFSDataType,
+    ) -> RpcResult<Vec<(String, Vec<u8>)>> {
         let rt = Runtime::new()?;
         rt.block_on(async {
             return match data_type {

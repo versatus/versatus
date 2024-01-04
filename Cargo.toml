@@ -78,7 +78,7 @@ wallet = { path = "crates/wallet" }
 wasm_loader = { path = "crates/wasm_loader" }
 wasm_runtime = { path = "crates/wasm_runtime" }
 web3_pkg = { path = "crates/web3_pkg" }
-metric_exporter = {path = "crates/metric_exporter" }
+metric_exporter = { path = "crates/metric_exporter" }
 
 # Github crates
 bulldag = { git = "https://github.com/versatus/bulldag" }

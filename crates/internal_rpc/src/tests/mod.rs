@@ -94,7 +94,11 @@ async fn test_is_retrieve_obj_from_server() {
             .await
             .unwrap();
     let client = InternalRpcClient::new(socket).await.unwrap();
-    let res = client.0.get_data(sample_cid, IPFSDataType::Object).await.unwrap();
+    let res = client
+        .0
+        .get_data(sample_cid, IPFSDataType::Object)
+        .await
+        .unwrap();
     assert!(!res.is_empty());
     handle.stop().unwrap();
     let _ = handle;

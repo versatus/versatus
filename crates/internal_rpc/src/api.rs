@@ -19,7 +19,11 @@ pub trait InternalRpcApi {
     async fn status(&self) -> RpcResult<ServiceStatusResponse>;
 
     #[method(name = "get_object")]
-    async fn get_data(&self, cid: &str, data_type: IPFSDataType) -> RpcResult<Vec<(String, Vec<u8>)>>;
+    async fn get_data(
+        &self,
+        cid: &str,
+        data_type: IPFSDataType,
+    ) -> RpcResult<Vec<(String, Vec<u8>)>>;
 
     #[method(name = "pin_object")]
     async fn pin_object(&self, cid: &str, recursive: bool) -> RpcResult<Vec<String>>;
