@@ -29,6 +29,7 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
     let mut bootstrap_quorum_members = BTreeMap::new();
     let mut keypairs = vec![];
 
+    let mut port = 9090;
     for i in 1..=n {
         let udp_port: u16 = 11000 + i;
         let raptor_port: u16 = 12000 + i;
@@ -93,6 +94,7 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
     config.id = String::from("node-0");
     config.bootstrap_config = Some(bootstrap_config.clone());
     config.whitelisted_nodes = whitelisted_nodes.clone();
+    config.prometheus_bind_port = port;
 
     let node_0 = Node::start(config).await.unwrap();
 
@@ -106,11 +108,10 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
     nodes.push(node_0);
 
     for i in 1..=validator_count - 1 {
+        port += i as u16;
         let mut config = create_mock_full_node_config();
-
         let node_id = format!("node-{}", i);
         let quorum_config = quorum_members.get(&node_id).unwrap().to_owned();
-
         config.id = format!("node-{}", i);
         config.keypair = keypairs.get(i - 1).unwrap().clone();
         config.bootstrap_peer_data = Some(bootstrap_peer_data.clone());
@@ -120,6 +121,8 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
         config.udp_gossip_address = quorum_config.udp_gossip_address;
         config.kademlia_peer_id = Some(quorum_config.kademlia_peer_id);
         config.whitelisted_nodes = whitelisted_nodes.clone();
+        config.prometheus_bind_addr = String::from("127.0.0.1");
+        config.prometheus_bind_port = port;
         if let Some(base_config) = &base_config {
             config.enable_ui = base_config.enable_ui;
         }
@@ -129,11 +132,10 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
     }
 
     for i in validator_count..=validator_count + miner_count {
+        port += i as u16;
         let mut miner_config = create_mock_full_node_config();
-
         let node_id = format!("node-{}", i);
         let quorum_config = quorum_members.get(&node_id).unwrap().to_owned();
-
         miner_config.id = format!("node-{}", i);
         miner_config.keypair = keypairs.get(i - 1).unwrap().clone();
         miner_config.bootstrap_peer_data = Some(bootstrap_peer_data.clone());
@@ -143,6 +145,7 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
         miner_config.udp_gossip_address = quorum_config.udp_gossip_address;
         miner_config.kademlia_peer_id = Some(quorum_config.kademlia_peer_id);
         miner_config.whitelisted_nodes = whitelisted_nodes.clone();
+        miner_config.prometheus_bind_port = port;
         if let Some(base_config) = &base_config {
             miner_config.enable_ui = base_config.enable_ui;
         }

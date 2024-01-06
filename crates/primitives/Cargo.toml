@@ -1,19 +1,18 @@
 [package]
 name = "primitives"
-version = "0.1.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+edition.workspace = true
+license.workspace = true
+version.workspace = true
 
 [dependencies]
-thiserror = { workspace = true }
-serde = { workspace = true }
 hbbft = { workspace = true }
-secp256k1 = { workspace = true }
-serde_json = { workspace = true }
-jsonrpsee = { workspace = true }
-kademlia-dht = { workspace = true }
-sha2 = { workspace = true }
 hex = { workspace = true }
-sha3 = { workspace = true }
-bonsaidb = { workspace = true }
+kademlia-dht = { workspace = true }
+secp256k1 = { workspace = true }
+serde = { workspace = true }
+sha2 = { workspace = true }
+sha3 = "0.10"
+thiserror = { workspace = true }

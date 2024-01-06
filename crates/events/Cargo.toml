@@ -1,42 +1,36 @@
 [package]
 name = "events"
-version = "0.1.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+edition.workspace = true
+license.workspace = true
+version.workspace = true
 
 [dependencies]
-tokio = { workspace = true }
-block = { workspace = true }
-vrrb_core = { workspace = true }
-telemetry = { workspace = true }
-primitives = { workspace = true }
-anyhow = { workspace = true }
-thiserror = { workspace = true }
-ritelinked = { workspace = true }
-sha256 = { workspace = true }
-serde_json = { workspace = true }
-serde = { workspace = true }
-hex = { workspace = true }
-secp256k1 = { workspace = true }
-bytebuffer = { workspace = true }
-uuid = { workspace = true }
-lru_time_cache = { workspace = true }
-hbbft = { workspace = true }
-rand = { workspace = true }
-bincode = { workspace = true }
-sha2 = { workspace = true }
-chrono = { workspace = true }
 async-trait = { workspace = true }
-theater = { workspace = true }
-utils = { workspace = true }
+bincode = { workspace = true }
+block = { workspace = true }
+chrono = { workspace = true }
 cuckoofilter = { workspace = true }
 ethereum-types = { workspace = true }
-quorum = { workspace = true }
+hbbft = { workspace = true }
+hex = { workspace = true }
+lru_time_cache = { workspace = true }
 messr = { workspace = true }
-mempool = { workspace = true }
-vrrb_config = { workspace = true }
+primitives = { workspace = true }
+rand = { workspace = true }
+ritelinked = { workspace = true }
+secp256k1 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
 signer = { workspace = true }
-
-[dev-dependencies]
-serial_test = { workspace = true }
+telemetry = { workspace = true }
+theater = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+utils = { workspace = true }
+uuid = { workspace = true }
+vrrb_config = { workspace = true }
+vrrb_core = { workspace = true }

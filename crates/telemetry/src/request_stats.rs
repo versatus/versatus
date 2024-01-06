@@ -1,9 +1,26 @@
 //! This is a module that tracks basic stats for servicing parts of complex requests. It's supposed
 //! to be a little more granular than just the total time taken to service a request, but not as
 //! granular as full-on execution profiling and without the special tools or overhead.
-use crate::log::info;
-use anyhow::{anyhow, Result};
-use std::time::{SystemTime, UNIX_EPOCH};
+use crate::info;
+use std::time::{SystemTime, SystemTimeError, UNIX_EPOCH};
+use thiserror::Error;
+
+pub type Result<T> = std::result::Result<T, StopWatchError>;
+
+#[derive(Error, Debug)]
+pub enum StopWatchError {
+    #[error("StopWatch was never started")]
+    FailedToStart,
+
+    #[error("StopWatch wasn't stopped")]
+    FailedToStop,
+
+    #[error("StopWatch time went backwards")]
+    CorruptedStartTime,
+
+    #[error(transparent)]
+    SystemTimeError(#[from] SystemTimeError),
+}
 
 /// Simple struct to track start/end times
 struct StopWatch {
@@ -36,18 +53,18 @@ impl StopWatch {
             Some(val) => {
                 start = val;
             }
-            None => return Err(anyhow!("StopWatch was never started")),
+            None => return Err(StopWatchError::FailedToStart),
         }
 
         match self.stop_ms {
             Some(val) => {
                 stop = val;
             }
-            None => return Err(anyhow!("StopWatch wasn't stopped")),
+            None => return Err(StopWatchError::FailedToStop),
         }
 
         if start > stop {
-            return Err(anyhow!("StopWatch time went backwards"));
+            return Err(StopWatchError::CorruptedStartTime);
         }
         let ret = stop - start;
         Ok(ret)
