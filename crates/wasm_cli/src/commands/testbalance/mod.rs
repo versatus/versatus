@@ -1,7 +1,11 @@
 use anyhow::Result;
-use bonsaidb::core::{connection::StorageConnection, schema::SerializedCollection};
-use bonsaidb::local::config::{Builder, StorageConfiguration};
-use bonsaidb::local::Storage;
+use bonsaidb::{
+    core::{connection::StorageConnection, schema::SerializedCollection},
+    local::{
+        config::{Builder, StorageConfiguration},
+        Storage,
+    },
+};
 use clap::Parser;
 use ethereum_types::U256;
 use primitives::Address;
