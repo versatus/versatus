@@ -1,14 +1,11 @@
 use anyhow::{anyhow, Result};
-use bonsaidb_local::Storage;
 use clap::Parser;
 use ethnum::U256;
-use serde_derive::{Deserialize, Serialize};
 use serde_json;
 use std::{collections::HashMap, path::PathBuf};
 use telemetry::info;
 use versatus_rust::versatus_rust::{
-    AccountInfo, Address, ContractInputs, FunctionInputs, ProtocolInputs, SmartContract,
-    SmartContractInputs,
+    AccountInfo, Address, ContractInputs, FunctionInputs, ProtocolInputs, SmartContractInputs,
 };
 use wasm_runtime::{
     metering::{cost_function, MeteringConfig},
