@@ -1,8 +1,15 @@
-use std::{collections::HashMap, path::PathBuf};
-
 use anyhow::{anyhow, Result};
+use bonsaidb_local::Storage;
 use clap::Parser;
+use ethnum::U256;
+use serde_derive::{Deserialize, Serialize};
+use serde_json;
+use std::{collections::HashMap, path::PathBuf};
 use telemetry::info;
+use versatus_rust::versatus_rust::{
+    AccountInfo, Address, ContractInputs, FunctionInputs, ProtocolInputs, SmartContract,
+    SmartContractInputs,
+};
 use wasm_runtime::{
     metering::{cost_function, MeteringConfig},
     wasm_runtime::WasmRuntime,
@@ -66,6 +73,29 @@ pub fn run(opts: &TestContractOpts) -> Result<()> {
     // repository, but build it from the contents of the database and command line inputs. We can
     // assume (for now) that all contracts will be ERC20 when dealing with inputs and outputs.
     let json_data = "{ \"replace\": \"me\" }".as_bytes();
+    let smart_contract_obj = SmartContractInputs {
+        version: 1,
+        account_info: AccountInfo {
+            account_address: (Address([2; 20])),
+            account_balance: (U256([10; 2])),
+        },
+        protocol_input: ProtocolInputs {
+            version: (1),
+            block_height: (1),
+            block_time: (1),
+        },
+        contract_input: ContractInputs {
+            contract_fn: ("transfer".to_string()),
+            function_inputs: FunctionInputs::Erc20(versatus_rust::eip20::Erc20Inputs::Transfer {
+                address: (Address([3; 20])),
+                value: (U256([5; 2])),
+            }),
+        },
+    };
+
+    let conv_to_json = serde_json::to_string(&smart_contract_obj)?;
+
+    let conv_to_contract: SmartContractInputs = serde_json::from_str(&conv_to_json).unwrap();
 
     let storage_connection = testinitdb::open_storage(&opts.dbpath)?;
 

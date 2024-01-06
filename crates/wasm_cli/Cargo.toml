@@ -22,3 +22,7 @@ ethereum-types = { workspace = true }
 serde = { workspace = true }
 primitives = { workspace = true }
 secp256k1 = { workspace = true }
+versatus-rust = { workspace = true }
+serde_derive = { workspace = true }
+serde_json = { workspace = true }
+ethnum ={ workspace = true }

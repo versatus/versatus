@@ -75,6 +75,14 @@ pub struct ProtocolInputs {
     pub block_time: u64,
 }
 
+pub(crate) fn open_storage(path: &String) -> Result<Storage> {
+    Ok(Storage::open(
+        StorageConfiguration::new(path)
+            .with_schema::<AccountBalance>()?
+            .with_schema::<ProtocolInputs>()?,
+    )?)
+}
+
 fn insert_protocol_inputs<C: Connection>(
     connection: &C,
     block_height: u64,
@@ -119,14 +127,6 @@ No account was created. Please provide an address and try again."
         );
     }
     Ok(())
-}
-
-pub(crate) fn open_storage(path: &String) -> Result<Storage> {
-    Ok(Storage::open(
-        StorageConfiguration::new(path)
-            .with_schema::<AccountBalance>()?
-            .with_schema::<ProtocolInputs>()?,
-    )?)
 }
 
 /// Initialises a new database for keeping standalone state typically provided by a blockchain.
