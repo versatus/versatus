@@ -32,4 +32,4 @@ web3_pkg = { workspace = true }
 serde = { workspace = true }
 serde_derive = { workspace = true }
 serde_json = { workspace = true }
-versatus-rust = { git = "https://github.com/versatus/versatus-rust"}
+versatus-rust = { git = "https://github.com/versatus/versatus-rust" }
