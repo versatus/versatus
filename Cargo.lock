@@ -227,6 +227,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "array-init"
+version = "0.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23589ecb866b460d3a0f1278834750268c607e8e28a1b982c907219f3178cd72"
+dependencies = [
+ "nodrop",
+]
+
+[[package]]
 name = "arrayref"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1690,7 +1699,7 @@ dependencies = [
  "gimli 0.26.2",
  "log",
  "regalloc2",
- "smallvec",
+ "smallvec 1.11.2",
  "target-lexicon",
 ]
 
@@ -1720,7 +1729,7 @@ dependencies = [
  "hashbrown 0.12.3",
  "indexmap 1.9.3",
  "log",
- "smallvec",
+ "smallvec 1.11.2",
 ]
 
 [[package]]
@@ -1737,7 +1746,7 @@ checksum = "0d70abacb8cfef3dc8ff7e8836e9c1d70f7967dfdac824a4cd5e30223415aca6"
 dependencies = [
  "cranelift-codegen",
  "log",
- "smallvec",
+ "smallvec 1.11.2",
  "target-lexicon",
 ]
 
@@ -2696,6 +2705,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ethnum"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b90ca2580b73ab6a1f724b76ca11ab632df820fd6040c336200d2c1df7b3c82c"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "event-listener"
 version = "2.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2779,7 +2797,7 @@ checksum = "6e3ea06a83f97d3dc2eb06e51e7a729b418f0717a5558a5c870e3d5156dc558d"
 dependencies = [
  "hashbag",
  "slab",
- "smallvec",
+ "smallvec 1.11.2",
 ]
 
 [[package]]
@@ -4553,6 +4571,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73cbba799671b762df5a175adf59ce145165747bb891505c43d09aefbbf38beb"
 
 [[package]]
+name = "maybe-uninit"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "60302e4db3a61da70c0cb7991976248362f30319e88850c487b9b95bbf059e00"
+
+[[package]]
 name = "memchr"
 version = "2.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4852,7 +4876,7 @@ version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77a5d83df9f36fe23f0c3648c6bbb8b0298bb5f1939c8f2704431371f4b84d43"
 dependencies = [
- "smallvec",
+ "smallvec 1.11.2",
 ]
 
 [[package]]
@@ -4935,6 +4959,12 @@ dependencies = [
  "vrrb_rpc",
  "wallet",
 ]
+
+[[package]]
+name = "nodrop"
+version = "0.1.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "72ef4a56884ca558e5ddb05a1d1e7e1bfd9a68d9ed024c21704cc98872dae1bb"
 
 [[package]]
 name = "nom"
@@ -5228,7 +5258,7 @@ dependencies = [
  "cfg-if 1.0.0",
  "libc",
  "redox_syscall 0.4.1",
- "smallvec",
+ "smallvec 1.11.2",
  "windows-targets 0.48.5",
 ]
 
@@ -5624,7 +5654,7 @@ checksum = "9f2a14766f8c543620824b5b2cec356abf2681b76966a7ac4b4ed2c0011e696a"
 dependencies = [
  "primal-bit",
  "primal-estimate",
- "smallvec",
+ "smallvec 1.11.2",
 ]
 
 [[package]]
@@ -5733,7 +5763,7 @@ checksum = "3f59e109e2f795a5070e69578c4dc101068139f74616778025ae1011d4cd41a8"
 dependencies = [
  "proc-macro2",
  "quote 1.0.33",
- "smallvec",
+ "smallvec 1.11.2",
 ]
 
 [[package]]
@@ -6337,7 +6367,7 @@ version = "4.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a415a013dd7c5d4221382329a5a3482566da675737494935cbbbcdec04662f9d"
 dependencies = [
- "smallvec",
+ "smallvec 1.11.2",
 ]
 
 [[package]]
@@ -6349,7 +6379,7 @@ dependencies = [
  "fxhash",
  "log",
  "slice-group-by",
- "smallvec",
+ "smallvec 1.11.2",
 ]
 
 [[package]]
@@ -6942,6 +6972,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-hex"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ca37e3e4d1b39afd7ff11ee4e947efae85adfddf4841787bfa47c470e96dc26d"
+dependencies = [
+ "array-init",
+ "serde",
+ "smallvec 0.6.14",
+]
+
+[[package]]
 name = "serde-wasm-bindgen"
 version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7304,6 +7345,15 @@ name = "slice-group-by"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "826167069c09b99d56f31e9ae5c99049e932a98c9dc2dac47645b08dbbf76ba7"
+
+[[package]]
+name = "smallvec"
+version = "0.6.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b97fcaeba89edba30f044a10c6a3cc39df9c3f17d7cd829dd1446cab35f890e0"
+dependencies = [
+ "maybe-uninit",
+]
 
 [[package]]
 name = "smallvec"
@@ -8300,7 +8350,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sharded-slab",
- "smallvec",
+ "smallvec 1.11.2",
  "thread_local",
  "tracing",
  "tracing-core",
@@ -8383,7 +8433,7 @@ dependencies = [
  "lazy_static",
  "log",
  "rand 0.8.5",
- "smallvec",
+ "smallvec 1.11.2",
  "thiserror",
  "tinyvec",
  "tokio",
@@ -8417,7 +8467,7 @@ version = "1.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
 dependencies = [
- "cfg-if 0.1.10",
+ "cfg-if 1.0.0",
  "static_assertions",
 ]
 
@@ -8664,6 +8714,7 @@ dependencies = [
  "criterion 0.5.1",
  "cuckoofilter",
  "ethereum-types",
+ "ethnum",
  "faucet",
  "hex",
  "hyper",
@@ -8688,12 +8739,26 @@ dependencies = [
  "telemetry",
  "tokio",
  "uuid",
+ "versatus-rust",
  "vrrb_config",
  "vrrb_rpc",
  "wasm_loader",
  "wasm_runtime",
  "wasmer",
  "web3_pkg",
+]
+
+[[package]]
+name = "versatus-rust"
+version = "0.1.0"
+source = "git+https://github.com/versatus/versatus-rust#067016a19be5c34e5b2f97885142c9c9eb41dce3"
+dependencies = [
+ "anyhow",
+ "ethnum",
+ "serde",
+ "serde-hex",
+ "serde_derive",
+ "serde_json",
 ]
 
 [[package]]
@@ -9186,10 +9251,14 @@ dependencies = [
  "bonsaidb-local",
  "clap 3.2.25",
  "ethereum-types",
+ "ethnum",
  "primitives",
  "secp256k1",
  "serde",
+ "serde_derive",
+ "serde_json",
  "telemetry",
+ "versatus-rust",
  "wasm_loader",
  "wasm_runtime",
  "wasmer",
@@ -9271,7 +9340,7 @@ dependencies = [
  "memmap2 0.5.10",
  "more-asserts",
  "region",
- "smallvec",
+ "smallvec 1.11.2",
  "thiserror",
  "wasmer-types",
  "wasmer-vm",
@@ -9291,7 +9360,7 @@ dependencies = [
  "gimli 0.26.2",
  "more-asserts",
  "rayon",
- "smallvec",
+ "smallvec 1.11.2",
  "target-lexicon",
  "tracing",
  "wasmer-compiler",

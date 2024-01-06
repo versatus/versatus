@@ -103,7 +103,6 @@ pub fn run(opts: &TestContractOpts) -> Result<()> {
 // assume (for now) that all contracts will be ERC20 when dealing with inputs and outputs.
 fn create_contract_inputs(function: &str, inputs: &str) -> Result<SmartContractInputs> {
     Ok(SmartContractInputs {
-        // Where do we get version, account_info & protocol_input from? Hard-code it?
         version: 1,
         account_info: AccountInfo {
             account_address: (Address([2; 20])),
