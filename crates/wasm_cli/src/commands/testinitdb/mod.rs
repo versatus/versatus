@@ -2,8 +2,12 @@ use anyhow::Result;
 use bonsaidb::{
     core::{
         connection::{Connection, StorageConnection},
+        document::{CollectionDocument, Emit},
         key::Key,
-        schema::{Collection, SerializedCollection},
+        schema::{
+            Collection, CollectionMapReduce, ReduceResult, SerializedCollection, View,
+            ViewMapResult, ViewMappedValue, ViewSchema,
+        },
     },
     local::{
         config::{Builder, StorageConfiguration},
@@ -11,15 +15,16 @@ use bonsaidb::{
     },
 };
 use clap::Parser;
-use ethereum_types::U256;
+use ethnum::U256;
 use primitives::Address;
 use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
 pub const DEFAULT_DB_PATH: &str = "./bonsaidb";
+pub const DEFAULT_VERSION: u64 = 1;
 pub const DEFAULT_BLOCK_HEIGHT: u64 = 10;
 pub const DEFAULT_BLOCK_TIME: u64 = 1704018000;
-pub const DEFAULT_BALANCE: U256 = U256([10000; 4]);
+pub const DEFAULT_BALANCE: U256 = U256([10000; 2]);
 pub const DEFAULT_ADDRESSES: &[Address; 10] = &[
     Address([0; 20]),
     Address([1; 20]),
@@ -67,13 +72,43 @@ pub struct AccountAddress {
     pub address: [u8; 20],
 }
 
+#[derive(Debug, Clone, View, ViewSchema)]
+#[view(collection = ProtocolInputs, key = u64, value = (u64, u64), name = "by-version")]
+pub struct ProtocolView;
+impl CollectionMapReduce for ProtocolView {
+    fn map<'doc>(
+        &self,
+        document: CollectionDocument<ProtocolInputs>,
+    ) -> ViewMapResult<'doc, Self::View> {
+        document.header.emit_key_and_value(
+            document.contents.version,
+            (document.contents.block_height, document.contents.block_time),
+        )
+    }
+
+    fn reduce(
+        &self,
+        mappings: &[ViewMappedValue<'_, Self>],
+        _rereduce: bool,
+    ) -> ReduceResult<Self::View> {
+        let mut latest_version = mappings[0].key;
+        let mut block_height_and_time: (u64, u64) = mappings[0].value;
+        for mapping in mappings.iter() {
+            if mapping.key > latest_version {
+                latest_version = mapping.key;
+                block_height_and_time = mapping.value;
+            }
+        }
+        Ok(block_height_and_time)
+    }
+}
+
 const PROTOCOL_INPUTS_NAME: &str = "protocol-inputs";
 #[derive(Collection, Serialize, Deserialize, Clone, Parser, Debug)]
-#[collection(name = "protocol-inputs")]
+#[collection(name = "protocol-inputs", views = [ProtocolView])]
 pub struct ProtocolInputs {
+    pub version: u64,
     /// The block number/height of the block currently being processed
-    // TODO: figure out if native ids will be useful
-    // #[native_id]
     pub block_height: u64,
     /// The timestamp of the block currently being processed
     pub block_time: u64,
@@ -89,10 +124,12 @@ pub(crate) fn open_storage(path: &String) -> Result<Storage> {
 
 fn insert_protocol_inputs<C: Connection>(
     connection: &C,
+    version: u64,
     block_height: u64,
     block_time: u64,
 ) -> Result<(), bonsaidb::core::Error> {
     ProtocolInputs {
+        version,
         block_height,
         block_time,
     }
@@ -159,6 +196,7 @@ FAIL: {e:?}",
 
     insert_protocol_inputs(
         &protocol_connection,
+        DEFAULT_VERSION,
         DEFAULT_BLOCK_HEIGHT,
         DEFAULT_BLOCK_TIME,
     )?;

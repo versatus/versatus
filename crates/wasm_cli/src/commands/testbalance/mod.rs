@@ -7,7 +7,7 @@ use bonsaidb::{
     },
 };
 use clap::Parser;
-use ethereum_types::U256;
+use ethnum::U256;
 use primitives::Address;
 
 use crate::commands::testinitdb::*;

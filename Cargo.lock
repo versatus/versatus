@@ -8306,7 +8306,6 @@ dependencies = [
  "anyhow",
  "bonsaidb",
  "clap 3.2.25",
- "ethereum-types",
  "ethnum",
  "primitives",
  "serde",
