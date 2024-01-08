@@ -36,8 +36,8 @@ pub async fn run(_opts: &DaemonOpts, config: &ServiceConfig) -> Result<()> {
         port,
         true,
         base_labels,
-        config.tls_ca_cert_file.clone(),
         config.tls_private_key_file.clone(),
+        config.tls_ca_cert_file.clone(),
         CancellationToken::new(),
     )
     .expect("Failed to construct prometheus exporter service");
