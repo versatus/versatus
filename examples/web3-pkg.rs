@@ -147,8 +147,8 @@ async fn package_init(opts: &InitOpts) -> Result<()> {
     Ok(())
 }
 
-async fn parse_annotations(annotations: &[String]) -> Result<HashMap<(String, String)>> {
-    let mut ret = vec![];
+async fn parse_annotations(annotations: &[String]) -> Result<HashMap<String, String>> {
+    let mut ret = HashMap::<String,String>::new();
     for a_str in annotations.iter() {
         let mut split = a_str.split('=');
         let (key, value) = (
