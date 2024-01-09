@@ -111,10 +111,10 @@ impl InternalRpcApiServer for InternalRpc {
     ) -> RpcResult<Vec<(String, Vec<u8>)>> {
         let rt = Runtime::new()?;
         rt.block_on(async {
-            return match data_type {
+            match data_type {
                 IPFSDataType::Object => self.retrieve_object(cid).await,
                 IPFSDataType::Dag => self.retrieve_dag(cid).await,
-            };
+            }
         })
     }
 
