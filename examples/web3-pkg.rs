@@ -4,6 +4,7 @@ use serde_derive::{Deserialize, Serialize};
 use std::ffi::OsStr;
 use std::path::Path;
 use std::str;
+use std::collections::HashMap;
 
 use web3_pkg::web3_pkg::{
     Web3ContentId, Web3ObjectType, Web3Package, Web3PackageArchitecture, Web3PackageBuilder,
@@ -109,7 +110,7 @@ struct PackageMetadata {
     name: String,
     author: String,
     r#type: Web3PackageType,
-    annotations: Vec<(String, String)>,
+    annotations: HashMap<String, String>,
     objects: Vec<PackageObject>,
 }
 
@@ -128,7 +129,7 @@ struct PackageObject {
     path: String,
     content_id: Option<String>,
     r#type: Web3ObjectType,
-    annotations: Vec<(String, String)>,
+    annotations: HashMap<String, String>,
 }
 
 async fn package_init(opts: &InitOpts) -> Result<()> {
@@ -146,8 +147,8 @@ async fn package_init(opts: &InitOpts) -> Result<()> {
     Ok(())
 }
 
-async fn parse_annotations(annotations: &Vec<String>) -> Result<Vec<(String, String)>> {
-    let mut ret = vec![];
+async fn parse_annotations(annotations: &Vec<String>) -> Result<HashMap<String, String>> {
+    let mut ret = HashMap::<String, String>::new();
     for a_str in annotations.iter() {
         let mut split = a_str.split('=');
         let (key, value) = (
@@ -164,7 +165,7 @@ async fn parse_annotations(annotations: &Vec<String>) -> Result<Vec<(String, Str
                 ))?
                 .to_string(),
         );
-        ret.push((key, value));
+        ret.insert(key, value);
     }
     Ok(ret)
 }
@@ -217,6 +218,7 @@ async fn package_build(opts: &BuildOpts) -> Result<()> {
             .object_path(path.to_string().to_owned())
             .object_cid(Web3ContentId { cid })
             .object_type(blob.r#type.to_owned())
+            .object_annotations(blob.annotations.to_owned())
             .build()?;
         objects.push(obj);
     }
@@ -228,6 +230,7 @@ async fn package_build(opts: &BuildOpts) -> Result<()> {
         .pkg_author(pkg.author)
         .pkg_type(pkg.r#type)
         .pkg_objects(objects)
+        .pkg_annotations(pkg.annotations.to_owned())
         .pkg_replaces(vec![])
         .build()?;
     let json = serde_json::to_string(&pkg_meta)?;

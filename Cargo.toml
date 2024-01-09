@@ -29,6 +29,7 @@ members = [
   "crates/primitives",
   "crates/service_config",
   "crates/storage",
+  "crates/storage_agent",
   "crates/storage/utils",
   "crates/storage/vrrbdb",
   "crates/telemetry",

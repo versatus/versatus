@@ -1,6 +1,7 @@
 use clap::clap_derive::ArgEnum;
 use derive_builder::Builder;
 use serde_derive::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// An enum representing different flavours of package payload. In some cases, a package might
 /// contain a smart contract (or potentially multiple smart contracts), in other cases it could be
@@ -77,6 +78,8 @@ pub struct Web3PackageObject {
     pub object_type: Web3ObjectType,
     /// The content ID of the object within IPFS
     pub object_cid: Web3ContentId,
+    // User-defined annotations as key-value pairs
+    pub object_annotations: HashMap<String, String>,
 }
 
 /// A structure representing the metadata of a compute package. A compute package may contain one
@@ -102,4 +105,6 @@ pub struct Web3Package {
     /// A vector of packages that this replaces. XXX: This could be problematic when exporting a
     /// DAG when there's a long history.
     pub pkg_replaces: Vec<Web3ContentId>,
+    /// User-defined annotations as key-value pairs
+    pub pkg_annotations: HashMap<String, String>,
 }

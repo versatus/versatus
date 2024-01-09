@@ -1109,11 +1109,21 @@ dependencies = [
  "bitmask-enum",
  "derive_builder 0.12.0",
  "env_logger 0.10.1",
+ "flate2",
+ "internal_rpc",
  "log",
  "mktemp",
  "oci-spec",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "service_config",
+ "tar",
  "telemetry",
+ "tokio",
  "uds",
+ "uuid",
+ "walkdir",
 ]
 
 [[package]]
@@ -2943,9 +2953,11 @@ dependencies = [
  "jsonrpsee",
  "platform",
  "serde",
+ "serde_json",
  "serial_test",
  "service_config",
  "tokio",
+ "web3_pkg",
 ]
 
 [[package]]
@@ -6109,6 +6121,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "storage_cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap 3.2.25",
+ "hyper",
+ "internal_rpc",
+ "lazy_static",
+ "metric_exporter",
+ "platform",
+ "prometheus",
+ "rand 0.8.5",
+ "service_config",
+ "telemetry",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
 name = "storage_utils"
 version = "0.1.0"
 dependencies = [
@@ -6237,6 +6268,7 @@ checksum = "14c39fd04924ca3a864207c66fc2cd7d22d7c016007f9ce846cbb9326331930a"
 name = "telemetry"
 version = "0.1.0"
 dependencies = [
+ "log",
  "primitives",
  "thiserror",
  "tracing",

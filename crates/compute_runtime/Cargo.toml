@@ -16,6 +16,16 @@ telemetry = { workspace = true }
 uds = "0.4"
 log = "0.4"
 env_logger = "0.10"
+mktemp = "0.5"
+serde = { workspace = true }
+serde_derive = { workspace = true }
+serde_json = { workspace = true }
+flate2 = "1.0"
+tar = "0.4"
+walkdir = "2.4"
+internal_rpc = { workspace = true }
+service_config = { workspace = true }
+tokio = { workspace = true }
 
 [dev-dependencies]
-mktemp = "0.5"
+uuid = { workspace = true }

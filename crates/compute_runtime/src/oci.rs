@@ -32,10 +32,10 @@ impl Default for OciStats {
 impl OciStats {
     pub fn new() -> Self {
         info!("Building new stats collector");
-        OciStats {
-            0: RequestStats::new("OciManager".to_string(), "oci-exec".to_string())
+        OciStats(
+            RequestStats::new("OciManager".to_string(), "oci-exec".to_string())
                 .expect("Failed to create stats collector"),
-        }
+        )
     }
 }
 

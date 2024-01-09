@@ -1,7 +1,7 @@
 //! This is a module that tracks basic stats for servicing parts of complex requests. It's supposed
 //! to be a little more granular than just the total time taken to service a request, but not as
 //! granular as full-on execution profiling and without the special tools or overhead.
-use crate::info;
+use log::info;
 use std::time::{SystemTime, SystemTimeError, UNIX_EPOCH};
 use thiserror::Error;
 

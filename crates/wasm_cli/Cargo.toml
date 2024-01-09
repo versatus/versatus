@@ -9,7 +9,7 @@ license.workspace = true
 version.workspace = true
 
 [[bin]]
-name = "versa-wasm"
+name = "versatus-wasm"
 path = "src/main.rs"
 
 [dependencies]
