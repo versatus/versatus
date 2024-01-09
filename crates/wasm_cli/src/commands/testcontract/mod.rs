@@ -139,8 +139,8 @@ fn create_contract_inputs(
         },
         contract_input: ContractInputs {
             contract_fn: (function.to_owned()),
-            function_inputs: serde_json::from_str(inputs) // deserialize json into FunctionInputs
-                .map_err(|e| anyhow!("failed to deserialize function inputs: {e:?}"))?,
+            function_inputs: serde_json::from_str(inputs).expect("oof"), // deserialize json into FunctionInputs
+                                                                         // .map_err(|e| anyhow!("failed to deserialize function inputs: {e:?}"))?,
         },
     })
 }
@@ -163,7 +163,17 @@ fn get_protocol_inputs(storage_connection: &Storage) -> Result<(i32, (u64, u64))
 fn test_create_contract_inputs() {
     let storage =
         testinitdb::open_storage(&"./bonsaidb".to_string()).expect("could not open storage");
-    let contract_inputs =
-        create_contract_inputs("transfer", "json function inputs go here", &storage);
+    let contract_inputs = create_contract_inputs(
+        "transfer",
+        "{\
+		    \"erc20\": {
+		        \"transfer\": {
+		    	\"value\": \"0xffff\",
+		    	\"address\": \"0x0303030303030303030303030303030303030303\"
+		        }
+		    }
+	    }",
+        &storage,
+    );
     assert!(contract_inputs.is_ok());
 }
