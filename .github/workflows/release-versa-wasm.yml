@@ -1,0 +1,55 @@
+name: Build and Release wasm_cli
+
+on:
+  workflow_dispatch:
+    inputs:
+      major:
+        description: "Major Version"
+        required: true
+      minor:
+        description: "Minor Version"
+        required: true
+      patch:
+        description: "Patch Version"
+        required: true
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Build wasm_cli
+        run: |
+          cd crates/wasm_cli
+          cargo build --release
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.event.inputs.major }}.${{ github.event.inputs.minor }}.${{ github.event.inputs.patch }}
+          release_name: Release v${{ github.event.inputs.major }}.${{ github.event.inputs.minor }}.${{ github.event.inputs.patch }}
+          draft: true
+          prerelease: true
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./target/release/versa-wasm
+          asset_name: wasm_cli
+          asset_content_type: application/octet-stream
