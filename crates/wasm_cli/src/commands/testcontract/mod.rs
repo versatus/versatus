@@ -131,17 +131,17 @@ fn create_contract_inputs(
     Ok(SmartContractInputs {
         version: latest_version,
         account_info: AccountInfo {
-            account_address: (raw_address), // TODO: is this the sender or receiver?
+            account_address: raw_address, // TODO: is this the sender or receiver?
             account_balance,
         },
         protocol_input: ProtocolInputs {
-            version: (latest_version),
+            version: latest_version,
             // TODO: Figure out how to increment block height & time
-            block_height: (block_height + 1),
-            block_time: (block_time + 1),
+            block_height: block_height + 1,
+            block_time: block_time + 1,
         },
         contract_input: ContractInputs {
-            contract_fn: (function.to_owned()),
+            contract_fn: function.to_owned(),
             function_inputs: serde_json::from_str(inputs) // deserialize json into FunctionInputs
                 .map_err(|e| anyhow!("failed to deserialize function inputs: {e:?}"))?,
         },
