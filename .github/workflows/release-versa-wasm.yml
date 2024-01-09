@@ -1,4 +1,4 @@
-name: Build and Release wasm_cli
+name: Build and Release versa-wasm
 
 on:
   workflow_dispatch:
@@ -15,8 +15,16 @@ on:
 
 jobs:
   build-and-release:
-    runs-on: ubuntu-latest
-
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: macos-latest
+            target: aarch64-apple-darwin
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
@@ -27,13 +35,15 @@ jobs:
           toolchain: stable
           profile: minimal
           override: true
+          target: ${{ matrix.target }}
 
       - name: Build wasm_cli
         run: |
           cd crates/wasm_cli
-          cargo build --release
+          cargo build --release --target ${{ matrix.target }}
 
-      - name: Create Release
+      - name: Create Release (runs only once)
+        if: github.event.inputs.major && github.event.inputs.minor && github.event.inputs.patch && matrix.target == 'x86_64-unknown-linux-gnu'
         id: create_release
         uses: actions/create-release@v1
         env:
@@ -45,11 +55,12 @@ jobs:
           prerelease: true
 
       - name: Upload Release Asset
+        if: steps.create_release.outputs.upload_url
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./target/release/versa-wasm
-          asset_name: wasm_cli
+          asset_path: ./target/${{ matrix.target }}/release/versa-wasm
+          asset_name: versa-wasm-${{ matrix.target }}
           asset_content_type: application/octet-stream
