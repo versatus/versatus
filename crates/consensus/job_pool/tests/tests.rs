@@ -20,7 +20,7 @@ fn test_run_sync() {
     let first = pool
         .run_sync_job(|| {
             pub fn sum_from_zero(n: i32) -> i32 {
-                (0..n + 1).fold(0, |a, b| a + b)
+                (0..n + 1).sum::<i32>()
             }
             std::thread::sleep(Duration::from_millis(120));
             sum_from_zero(12)
@@ -44,7 +44,7 @@ fn test_run_sync() {
         .join()
         .expect("Failed to run the task ");
     assert_eq!(second, 512);
-    let times = vec![
+    let times = [
         pool.state.tasks_completion_time.pop().unwrap(),
         pool.state.tasks_completion_time.pop().unwrap(),
     ];
@@ -59,7 +59,7 @@ fn test_run_async() {
     let task_result = pool
         .run_async_job(async {
             pub fn sum_from_zero(n: i32) -> i32 {
-                (0..n + 1).fold(0, |a, b| a + b)
+                (0..n + 1).sum::<i32>()
             }
             sum_from_zero(12)
         })
@@ -91,7 +91,7 @@ fn idle_shutdown_pool() {
     assert_eq!(pool.jobs(), 0, "Job Pool is empty");
     pool.run_sync_job(|| {
         pub fn sum_from_zero(n: i32) -> i32 {
-            (0..n + 1).fold(0, |a, b| a + b)
+            (0..n + 1).sum::<i32>()
         }
         sum_from_zero(12)
     })

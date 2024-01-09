@@ -44,7 +44,7 @@ fn builder_test() {
 fn parse_test() {
     let bytes = std::fs::read("test_data/pkg.json").unwrap();
     let json = str::from_utf8(&bytes).unwrap();
-    let pkg: Web3Package = serde_json::from_str(&json).unwrap();
+    let pkg: Web3Package = serde_json::from_str(json).unwrap();
     eprintln!("Object: {:?}", pkg);
     assert_eq!(pkg.pkg_version, 5);
 }
@@ -67,9 +67,9 @@ async fn read_test() {
     eprintln!("Read manifest as DAG object from: {}", CID);
     let json = str::from_utf8(&obj).unwrap();
     //eprintln!("JSON: {}", json);
-    std::fs::write("out/package-manifest.json", &json).unwrap();
+    std::fs::write("out/package-manifest.json", json).unwrap();
     eprintln!("Wrote package manifest to out/package-manifest.json");
-    let pkg: Web3Package = serde_json::from_str(&json).unwrap();
+    let pkg: Web3Package = serde_json::from_str(json).unwrap();
     for obj in &pkg.pkg_objects {
         let blob = store.read_object(&obj.object_cid.cid).await.unwrap();
         let filename = format!("out/{}", obj.object_cid.cid);
@@ -98,7 +98,7 @@ async fn write_test() {
     let obj = Web3PackageObjectBuilder::default()
         .object_arch(Web3PackageArchitecture::Wasm32Wasi)
         .object_path("wasm_test-opt.wasm".to_string())
-        .object_cid(Web3ContentId { cid: cid })
+        .object_cid(Web3ContentId { cid })
         .object_type(Web3ObjectType::Executable)
         .build()
         .unwrap();
@@ -114,7 +114,7 @@ async fn write_test() {
     let obj = Web3PackageObjectBuilder::default()
         .object_arch(Web3PackageArchitecture::None)
         .object_path("README.md".to_string())
-        .object_cid(Web3ContentId { cid: cid })
+        .object_cid(Web3ContentId { cid })
         .object_type(Web3ObjectType::Document)
         .build()
         .unwrap();

@@ -47,22 +47,15 @@ impl StopWatch {
 
     /// Calculate the duration from the start and stop times.
     pub fn duration(&self) -> Result<u128> {
-        let start: u128;
-        let stop: u128;
-
-        match self.start_ms {
-            Some(val) => {
-                start = val;
-            }
+        let start: u128 = match self.start_ms {
+            Some(val) => val,
             None => return Err(StopWatchError::FailedToStart),
-        }
+        };
 
-        match self.stop_ms {
-            Some(val) => {
-                stop = val;
-            }
+        let stop: u128 = match self.stop_ms {
+            Some(val) => val,
             None => return Err(StopWatchError::FailedToStop),
-        }
+        };
 
         if start > stop {
             return Err(StopWatchError::CorruptedStartTime);
