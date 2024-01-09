@@ -120,7 +120,7 @@ fn create_contract_inputs(
     inputs: &str,
     storage_connection: &bonsaidb::local::Storage,
 ) -> Result<SmartContractInputs> {
-    let (latest_version, (block_height, block_time)) = get_protocol_inputs(storage_connection)?;
+    let (version, (block_height, block_time)) = get_protocol_inputs(storage_connection)?;
     let raw_address = Address([2; 20]); // TODO: get this from the command line args?
     let account_address = AccountAddress {
         address: raw_address.0,
@@ -129,16 +129,15 @@ fn create_contract_inputs(
     let account_balance = balance_document.contents.value;
 
     Ok(SmartContractInputs {
-        version: latest_version,
+        version,
         account_info: AccountInfo {
             account_address: raw_address, // TODO: is this the sender or receiver?
             account_balance,
         },
         protocol_input: ProtocolInputs {
-            version: latest_version,
-            // TODO: Figure out how to increment block height & time
-            block_height: block_height + 1,
-            block_time: block_time + 1,
+            version,
+            block_height,
+            block_time,
         },
         contract_input: ContractInputs {
             contract_fn: function.to_owned(),
@@ -157,7 +156,7 @@ fn get_protocol_inputs(storage_connection: &Storage) -> Result<(i32, (u64, u64))
     let protocol_document = protocol_view
         .last()
         .expect("found empty protocol inputs database, initialize the test db and try again");
-    let latest_version = protocol_document.key + 1;
+    let latest_version = protocol_document.key;
     let (block_height, block_time) = protocol_document.value;
     Ok((latest_version, (block_height, block_time)))
 }
