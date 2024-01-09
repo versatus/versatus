@@ -1,7 +1,9 @@
 use anyhow::{anyhow, Result};
-use bonsaidb::core::{connection::StorageConnection, schema::SerializedView};
+use bonsaidb::{
+    core::{connection::StorageConnection, schema::SerializedView},
+    local::Storage,
+};
 use clap::Parser;
-use ethnum::U256;
 use serde_json;
 use std::{collections::HashMap, path::PathBuf};
 use telemetry::info;
@@ -15,6 +17,8 @@ use wasm_runtime::{
 use wasmer::{Cranelift, Target};
 
 use crate::commands::testinitdb;
+
+use super::{testbalance::get_balance, testinitdb::AccountAddress};
 
 #[derive(Parser, Debug)]
 pub struct TestContractOpts {
@@ -97,6 +101,7 @@ pub fn run(opts: &TestContractOpts) -> Result<()> {
     // #716 We shouldn't print the output here, but rather parse it and use it to update the
     // database. For example, if an ErcTransferEvent is part of the output(https://github.com/versatus/versatus-rust/blob/main/src/eip20.rs#L48), we should move the balance from the from account to the to account.
     println!("{}", &wasm.stdout());
+    // TODO: Update storage with the output of the contract
 
     eprintln!("Contract errors: {}", &wasm.stderr());
 
@@ -112,33 +117,53 @@ fn create_contract_inputs(
     inputs: &str,
     storage_connection: &bonsaidb::local::Storage,
 ) -> Result<SmartContractInputs> {
-    let protocol_inputs =
-        storage_connection.database::<testinitdb::ProtocolInputs>("protocol-inputs")?;
-    let protocol_inputs = testinitdb::ProtocolView::entries(&protocol_inputs)
-        .with_key(&1)
-        .query()?;
-    dbg!(&protocol_inputs);
+    let (latest_version, (block_height, block_time)) = get_protocol_inputs(storage_connection)?;
+    let raw_address = Address([2; 20]);
+    let account_address = AccountAddress {
+        address: raw_address.0,
+    };
+    let balance_document = get_balance(&account_address, storage_connection)?;
+    let account_balance = balance_document.contents.value;
+
     Ok(SmartContractInputs {
-        version: 1,
+        version: latest_version,
         account_info: AccountInfo {
-            account_address: (Address([2; 20])),
-            account_balance: (U256([10; 2])),
+            account_address: (raw_address), // TODO: is this the sender or receiver?
+            account_balance,
         },
         protocol_input: ProtocolInputs {
-            version: (1),
-            block_height: (1),
-            block_time: (1),
+            version: (latest_version),
+            // TODO: Figure out how to increment block height & time
+            block_height: (block_height + 1),
+            block_time: (block_time + 1),
         },
         contract_input: ContractInputs {
             contract_fn: (function.to_owned()),
-            function_inputs: serde_json::from_str(&inputs)?,
+            function_inputs: serde_json::from_str(inputs) // deserialize json into FunctionInputs
+                .map_err(|e| anyhow!("failed to deserialize function inputs: {e:?}"))?,
         },
     })
 }
 
+fn get_protocol_inputs(storage_connection: &Storage) -> Result<(i32, (u64, u64))> {
+    let protocol_db =
+        storage_connection.database::<testinitdb::ProtocolInputs>("protocol-inputs")?;
+    let protocol_view = testinitdb::ProtocolView::entries(&protocol_db)
+        .ascending()
+        .query()?;
+    let protocol_document = protocol_view
+        .last()
+        .expect("found empty protocol inputs database");
+    let latest_version = protocol_document.key + 1;
+    let (block_height, block_time) = protocol_document.value;
+    Ok((latest_version, (block_height, block_time)))
+}
+
 #[test]
 fn test_create_contract_inputs() {
-    let storage = testinitdb::open_storage(&"./bonsaidb".to_string()).unwrap();
-    let contract_inputs = create_contract_inputs("", "", &storage).unwrap();
-    // dbg!(&contract_inputs);
+    let storage =
+        testinitdb::open_storage(&"./bonsaidb".to_string()).expect("could not open storage");
+    let contract_inputs =
+        create_contract_inputs("transfer", "json function inputs go here", &storage);
+    assert!(contract_inputs.is_ok());
 }

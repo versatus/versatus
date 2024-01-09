@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
 pub const DEFAULT_DB_PATH: &str = "./bonsaidb";
-pub const DEFAULT_VERSION: u64 = 1;
+pub const DEFAULT_VERSION: i32 = 1;
 pub const DEFAULT_BLOCK_HEIGHT: u64 = 10;
 pub const DEFAULT_BLOCK_TIME: u64 = 1704018000;
 pub const DEFAULT_BALANCE: U256 = U256([10000; 2]);
@@ -73,7 +73,7 @@ pub struct AccountAddress {
 }
 
 #[derive(Debug, Clone, View, ViewSchema)]
-#[view(collection = ProtocolInputs, key = u64, value = (u64, u64), name = "by-version")]
+#[view(collection = ProtocolInputs, key = i32, value = (u64, u64), name = "by-version")]
 pub struct ProtocolView;
 impl CollectionMapReduce for ProtocolView {
     fn map<'doc>(
@@ -107,7 +107,7 @@ const PROTOCOL_INPUTS_NAME: &str = "protocol-inputs";
 #[derive(Collection, Serialize, Deserialize, Clone, Parser, Debug)]
 #[collection(name = "protocol-inputs", views = [ProtocolView])]
 pub struct ProtocolInputs {
-    pub version: u64,
+    pub version: i32,
     /// The block number/height of the block currently being processed
     pub block_height: u64,
     /// The timestamp of the block currently being processed
@@ -124,7 +124,7 @@ pub(crate) fn open_storage(path: &String) -> Result<Storage> {
 
 fn insert_protocol_inputs<C: Connection>(
     connection: &C,
-    version: u64,
+    version: i32,
     block_height: u64,
     block_time: u64,
 ) -> Result<(), bonsaidb::core::Error> {

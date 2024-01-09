@@ -1,9 +1,11 @@
 use anyhow::Result;
 use bonsaidb::{
-    core::{connection::StorageConnection, schema::SerializedCollection},
+    core::{
+        connection::StorageConnection, document::CollectionDocument, schema::SerializedCollection,
+    },
     local::{
         config::{Builder, StorageConfiguration},
-        Storage,
+        Storage, StorageNonBlocking,
     },
 };
 use clap::Parser;
@@ -42,23 +44,29 @@ pub fn run(opts: &TestBalanceOpts) -> Result<()> {
                     &opts.dbpath
                 )
             })?;
-    let db = storage_connection.database::<AccountBalance>("account-balance")?;
-
     let key = AccountAddress {
         address: opts.address.0,
     };
-    let retrieved = AccountBalance::get(&key, &db)
-        .map_err(|e| anyhow::anyhow!("failed to open document: {e:?}"))?
-        .ok_or(anyhow::anyhow!(
-            "failed to retrieve account balance for account address '{:?}' at database path '{}'",
-            &opts.address,
-            &opts.dbpath
-        ))?;
+    let retrieved = get_balance(&key, &storage_connection)?;
 
     // TODO: Make this more robust!
     assert_eq!(opts.balance, retrieved.contents.value);
 
     Ok(())
+}
+
+pub(crate) fn get_balance(
+    key: &AccountAddress,
+    storage_connection: &Storage,
+) -> Result<CollectionDocument<AccountBalance>> {
+    let db = storage_connection.database::<AccountBalance>("account-balance")?;
+    AccountBalance::get(&key, &db)
+        .map_err(|e| anyhow::anyhow!("failed to open document: {e:?}"))?
+        .ok_or(anyhow::anyhow!(
+            "failed to retrieve account balance for account address '{:?}' at database path '{:?}'",
+            &key,
+            &storage_connection.path()
+        ))
 }
 
 #[test]
