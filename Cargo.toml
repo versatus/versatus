@@ -42,6 +42,7 @@ members = [
   "crates/wasm_loader",
   "crates/wasm_runtime",
   "crates/web3_pkg",
+  "crates/storage_agent"
 ]
 exclude = ["benches"]
 resolver = "2"
@@ -112,7 +113,7 @@ jsonrpsee = { version = "0.16", features = [
   "server-core",
   "server",
   "http-client",
-  "ws-client",
+  "ws-client"
 ] }
 lazy_static = "1.4"
 lru_time_cache = "0.11"
