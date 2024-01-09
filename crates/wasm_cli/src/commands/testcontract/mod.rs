@@ -139,8 +139,8 @@ fn create_contract_inputs(
         },
         contract_input: ContractInputs {
             contract_fn: (function.to_owned()),
-            function_inputs: serde_json::from_str(inputs).expect("oof"), // deserialize json into FunctionInputs
-                                                                         // .map_err(|e| anyhow!("failed to deserialize function inputs: {e:?}"))?,
+            function_inputs: serde_json::from_str(inputs) // deserialize json into FunctionInputs
+                .map_err(|e| anyhow!("failed to deserialize function inputs: {e:?}"))?,
         },
     })
 }
