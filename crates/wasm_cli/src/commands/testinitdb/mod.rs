@@ -122,6 +122,7 @@ pub(crate) fn open_storage(path: &String) -> Result<Storage> {
     )?)
 }
 
+// TODO: Make this an associated function on ProtocolInputs
 fn insert_protocol_inputs<C: Connection>(
     connection: &C,
     version: i32,

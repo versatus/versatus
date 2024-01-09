@@ -102,6 +102,9 @@ pub fn run(opts: &TestContractOpts) -> Result<()> {
     // database. For example, if an ErcTransferEvent is part of the output(https://github.com/versatus/versatus-rust/blob/main/src/eip20.rs#L48), we should move the balance from the from account to the to account.
     println!("{}", &wasm.stdout());
     // TODO: Update storage with the output of the contract
+    // using the overwrite method in SerializedCollection
+    // similarly to the use of insert_into for AccountBalance
+    // in the testinitdb module.
 
     eprintln!("Contract errors: {}", &wasm.stderr());
 
@@ -118,7 +121,7 @@ fn create_contract_inputs(
     storage_connection: &bonsaidb::local::Storage,
 ) -> Result<SmartContractInputs> {
     let (latest_version, (block_height, block_time)) = get_protocol_inputs(storage_connection)?;
-    let raw_address = Address([2; 20]);
+    let raw_address = Address([2; 20]); // TODO: get this from the command line args?
     let account_address = AccountAddress {
         address: raw_address.0,
     };
@@ -153,7 +156,7 @@ fn get_protocol_inputs(storage_connection: &Storage) -> Result<(i32, (u64, u64))
         .query()?;
     let protocol_document = protocol_view
         .last()
-        .expect("found empty protocol inputs database");
+        .expect("found empty protocol inputs database, initialize the test db and try again");
     let latest_version = protocol_document.key + 1;
     let (block_height, block_time) = protocol_document.value;
     Ok((latest_version, (block_height, block_time)))
