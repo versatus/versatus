@@ -2942,9 +2942,11 @@ dependencies = [
  "jsonrpsee",
  "platform",
  "serde",
+ "serde_json",
  "serial_test",
  "service_config",
  "tokio",
+ "web3_pkg",
 ]
 
 [[package]]
