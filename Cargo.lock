@@ -7935,6 +7935,7 @@ dependencies = [
  "derive_builder 0.12.0",
  "futures",
  "ipfs-api",
+ "ipfs-api-backend-hyper",
  "serde",
  "serde_derive",
  "serde_json",
