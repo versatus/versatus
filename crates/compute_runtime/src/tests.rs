@@ -98,6 +98,30 @@ fn compute_job_runner_null_true() {
     let r = ComputeJobRunner::run(
         &Uuid::new_v4().to_string(),
         "bafyreicrmhglkwxvvesr5bxrpo6slgjthlhhf3l6pfti52ipl733cnvpla", // new contract package
+        crate::runtime::NULL_CID_TRUE,
+        ComputeJobExecutionType::AdHoc,
+        &service_config::ServiceConfig {
+            name: "storage-test".to_string(),
+            rpc_address: "::1".to_string(),
+            rpc_port: 9126,
+            pre_shared_key: "xxx".to_string(),
+            tls_ca_cert_file: "".to_string(),
+            tls_private_key_file: "".to_string(),
+            tls_public_cert_file: "".to_string(),
+            exporter_address: "0.0.0.0".to_string(),
+            exporter_port: "9101".to_string(),
+        },
+    )
+    .expect("Job execution failed");
+    dbg!(r);
+}
+
+#[test]
+fn compute_job_runner_null_false() {
+    let _ = env_logger::builder().is_test(true).try_init();
+    let r = ComputeJobRunner::run(
+        &Uuid::new_v4().to_string(),
+        crate::runtime::NULL_CID_FALSE,
         ComputeJobExecutionType::AdHoc,
         &service_config::ServiceConfig {
             name: "storage-test".to_string(),

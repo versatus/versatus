@@ -7,14 +7,19 @@ use internal_rpc::{api::IPFSDataType, api::InternalRpcApiClient, client::Interna
 use log::info;
 use mktemp::Temp;
 use serde_derive::{Deserialize, Serialize};
-use service_config::ServiceConfig;
+use service_config::{Config, ServiceConfig};
 use std::collections::HashMap;
 use std::fmt;
-use std::fs::{create_dir, File};
-use std::io::{BufReader, Write};
+use std::fs::File;
+use std::io::{BufReader, Error, ErrorKind};
 use tar::Builder;
 use telemetry::request_stats::RequestStats;
-use web3_pkg::web3_pkg::Web3Package;
+use walkdir::WalkDir;
+
+// Two invalid CIDs to use within testing. Shouldn't ever be used in the wild, but useful for
+// testing along with the Null execution type below.
+pub const NULL_CID_TRUE: &str = "null-cid-true";
+pub const NULL_CID_FALSE: &str = "null-cid-false";
 
 /// The type of job we're intending to execute.
 #[derive(Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
@@ -73,12 +78,7 @@ impl CidManifest {
 pub struct ComputeJobRunner {}
 
 impl ComputeJobRunner {
-    pub fn run(
-        job_id: &str,
-        package_cid: &str,
-        job_type: ComputeJobExecutionType,
-        storage: &ServiceConfig,
-    ) -> Result<String> {
+    pub fn run(job_id: &str, package_cid: &str, job_type: ComputeJobExecutionType, storage: &ServiceConfig) -> Result<()> {
         // Create a stats object to track how long we take to perform certain phases of execution.
         let mut stats = RequestStats::new("ComputeJobRunner".to_string(), job_id.to_string())?;
         info!(
@@ -89,9 +89,20 @@ impl ComputeJobRunner {
         // start initial prep
         stats.start("setup".to_string())?;
         // Create a temporary directory tree that will be cleaned up (unlinked) when tmp goes out
-        // of scope.
-        let tmp = Temp::new_dir()?;
-        let runtime_root = &tmp.to_string_lossy();
+        // of scope. This is easy with the mktemp::Temp crate, but the hurdles that Rust makes us
+        // jump through to get a string representation of the path out is insane. Yes, it is
+        // possible for paths to contain non-UTF8 characters, but given that the whole path was
+        // created from Rust, Rust could guarantee that this was in fact UTF8 from the start. No
+        // need to map an OsString into an ambiguous error.
+        //
+        // Making matters more fun, we can't even barf with a reasonable error code.
+        // ErrorKind::InvalidFilename (the most accurate description) is only available as a
+        // feature in nightly builds. FML.
+        let tmp = Temp::new_dir()?.to_path_buf();
+        let runtime_root = &tmp
+            .into_os_string()
+            .into_string()
+            .map_err(|_| Error::new(ErrorKind::NotFound, "Cannot parse file path"))?;
         info!("Runtime root for {} is {}", job_id, runtime_root);
 
         // - read CID manifest
@@ -101,7 +112,7 @@ impl ComputeJobRunner {
             "/../../tools/sample-configs/manifest.json"
         );
         info!("Reading CID manifest from {}", manifest_file);
-        let manifest: CidManifest = CidManifest::from_file(manifest_file)?;
+        let manifest: CidManifest = CidManifest::from_file(&manifest_file)?;
         //dbg!(manifest);
         if manifest.entries.contains_key(&job_type) {
             info!(
@@ -113,28 +124,21 @@ impl ComputeJobRunner {
                 "No CID found for job type {:?} in {:?}",
                 &job_type, &manifest.entries
             );
-            // TODO: Bail here.
         }
         stats.stop("setup".to_string())?;
 
-        // Retrieve payload package by CID. This is the developer's code to be executed (eg, a
-        // smart contract).
+        // Retrieve payload package by CID
         stats.start("payload".to_string())?;
-
+        // TODO: retrieve payload package by CID
         // We currently wrap this in a tokio runtime to keep it sync, but there's no reason we
         // can't make this whole module async when calling from elsewhere.
         let rt = tokio::runtime::Runtime::new()?;
-        let _ = rt.block_on(async {
-            Self::retrieve_package(runtime_root, storage, &package_cid).await
-        })?;
+        let _ = rt.block_on(async { Self::retrieve_package(&storage, &package_cid).await })?;
         stats.stop("payload".to_string())?;
 
-        // Retrieve runtime package by CID. This is the package that contains the binaries we need
-        // in order to be able to execute the above user payload.
+        // Retrieve runtime package by CID
         stats.start("runtime".to_string())?;
-        let _ = rt.block_on(async {
-            Self::retrieve_package(runtime_root, storage, &manifest.entries[&job_type]).await
-        })?;
+        // TODO: retrieve runtime package by CID
         stats.stop("runtime".to_string())?;
 
         // Execute job
@@ -151,55 +155,15 @@ impl ComputeJobRunner {
         stats.start("post-exec".to_string())?;
         Self::post_execute(job_id, runtime_root)?;
         stats.stop("post-exec".to_string())?;
-
-        info!("Cleaning up {:?}", &tmp);
-
-        Ok("{ \"this\": \"is a test signal\" }".to_string())
+        Ok(())
     }
 
     /// Retrieve a package from the web3 blob store via an internal RPC.
-    async fn retrieve_package(
-        root_path: &str,
-        config: &ServiceConfig,
-        package_cid: &str,
-    ) -> Result<()> {
+    async fn retrieve_package(config: &ServiceConfig, package_cid: &str) -> Result<()> {
         let client = InternalRpcClient::new(config.rpc_socket_addr()?).await?;
         info!("Retrieving CID {}", package_cid);
-        let res = client.0.get_data(package_cid, IPFSDataType::Dag).await?;
-
-        let package_dir = format!("{}/{}", &root_path, &package_cid);
-        create_dir(&package_dir).context(format!("Creating package directory {}", &package_dir))?;
-
-        let pkg: Web3Package = serde_json::from_slice(&res)?;
-        info!(
-            "Package '{}' version {} from '{}' is type {}",
-            &pkg.pkg_name, &pkg.pkg_version, &pkg.pkg_author, &pkg.pkg_type
-        );
-        let mut f = File::create(format!("{}/metadata.json", &package_dir))
-            .context(format!("Creating {}/metadata.json", &package_dir))?;
-        f.write_all(&res)?;
-
-        for obj in pkg.pkg_objects.iter() {
-            info!(
-                "Package {} contains link to object {}, arch {}",
-                &package_cid, &obj.object_cid.cid, &obj.object_arch
-            );
-            // TODO: We should probably check our current architecture against the architecture of
-            // the object and not download it if it's not going to run here.
-            // Also, we should parse the CID to see whether it's a DAG object or a blob object
-            // instead of assuming it's a blob, although the latter will be the case for the
-            // near term.
-            let data = client
-                .0
-                .get_data(&obj.object_cid.cid, IPFSDataType::Object)
-                .await?;
-            // Write it the object to a file.
-            let mut f = File::create(format!("{}/{}", &package_dir, &obj.object_cid.cid)).context(
-                format!("Creating file {}/{}", &package_dir, &obj.object_cid.cid),
-            )?;
-            f.write_all(&data)?;
-        }
-
+        let res = client.0.get_data(package_cid, IPFSDataType::Object).await?;
+        dbg!(res);
         Ok(())
     }
 
@@ -214,10 +178,21 @@ impl ComputeJobRunner {
         let enc = GzEncoder::new(file, Compression::default());
         let mut archive = Builder::new(enc);
 
-        archive.append_dir_all(".", runtime_root)?;
-        let _ = archive.finish();
+        let mut count = 0;
+        for entry in WalkDir::new(&runtime_root)
+            .follow_links(false)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            let filename = entry.path();
+            archive.append_path(filename)?;
+            count += 1;
+        }
 
-        info!("Created diagnostics bundle of {}", tarball_path);
+        info!(
+            "Created diagnostics bundle of {} files in {}",
+            count, tarball_path
+        );
         Ok(())
     }
 }
