@@ -1125,6 +1125,7 @@ dependencies = [
  "uds",
  "uuid",
  "walkdir",
+ "web3_pkg",
 ]
 
 [[package]]
