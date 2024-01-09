@@ -1,6 +1,9 @@
 use clap::{Parser, Subcommand};
 
 use crate::commands::daemon::DaemonOpts;
+use crate::commands::data_retrieval::DataRetrievalOpts;
+use crate::commands::pin_object::PinObjectOpts;
+use crate::commands::pin_status::PinStatusOpts;
 use crate::commands::status::StatusOpts;
 
 #[derive(Parser)]
@@ -38,4 +41,10 @@ pub enum StorageCommands {
     Daemon(DaemonOpts),
     /// Shows status of a running agent
     Status(StatusOpts),
+    /// Get the object or the Data
+    RetrievalData(DataRetrievalOpts),
+    /// Pin the object or the Data
+    PinObject(PinObjectOpts),
+    /// Check the pin status of the object or the Data
+    CheckPinStatus(PinStatusOpts),
 }
