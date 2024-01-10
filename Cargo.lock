@@ -1088,6 +1088,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap 3.2.25",
+ "env_logger 0.10.1",
  "hyper",
  "internal_rpc",
  "lazy_static",
@@ -2951,6 +2952,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "jsonrpsee",
+ "log",
  "platform",
  "serde",
  "serde_json",
@@ -6126,6 +6128,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap 3.2.25",
+ "env_logger 0.10.1",
  "hyper",
  "internal_rpc",
  "lazy_static",
@@ -7599,6 +7602,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap 3.2.25",
+ "env_logger 0.10.1",
  "serde",
  "serde_derive",
  "serde_json",

@@ -12,6 +12,8 @@ static THIS_SERVICE_TYPE: &str = "storage";
 async fn main() -> Result<()> {
     let mut cli = cli::StorageCli::parse();
 
+    env_logger::init();
+
     let service: String = match cli.service_type {
         Some(svc) => svc,
         None => THIS_SERVICE_TYPE.to_string(),

@@ -97,7 +97,7 @@ fn compute_job_runner_null_true() {
     let _ = env_logger::builder().is_test(true).try_init();
     let r = ComputeJobRunner::run(
         &Uuid::new_v4().to_string(),
-        crate::runtime::NULL_CID_TRUE,
+        "bafyreide5xf4eou4vkumw2uk7asktbuqe4rqnh4exrgimwdmshi4ok5ene",
         ComputeJobExecutionType::AdHoc,
         &service_config::ServiceConfig {
             name: "storage-test".to_string(),
