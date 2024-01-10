@@ -3,6 +3,7 @@ use anyhow::Result;
 use service_config::ServiceConfig;
 use std::time::Duration;
 
+/// The status of a compute job.
 pub enum ComputeJobStatus {
     /// Job is in progress, represents the uptime of the job.
     Running(Duration),
