@@ -1,6 +1,5 @@
 use std::net::SocketAddr;
 use log::info;
-
 use crate::api::{IPFSDataType, InternalRpcApiServer, RpcResult};
 use jsonrpsee::core::__reexports::serde_json;
 use jsonrpsee::{
@@ -12,6 +11,10 @@ use service_config::ServiceConfig;
 use web3_pkg::web3_pkg::Web3Package;
 use web3_pkg::web3_store::Web3Store;
 
+
+pub const MAX_RESPONSE_SIZE:u32=104_857_600;
+
+pub const MAX_REQUEST_SIZE:u32=10240;
 pub struct InternalRpcServer;
 impl InternalRpcServer {
     /// Starts the RPC server which listens for internal calls.
@@ -21,7 +24,9 @@ impl InternalRpcServer {
         service_type: ServiceType,
     ) -> anyhow::Result<(ServerHandle, SocketAddr)> {
         let rpc = InternalRpc::new(service_type)?;
-        let server = ServerBuilder::default()
+        let server =    ServerBuilder::default()
+            .max_response_body_size(MAX_RESPONSE_SIZE)
+            .max_request_body_size(MAX_REQUEST_SIZE)
             .build(format!(
                 "{}:{}",
                 service_config.rpc_address, service_config.rpc_port
@@ -79,7 +84,7 @@ impl InternalRpc {
     async fn retrieve_dag(&self, cid: &str) -> RpcResult<Vec<(String, Vec<u8>)>> {
         info!("Retrieving DAG object '{}' from local IPFS instance.", &cid);
         let store = Web3Store::local()?;
-        let obj = store.read_dag(cid).await?;
+       let obj = store.read_dag(cid).await?;
         let pkg: Web3Package = serde_json::from_slice(&obj)?;
         let mut objs = Vec::new();
         for obj in &pkg.pkg_objects {

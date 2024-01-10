@@ -31,6 +31,8 @@ impl FromStr for IPFSDataType {
 ///
 /// This is meant to be extensible to meet the needs of the `InternalRpcServer`.
 #[rpc(server, client, namespace = "common")]
+#[rpc(response_max_size = 104857600 )] // Set maximum response size to 100MB
+
 pub trait InternalRpcApi {
     /// Get info about the current service
     #[method(name = "status")]
