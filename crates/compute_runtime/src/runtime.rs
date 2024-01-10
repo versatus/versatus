@@ -7,7 +7,7 @@ use internal_rpc::{api::IPFSDataType, api::InternalRpcApiClient, client::Interna
 use log::info;
 use mktemp::Temp;
 use serde_derive::{Deserialize, Serialize};
-use service_config::{Config, ServiceConfig};
+use service_config::ServiceConfig;
 use std::collections::HashMap;
 use std::fmt;
 use std::fs::File;
@@ -50,6 +50,22 @@ impl fmt::Display for ComputeJobExecutionType {
         }
     }
 }
+impl std::str::FromStr for ComputeJobExecutionType {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let job = match s.trim().to_lowercase().as_str() {
+            "contract" | "smart-contract" => ComputeJobExecutionType::SmartContract,
+            "adhoc" | "ad-hoc" => ComputeJobExecutionType::AdHoc,
+            "null" => ComputeJobExecutionType::Null,
+            _ => {
+                return Err(anyhow::anyhow!(
+                    "failed to parse compute job type from string"
+                ));
+            }
+        };
+        Ok(job)
+    }
+}
 
 /// A runtime-configurable mapping between [ComputeJobExecutionType]s and published package CIDs.
 /// This will allow us to set a bunch of sane defaults that can be overridden as new packages
@@ -78,7 +94,12 @@ impl CidManifest {
 pub struct ComputeJobRunner {}
 
 impl ComputeJobRunner {
-    pub fn run(job_id: &str, package_cid: &str, job_type: ComputeJobExecutionType, storage: &ServiceConfig) -> Result<()> {
+    pub fn run(
+        job_id: &str,
+        package_cid: &str,
+        job_type: ComputeJobExecutionType,
+        storage: &ServiceConfig,
+    ) -> Result<()> {
         // Create a stats object to track how long we take to perform certain phases of execution.
         let mut stats = RequestStats::new("ComputeJobRunner".to_string(), job_id.to_string())?;
         info!(

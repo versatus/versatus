@@ -5,7 +5,7 @@ mod kontain;
 mod kontain_wasm;
 mod oci;
 mod oci_runc;
-mod runtime;
+pub mod runtime;
 mod youki;
 
 #[cfg(test)]
