@@ -39,4 +39,6 @@ pub enum ComputeCommands {
     Status(StatusOpts),
     /// Add a compute job to the queue
     QueueJob(ComputeJobOpts),
+    /// Check the status of a compute job
+    JobStatus(ComputeJobOpts),
 }
