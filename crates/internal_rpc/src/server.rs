@@ -8,7 +8,6 @@ use jsonrpsee::{
 };
 use platform::services::*;
 use service_config::ServiceConfig;
-use tokio::runtime::Runtime;
 use web3_pkg::web3_pkg::Web3Package;
 use web3_pkg::web3_store::Web3Store;
 
@@ -109,22 +108,17 @@ impl InternalRpcApiServer for InternalRpc {
         cid: &str,
         data_type: IPFSDataType,
     ) -> RpcResult<Vec<(String, Vec<u8>)>> {
-        let rt = Runtime::new()?;
-        rt.block_on(async {
-            match data_type {
-                IPFSDataType::Object => self.retrieve_object(cid).await,
-                IPFSDataType::Dag => self.retrieve_dag(cid).await,
-            }
-        })
+        return match data_type {
+            IPFSDataType::Object => self.retrieve_object(cid).await,
+            IPFSDataType::Dag => self.retrieve_dag(cid).await,
+        };
     }
 
     async fn pin_object(&self, cid: &str, recursive: bool) -> RpcResult<Vec<String>> {
-        let rt = Runtime::new()?;
-        rt.block_on(async { self.pin_object_ipfs(cid, recursive).await })
+        self.pin_object_ipfs(cid, recursive).await
     }
     async fn is_pinned(&self, cid: &str) -> RpcResult<bool> {
-        let rt = Runtime::new()?;
-        rt.block_on(async { self.is_pinned_obj(cid).await })
+        self.is_pinned_obj(cid).await
     }
 }
 
