@@ -22,7 +22,7 @@ pub const NULL_CID_TRUE: &str = "null-cid-true";
 pub const NULL_CID_FALSE: &str = "null-cid-false";
 
 /// The type of job we're intending to execute.
-#[derive(Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum ComputeJobExecutionType {
     /// A Smart Contract job requiring a runtime capable of assembling JSON input and executing

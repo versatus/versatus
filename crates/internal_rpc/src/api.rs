@@ -1,11 +1,13 @@
-use std::fmt::Debug;
-use std::str::FromStr;
 use jsonrpsee::proc_macros::rpc;
 use platform::services::ServiceStatusResponse;
 use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
+use std::str::FromStr;
+
+use crate::job_queue::ServiceJobType;
 pub(crate) type RpcResult<T> = Result<T, jsonrpsee::core::Error>;
 
-#[derive(Serialize, Deserialize,Debug,Copy,Clone)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub enum IPFSDataType {
     Object,
     Dag,
@@ -24,19 +26,19 @@ impl FromStr for IPFSDataType {
     }
 }
 
-
-
 /// The methods available to the [`InternalRpcServer`] for both
 /// the client and the server.
 ///
 /// This is meant to be extensible to meet the needs of the `InternalRpcServer`.
 #[rpc(server, client, namespace = "common")]
-#[rpc(response_max_size = 104857600 )] // Set maximum response size to 100MB
-
+#[rpc(response_max_size = 104857600)] // Set maximum response size to 100MB
 pub trait InternalRpcApi {
     /// Get info about the current service
     #[method(name = "status")]
     async fn status(&self) -> RpcResult<ServiceStatusResponse>;
+
+    #[method(name = "queue_job")]
+    async fn queue_job(&self, cid: &str, kind: ServiceJobType) -> RpcResult<()>;
 
     #[method(name = "get_object")]
     async fn get_data(

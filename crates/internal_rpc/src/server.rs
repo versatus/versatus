@@ -1,30 +1,32 @@
-use std::net::SocketAddr;
-use log::info;
-use crate::api::{IPFSDataType, InternalRpcApiServer, RpcResult};
+use crate::{
+    api::{IPFSDataType, InternalRpcApiServer, RpcResult},
+    job_queue::{ServiceJob, ServiceJobQueue, ServiceJobType},
+};
 use jsonrpsee::core::__reexports::serde_json;
 use jsonrpsee::{
     core::async_trait,
     server::{ServerBuilder, ServerHandle},
 };
+use log::info;
 use platform::services::*;
 use service_config::ServiceConfig;
+use std::{fmt::Debug, net::SocketAddr, sync::RwLock};
 use web3_pkg::web3_pkg::Web3Package;
 use web3_pkg::web3_store::Web3Store;
 
+pub const MAX_RESPONSE_SIZE: u32 = 104_857_600;
+pub const MAX_REQUEST_SIZE: u32 = 10240;
 
-pub const MAX_RESPONSE_SIZE:u32=104_857_600;
-
-pub const MAX_REQUEST_SIZE:u32=10240;
 pub struct InternalRpcServer;
 impl InternalRpcServer {
     /// Starts the RPC server which listens for internal calls.
     /// The server will continue to run until the handle is consumed.
-    pub async fn start(
+    pub async fn start<J: ServiceJob + Debug + 'static>(
         service_config: &ServiceConfig,
         service_type: ServiceType,
     ) -> anyhow::Result<(ServerHandle, SocketAddr)> {
-        let rpc = InternalRpc::new(service_type)?;
-        let server =    ServerBuilder::default()
+        let rpc = InternalRpc::<J>::new(service_type)?;
+        let server = ServerBuilder::default()
             .max_response_body_size(MAX_RESPONSE_SIZE)
             .max_request_body_size(MAX_REQUEST_SIZE)
             .build(format!(
@@ -33,7 +35,10 @@ impl InternalRpcServer {
             ))
             .await?;
 
-        info!("Internal RPC service starting on {}:{}", &service_config.rpc_address, &service_config.rpc_port);
+        info!(
+            "Internal RPC service starting on {}:{}",
+            &service_config.rpc_address, &service_config.rpc_port
+        );
 
         let addr = server.local_addr()?;
         let handle = server.start(rpc.into_rpc())?;
@@ -44,7 +49,7 @@ impl InternalRpcServer {
 
 /// Represents all information available to the server and client.
 /// Calls to the [`InternalRpcApi`] rely on this structure.
-struct InternalRpc {
+struct InternalRpc<J: ServiceJob + Debug> {
     /// An enum representing the service type. Compute, Storage, for example. More to come in the future.
     pub(crate) service_type: ServiceType,
     /// The time of the creation of the `InternalRpc`, used to get the uptime of a service.
@@ -54,9 +59,11 @@ struct InternalRpc {
     pub(crate) service_capabilities: ServiceCapabilities,
     /// The `CARGO_PKG_VERSION` as specified by `std::env`.
     pub(crate) version: VersionNumber,
+    /// The service job queue.
+    pub(crate) queue: RwLock<ServiceJobQueue<J>>,
 }
 
-impl InternalRpc {
+impl<J: ServiceJob + Debug> InternalRpc<J> {
     pub fn new(service_type: ServiceType) -> anyhow::Result<Self> {
         let extra_service_capabilities = ServiceCapabilities::try_from(platform::uname()?)?;
         Ok(Self {
@@ -72,6 +79,7 @@ impl InternalRpc {
                 _ => extra_service_capabilities,
             },
             version: VersionNumber::cargo_pkg(),
+            queue: RwLock::new(ServiceJobQueue::new()),
         })
     }
 
@@ -81,10 +89,11 @@ impl InternalRpc {
         let obj = store.read_object(cid).await?;
         Ok(vec![(cid.to_string(), obj)])
     }
+
     async fn retrieve_dag(&self, cid: &str) -> RpcResult<Vec<(String, Vec<u8>)>> {
         info!("Retrieving DAG object '{}' from local IPFS instance.", &cid);
         let store = Web3Store::local()?;
-       let obj = store.read_dag(cid).await?;
+        let obj = store.read_dag(cid).await?;
         let pkg: Web3Package = serde_json::from_slice(&obj)?;
         let mut objs = Vec::new();
         for obj in &pkg.pkg_objects {
@@ -102,7 +111,10 @@ impl InternalRpc {
     }
 
     async fn is_pinned_obj(&self, cid: &str) -> RpcResult<bool> {
-        info!("Checking whether object '{}' is pinned to local IPFS instance.", &cid);
+        info!(
+            "Checking whether object '{}' is pinned to local IPFS instance.",
+            &cid
+        );
         let store = Web3Store::local()?;
         let is_pinned = store.is_pinned(cid).await?;
         Ok(is_pinned)
@@ -110,9 +122,19 @@ impl InternalRpc {
 }
 
 #[async_trait]
-impl InternalRpcApiServer for InternalRpc {
+impl<J: ServiceJob + Debug + 'static> InternalRpcApiServer for InternalRpc<J> {
     async fn status(&self) -> RpcResult<ServiceStatusResponse> {
         Ok(ServiceStatusResponse::from(self))
+    }
+
+    async fn queue_job(&self, cid: &str, kind: ServiceJobType) -> RpcResult<()> {
+        if let Ok(mut queue) = self.queue.write() {
+            Ok(queue.queue_job(cid, kind))
+        } else {
+            Err(jsonrpsee::core::Error::Custom(
+                "failed to acquire lock to update job queue".into(),
+            ))
+        }
     }
 
     async fn get_data(
@@ -134,8 +156,8 @@ impl InternalRpcApiServer for InternalRpc {
     }
 }
 
-impl<'a> From<&'a InternalRpc> for ServiceStatusResponse {
-    fn from(value: &'a InternalRpc) -> Self {
+impl<'a, J: ServiceJob + Debug> From<&'a InternalRpc<J>> for ServiceStatusResponse {
+    fn from(value: &'a InternalRpc<J>) -> Self {
         Self {
             service_type: value.service_type.clone(),
             service_capabilities: value.service_capabilities,
