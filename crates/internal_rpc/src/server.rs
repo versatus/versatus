@@ -1,6 +1,6 @@
 use crate::{
     api::{IPFSDataType, InternalRpcApiServer, RpcResult},
-    job_queue::{ServiceJob, ServiceJobQueue, ServiceJobType},
+    job_queue::{ServiceJob, ServiceJobQueue, ServiceJobStatus, ServiceJobType},
 };
 use jsonrpsee::core::__reexports::serde_json;
 use jsonrpsee::{
@@ -131,6 +131,11 @@ impl<J: ServiceJob + Debug + 'static> InternalRpcApiServer for InternalRpc<J> {
     async fn queue_job(&self, cid: &str, kind: ServiceJobType) -> RpcResult<()> {
         let mut queue = self.queue.write().await;
         Ok(queue.queue_job(cid, kind))
+    }
+
+    async fn job_status(&self, cid: &str) -> RpcResult<Option<ServiceJobStatus>> {
+        let queue = self.queue.read().await;
+        Ok(queue.job_status(cid))
     }
 
     async fn get_data(

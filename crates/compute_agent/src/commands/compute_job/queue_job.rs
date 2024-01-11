@@ -1,6 +1,6 @@
 use crate::commands::compute_job::ComputeJobOpts;
 use anyhow::Result;
-use internal_rpc::job_queue::{ServiceJob, ServiceJobType};
+use internal_rpc::job_queue::{ServiceJob, ServiceJobStatus, ServiceJobType};
 use service_config::ServiceConfig;
 use std::time::Instant;
 
@@ -9,6 +9,7 @@ pub struct ComputeJob {
     cid: String,
     kind: ServiceJobType,
     inst: Instant,
+    status: ServiceJobStatus,
 }
 impl ServiceJob for ComputeJob {
     fn new(cid: &str, kind: ServiceJobType) -> Self {
@@ -16,6 +17,7 @@ impl ServiceJob for ComputeJob {
             cid: cid.into(),
             kind,
             inst: Instant::now(),
+            status: ServiceJobStatus::Waiting,
         }
     }
     fn cid(&self) -> String {
@@ -26,6 +28,9 @@ impl ServiceJob for ComputeJob {
     }
     fn inst(&self) -> Instant {
         self.inst
+    }
+    fn status(&self) -> ServiceJobStatus {
+        self.status.clone()
     }
 }
 

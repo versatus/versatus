@@ -1,6 +1,7 @@
 //! tests must be run serially to avoid failures due to the test socket address being used in every test.
 
 use crate::api::IPFSDataType;
+use crate::job_queue::{ServiceJob, ServiceJobStatus, ServiceJobType};
 use crate::{api::InternalRpcApiClient, client::InternalRpcClient, server::InternalRpcServer};
 use serial_test::serial;
 use service_config::ServiceConfig;
@@ -19,10 +20,40 @@ fn test_service_config() -> ServiceConfig {
     }
 }
 
+#[derive(Debug)]
+struct TestJob {
+    cid: String,
+    kind: ServiceJobType,
+    inst: std::time::Instant,
+    status: ServiceJobStatus,
+}
+impl ServiceJob for TestJob {
+    fn new(cid: &str, kind: crate::job_queue::ServiceJobType) -> Self {
+        Self {
+            cid: cid.into(),
+            kind,
+            inst: std::time::Instant::now(),
+            status: ServiceJobStatus::Waiting,
+        }
+    }
+    fn cid(&self) -> String {
+        self.cid.clone()
+    }
+    fn kind(&self) -> crate::job_queue::ServiceJobType {
+        self.kind.clone()
+    }
+    fn inst(&self) -> std::time::Instant {
+        self.inst
+    }
+    fn status(&self) -> ServiceJobStatus {
+        self.status.clone()
+    }
+}
+
 #[tokio::test]
 #[serial]
 async fn test_start_server() {
-    let (handle, _socket) = InternalRpcServer::start(
+    let (handle, _socket) = InternalRpcServer::start::<TestJob>(
         &test_service_config(),
         platform::services::ServiceType::Compute,
     )
@@ -36,7 +67,7 @@ async fn test_start_server() {
 #[tokio::test]
 #[serial]
 async fn test_client_connection_to_server() {
-    let (handle, socket) = InternalRpcServer::start(
+    let (handle, socket) = InternalRpcServer::start::<TestJob>(
         &test_service_config(),
         platform::services::ServiceType::Compute,
     )
@@ -53,10 +84,12 @@ async fn test_client_connection_to_server() {
 #[serial]
 async fn test_get_response_from_server() {
     let service_config = test_service_config();
-    let (handle, socket) =
-        InternalRpcServer::start(&service_config, platform::services::ServiceType::Compute)
-            .await
-            .unwrap();
+    let (handle, socket) = InternalRpcServer::start::<TestJob>(
+        &service_config,
+        platform::services::ServiceType::Compute,
+    )
+    .await
+    .unwrap();
     let client = InternalRpcClient::new(socket).await.unwrap();
     let res = client.0.status().await;
     assert!(res.is_ok());
@@ -72,10 +105,12 @@ async fn test_get_response_from_server() {
 async fn test_is_object_pinned_from_server() {
     let sample_cid = "bafyreibd2pk7qsmsi5hab6xuvm37qvjlmyjcweiej2dg7nedpd4bwdsgw4";
     let service_config = test_service_config();
-    let (handle, socket) =
-        InternalRpcServer::start(&service_config, platform::services::ServiceType::Compute)
-            .await
-            .unwrap();
+    let (handle, socket) = InternalRpcServer::start::<TestJob>(
+        &service_config,
+        platform::services::ServiceType::Compute,
+    )
+    .await
+    .unwrap();
     let client = InternalRpcClient::new(socket).await.unwrap();
     let res = client.0.is_pinned(sample_cid).await;
     assert_eq!(res.unwrap(), true);
@@ -89,10 +124,12 @@ async fn test_is_object_pinned_from_server() {
 async fn test_is_retrieve_obj_from_server() {
     let sample_cid = "bafyreibd2pk7qsmsi5hab6xuvm37qvjlmyjcweiej2dg7nedpd4bwdsgw4";
     let service_config = test_service_config();
-    let (handle, socket) =
-        InternalRpcServer::start(&service_config, platform::services::ServiceType::Storage)
-            .await
-            .unwrap();
+    let (handle, socket) = InternalRpcServer::start::<TestJob>(
+        &service_config,
+        platform::services::ServiceType::Storage,
+    )
+    .await
+    .unwrap();
     let client = InternalRpcClient::new(socket).await.unwrap();
     let res = client
         .0
@@ -110,13 +147,39 @@ async fn test_is_retrieve_obj_from_server() {
 async fn test_pin_object() {
     let sample_cid = "bafyreibd2pk7qsmsi5hab6xuvm37qvjlmyjcweiej2dg7nedpd4bwdsgw4";
     let service_config = test_service_config();
-    let (handle, socket) =
-        InternalRpcServer::start(&service_config, platform::services::ServiceType::Storage)
-            .await
-            .unwrap();
+    let (handle, socket) = InternalRpcServer::start::<TestJob>(
+        &service_config,
+        platform::services::ServiceType::Storage,
+    )
+    .await
+    .unwrap();
     let client = InternalRpcClient::new(socket).await.unwrap();
     let res = client.0.pin_object(sample_cid, true).await.unwrap();
     assert!(!res.is_empty());
+    handle.stop().unwrap();
+    let _ = handle;
+}
+
+#[tokio::test]
+#[serial]
+async fn test_queue_job() {
+    let sample_cid = "bafyreibd2pk7qsmsi5hab6xuvm37qvjlmyjcweiej2dg7nedpd4bwdsgw4";
+    let service_config = test_service_config();
+    let (handle, socket) = InternalRpcServer::start::<TestJob>(
+        &service_config,
+        platform::services::ServiceType::Compute,
+    )
+    .await
+    .unwrap();
+    let client = InternalRpcClient::new(socket).await.unwrap();
+    client
+        .0
+        .queue_job(sample_cid, ServiceJobType::Compute)
+        .await
+        .unwrap();
+    let res = client.0.job_status(sample_cid).await.unwrap();
+    assert_eq!(Some(ServiceJobStatus::Waiting), res);
+
     handle.stop().unwrap();
     let _ = handle;
 }

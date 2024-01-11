@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::str::FromStr;
 
-use crate::job_queue::ServiceJobType;
+use crate::job_queue::{ServiceJobStatus, ServiceJobType};
 pub(crate) type RpcResult<T> = Result<T, jsonrpsee::core::Error>;
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
@@ -39,6 +39,9 @@ pub trait InternalRpcApi {
 
     #[method(name = "queue_job")]
     async fn queue_job(&self, cid: &str, kind: ServiceJobType) -> RpcResult<()>;
+
+    #[method(name = "job_status")]
+    async fn job_status(&self, cid: &str) -> RpcResult<Option<ServiceJobStatus>>;
 
     #[method(name = "get_object")]
     async fn get_data(
