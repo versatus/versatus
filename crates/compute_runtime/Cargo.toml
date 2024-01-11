@@ -26,6 +26,7 @@ walkdir = "2.4"
 internal_rpc = { workspace = true }
 service_config = { workspace = true }
 tokio = { workspace = true }
+web3_pkg = { workspace = true }
 
 [dev-dependencies]
 uuid = { workspace = true }
