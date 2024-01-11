@@ -196,7 +196,7 @@ FAIL: {e:?}",
     let account_connection =
         storage_connection.create_database::<AccountBalance>(ACCOUNT_BALANCE_NAME, true)?;
 
-    insert_protocol_inputs(
+    ProtocolInputs::insert(
         &protocol_connection,
         DEFAULT_VERSION,
         DEFAULT_BLOCK_HEIGHT,
