@@ -10,7 +10,8 @@ use jsonrpsee::{
 use log::info;
 use platform::services::*;
 use service_config::ServiceConfig;
-use std::{fmt::Debug, net::SocketAddr, sync::RwLock};
+use std::{fmt::Debug, net::SocketAddr};
+use tokio::sync::RwLock;
 use web3_pkg::web3_pkg::Web3Package;
 use web3_pkg::web3_store::Web3Store;
 
@@ -128,13 +129,8 @@ impl<J: ServiceJob + Debug + 'static> InternalRpcApiServer for InternalRpc<J> {
     }
 
     async fn queue_job(&self, cid: &str, kind: ServiceJobType) -> RpcResult<()> {
-        if let Ok(mut queue) = self.queue.write() {
-            Ok(queue.queue_job(cid, kind))
-        } else {
-            Err(jsonrpsee::core::Error::Custom(
-                "failed to acquire lock to update job queue".into(),
-            ))
-        }
+        let mut queue = self.queue.write().await;
+        Ok(queue.queue_job(cid, kind))
     }
 
     async fn get_data(
