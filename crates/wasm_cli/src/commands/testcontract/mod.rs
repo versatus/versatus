@@ -8,7 +8,7 @@ use bonsaidb::{
 };
 use clap::Parser;
 use serde_json;
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf, time::SystemTime};
 use telemetry::info;
 use versatus_rust::{
     eip20::Erc20Result,
@@ -126,11 +126,12 @@ fn update_db(storage_connection: &Storage, contract_outputs: &SmartContractOutpu
     for res in contract_outputs.result.iter() {
         if let ContractResult::Erc20(erc20_res) = &res {
             match &erc20_res {
+                // Update entire DB on Transfer call.
+                // Uses ContractResults to update AccountInfo & updates ProtocolInputs via DB insertion method.
                 Erc20Result::Transfer(transfer) => {
                     let accounts_db =
                         storage_connection.database::<AccountBalance>("account-balance")?;
                     let transfer_amount = transfer.value;
-
                     let from_account = AccountAddress {
                         address: transfer.from.0.clone(),
                     };
@@ -148,6 +149,20 @@ fn update_db(storage_connection: &Storage, contract_outputs: &SmartContractOutpu
                             value: to_balance.contents.value + transfer_amount,
                         }
                         .overwrite_into(&to_account, &accounts_db)?;
+
+                        let protocol_db = storage_connection
+                            .database::<testinitdb::ProtocolInputs>("protocol-inputs")?;
+                        let (version, (block_height, _)) =
+                            get_protocol_inputs(&storage_connection)?;
+                        let system_time = std::time::SystemTime::now()
+                            .duration_since(SystemTime::UNIX_EPOCH)
+                            .map_err(|e| anyhow!("{e:?}"))?;
+                        testinitdb::ProtocolInputs::insert(
+                            &protocol_db,
+                            version,
+                            block_height + 1,
+                            system_time.as_secs(),
+                        )?;
                     }
                 }
                 _ => {}
