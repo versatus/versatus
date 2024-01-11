@@ -4,10 +4,9 @@ use bonsaidb::{
         connection::StorageConnection,
         schema::{SerializedCollection, SerializedView},
     },
-    local::{Database, Storage},
+    local::Storage,
 };
 use clap::Parser;
-use ethnum::U256;
 use serde_json;
 use std::{collections::HashMap, path::PathBuf};
 use telemetry::info;
@@ -22,7 +21,7 @@ use wasm_runtime::{
     metering::{cost_function, MeteringConfig},
     wasm_runtime::WasmRuntime,
 };
-use wasmer::{wasmparser::Data, Cranelift, Target};
+use wasmer::{Cranelift, Target};
 
 use crate::commands::testinitdb;
 
@@ -109,10 +108,11 @@ pub fn run(opts: &TestContractOpts) -> Result<()> {
     .args(&opts.args);
     wasm.execute()?;
     let contract_outputs: &SmartContractOutputs = &serde_json::from_str(&wasm.stdout())?;
+    let updated_contract_outputs = update_db(&storage_connection, contract_outputs);
 
     // #716 We shouldn't print the output here, but rather parse it and use it to update the
     // database. For example, if an ErcTransferEvent is part of the output(https://github.com/versatus/versatus-rust/blob/main/src/eip20.rs#L48), we should move the balance from the from account to the to account.
-    println!("{}", &wasm.stdout());
+    println!("{:?}", &updated_contract_outputs);
     // TODO: Update storage with the output of the contract
     // using the overwrite method in SerializedCollection
     // similarly to the use of insert_into for AccountBalance
@@ -130,6 +130,7 @@ fn update_db(storage_connection: &Storage, contract_outputs: &SmartContractOutpu
                     let accounts_db =
                         storage_connection.database::<AccountBalance>("account-balance")?;
                     let transfer_amount = transfer.value;
+
                     let from_account = AccountAddress {
                         address: transfer.from.0.clone(),
                     };

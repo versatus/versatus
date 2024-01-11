@@ -114,28 +114,29 @@ pub struct ProtocolInputs {
     pub block_time: u64,
 }
 
+impl ProtocolInputs {
+    pub fn insert<C: Connection>(
+        connection: &C,
+        version: i32,
+        block_height: u64,
+        block_time: u64,
+    ) -> Result<(), bonsaidb::core::Error> {
+        ProtocolInputs {
+            version,
+            block_height,
+            block_time,
+        }
+        .push_into(connection)?;
+        Ok(())
+    }
+}
+
 pub(crate) fn open_storage(path: &String) -> Result<Storage> {
     Ok(Storage::open(
         StorageConfiguration::new(path)
             .with_schema::<AccountBalance>()?
             .with_schema::<ProtocolInputs>()?,
     )?)
-}
-
-// TODO: Make this an associated function on ProtocolInputs
-fn insert_protocol_inputs<C: Connection>(
-    connection: &C,
-    version: i32,
-    block_height: u64,
-    block_time: u64,
-) -> Result<(), bonsaidb::core::Error> {
-    ProtocolInputs {
-        version,
-        block_height,
-        block_time,
-    }
-    .push_into(connection)?;
-    Ok(())
 }
 
 fn insert_test_balances(account_connection: &Database) -> Result<()> {
