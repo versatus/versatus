@@ -10,7 +10,6 @@ use trust_dns_resolver::Resolver;
 
 /// A structure representing a content-addressable Web3 store. Currently closely tied to IPFS
 /// specifically, but could be expanded to others, such as Iroh.
-
 pub struct Web3Store {
     client: IpfsClient,
 }
@@ -72,9 +71,9 @@ impl Web3Store {
 
     /// A constructor that takes domain host name  or SRV record and resolves it to ipv4/ipv6 addresses
     /// and then use the address for RPC service on an IPFS instance
-    pub fn from_hostname(addr: &str,is_srv:bool) -> Result<Self> {
-        let addresses=Self::resolve_dns(addr,is_srv)?;
-        let address=addresses.get(0).unwrap();
+    pub fn from_hostname(addr: &str, is_srv: bool) -> Result<Self> {
+        let addresses = Self::resolve_dns(addr, is_srv)?;
+        let address = addresses.get(0).unwrap();
         Ok(Web3Store {
             client: IpfsClient::from_multiaddr_str(&address.to_string())?,
         })
@@ -117,17 +116,14 @@ impl Web3Store {
         let mut addresses = Vec::new();
         if is_srv {
             let lookup = resolver.lookup(name, RecordType::SRV)?;
-            for record in  lookup.records() {
+            for record in lookup.records() {
                 if let Some(srv_data) = record.data().and_then(|data| data.as_srv()) {
                     let target = srv_data.target();
-                    addresses=Self::resolve_ip_addresses(
-                        &resolver,
-                        target.to_string().as_str(),
-                    )?;
+                    addresses = Self::resolve_ip_addresses(&resolver, target.to_string().as_str())?;
                 }
             }
         } else {
-            addresses=Self::resolve_ip_addresses(&resolver,  name)?;
+            addresses = Self::resolve_ip_addresses(&resolver, name)?;
         }
         if addresses.is_empty() {
             return Err(anyhow::Error::msg("No addresses found"));
@@ -135,11 +131,8 @@ impl Web3Store {
         Ok(addresses)
     }
 
-    fn resolve_ip_addresses(
-        resolver: &Resolver,
-        target: &str,
-    ) -> Result<Vec<IpAddr>> {
-        let mut addresses=Vec::new();
+    fn resolve_ip_addresses(resolver: &Resolver, target: &str) -> Result<Vec<IpAddr>> {
+        let mut addresses = Vec::new();
         let ip4_address = resolver.lookup(target, RecordType::A)?;
         let ip6_address = resolver.lookup(target, RecordType::AAAA)?;
         let ip4_records = ip4_address.records();
