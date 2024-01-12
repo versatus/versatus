@@ -1,20 +1,21 @@
 [package]
 name = "wasm_runtime"
-version = "0.1.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+edition.workspace = true
+license.workspace = true
+version.workspace = true
 
 [dependencies]
-thiserror = { workspace = true }
 derive_builder = { workspace = true }
 serde = { workspace = true }
 serde_derive = { workspace = true }
 serde_json = { workspace = true }
 telemetry = { workspace = true }
+thiserror = { workspace = true }
 wasmer = { workspace = true }
-wasmer-vm = { workspace = true }
-wasmer-middlewares = { workspace = true }
+wasmer-middlewares = "4.0"
+wasmer-vm = "4.0"
 wasmer-wasix = { workspace = true }
 wasmer-wasix-types = { workspace = true }
-vrrb_core = { workspace = true }

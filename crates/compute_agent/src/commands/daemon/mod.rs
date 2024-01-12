@@ -1,95 +1,20 @@
 use anyhow::Result;
 use clap::Parser;
-use hyper::{
-    header::CONTENT_TYPE,
-    service::{make_service_fn, service_fn},
-    Body, Request, Response, Server,
-};
 use internal_rpc::server::InternalRpcServer;
-use lazy_static::lazy_static;
-use platform::{platform_stats::CgroupStats, services::ServiceType};
-use prometheus::{labels, opts, register_counter, Counter, Encoder, TextEncoder};
+use metric_exporter::metric_factory::PrometheusFactory;
+use platform::services::ServiceType;
+use prometheus::labels;
 use service_config::ServiceConfig;
+use telemetry::info;
+use tokio::{signal, spawn};
+use tokio_util::sync::CancellationToken;
+
+pub const SERVICE_NAME: &str = "compute";
+pub const SERVICE_SOURCE: &str = "versatus";
 
 /// Structure representing command line options to the daemon subcommand
 #[derive(Parser, Debug)]
 pub struct DaemonOpts;
-
-// Define some initial counters to expose from the platform crate, plus some metadata for
-// the benefit of Prometheus and those consuming its timeseries data.
-lazy_static! {
-    static ref CPU_TOTAL_USEC: Counter = register_counter!(opts!(
-        "cpu_total_usec",
-        "CPU time used in usec total",
-        labels! { "service" => "compute", "source" => "versatus" }
-    ))
-    .unwrap();
-    static ref CPU_USER_USEC: Counter = register_counter!(opts!(
-        "cpu_user_usec",
-        "CPU time used for userspace in usec",
-        labels! { "service" => "compute", "source" => "versatus" }
-    ))
-    .unwrap();
-    static ref CPU_SYSTEM_USEC: Counter = register_counter!(opts!(
-        "cpu_system_usec",
-        "CPU time used for kernel in usec",
-        labels! { "service" => "compute", "source" => "versatus" }
-    ))
-    .unwrap();
-    static ref MEM_ANON_BYTES: Counter = register_counter!(opts!(
-        "mem_anon_bytes",
-        "Anonymous memory used in bytes",
-        labels! { "service" => "compute", "source" => "versatus" }
-    ))
-    .unwrap();
-    static ref MEM_FILE_BYTES: Counter = register_counter!(opts!(
-        "mem_file_bytes",
-        "File-backed memory used in bytes",
-        labels! { "service" => "compute", "source" => "versatus" }
-    ))
-    .unwrap();
-    static ref MEM_SOCK_BYTES: Counter = register_counter!(opts!(
-        "mem_sock_bytes",
-        "Socket memory used in bytes",
-        labels! { "service" => "compute", "source" => "versatus" }
-    ))
-    .unwrap();
-}
-
-/// Serve Prometheus exporter requests
-async fn serve_req(_req: Request<Body>) -> Result<Response<Body>, anyhow::Error> {
-    let encoder = TextEncoder::new();
-
-    // Collect stats from the platform
-    let stats = CgroupStats::new()?;
-
-    // Set total usec metric
-    CPU_TOTAL_USEC.reset();
-    // Lossy conversion to f64....
-    CPU_TOTAL_USEC.inc_by(stats.cpu.cpu_total_usec as f64);
-    CPU_USER_USEC.reset();
-    CPU_USER_USEC.inc_by(stats.cpu.cpu_user_usec as f64);
-    CPU_SYSTEM_USEC.reset();
-    CPU_SYSTEM_USEC.inc_by(stats.cpu.cpu_system_usec as f64);
-    MEM_ANON_BYTES.reset();
-    MEM_ANON_BYTES.inc_by(stats.mem.mem_anon_bytes as f64);
-    MEM_FILE_BYTES.reset();
-    MEM_FILE_BYTES.inc_by(stats.mem.mem_file_bytes as f64);
-    MEM_SOCK_BYTES.reset();
-    MEM_SOCK_BYTES.inc_by(stats.mem.mem_sock_bytes as f64);
-
-    let metrics = prometheus::gather();
-    let mut buffer = vec![];
-
-    encoder.encode(&metrics, &mut buffer)?;
-
-    let response = Response::builder()
-        .status(200)
-        .header(CONTENT_TYPE, encoder.format_type())
-        .body(Body::from(buffer))?;
-
-    Ok(response)
-}
 
 /// Start the Compute Agent Daemon
 pub async fn run(_opts: &DaemonOpts, config: &ServiceConfig) -> Result<()> {
@@ -97,19 +22,44 @@ pub async fn run(_opts: &DaemonOpts, config: &ServiceConfig) -> Result<()> {
     // using the service name and service config provided in the global command line options.
     let (_server_handle, _server_local_addr) =
         InternalRpcServer::start(config, ServiceType::Compute).await?;
+    let base_labels = labels! {
+                "service".to_string() => SERVICE_NAME.to_string(),
+                "source".to_string() => SERVICE_SOURCE.to_string(),
+    };
+    let port = config
+        .exporter_port
+        .parse::<u16>()
+        .expect("Invalid port for Prometheus Exporter service");
+    let factory = PrometheusFactory::new(
+        config.exporter_address.clone(),
+        port,
+        true,
+        base_labels,
+        config.tls_private_key_file.clone(),
+        config.tls_ca_cert_file.clone(),
+        CancellationToken::new(),
+    )
+    .expect("Failed to construct prometheus exporter service");
 
-    // In the interim, start a stub of a Prometheus exporter. Later we'll fill this with valid
-    // metrics.
-    let addr = format!("{}:{}", config.exporter_address, config.exporter_port)
-        .parse()
-        .expect("Invalid address/port for Prometheus Exporter service");
-    // Execute this in the foreground til we have other work to do. Later, it can
-    // end up in a long-lived thread.
-    Server::bind(&addr)
-        .serve(make_service_fn(|_| async {
-            Ok::<_, anyhow::Error>(service_fn(serve_req))
-        }))
-        .await?;
-
+    let mut sighup_receiver = signal::unix::signal(signal::unix::SignalKind::hangup())
+        .expect("Failed to construct SIGHUP receiver");
+    let (sender, receiver) = tokio::sync::mpsc::channel::<()>(100);
+    let server = factory.serve(receiver);
+    spawn(async move {
+        while (sighup_receiver.recv().await).is_some() {
+            // Do something when a SIGHUP signal is received
+            if (sender.send(()).await).is_err() {
+                // Handle the error if sending fails
+                info!("Failed to send signal");
+                break; // Break out of the loop if sending fails
+            } else {
+                info!("Sending signal to reload config")
+            }
+        }
+    });
+    // Await the server
+    if let Err(e) = server.await {
+        eprintln!("server error: {}", e);
+    }
     Ok(())
 }

@@ -61,18 +61,6 @@ pub enum Event {
     /// that has been added to the mempool.
     TxnAddedToMempool(TransactionDigest),
 
-    /// `MempoolSizeThesholdReached` is an event that is triggered when the size
-    /// of the confirmed transaction mempool reaches a certain threshold.
-    /// The `cutoff_transaction` parameter contains the digest of
-    /// the transaction that is used as a cutoff point for removing transactions
-    /// from the mempool. This event is used by Harvester to trigger build
-    /// of proposal blocks when confirmed transactions in pool reaches a
-    /// threshold.
-    #[deprecated]
-    MempoolSizeThesholdReached {
-        cutoff_transaction: TransactionDigest,
-    },
-
     /// `BlockReceived(NodeId, Block)` represents a block that has been received from
     /// peers in the network. The block can be a genesis block, a proposal
     /// block, or a convergence block.

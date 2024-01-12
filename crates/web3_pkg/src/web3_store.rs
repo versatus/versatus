@@ -1,11 +1,12 @@
 use anyhow::Result;
 use futures::TryStreamExt;
 use ipfs_api::{IpfsApi, IpfsClient, TryFromUri};
-use serde::{Deserialize, Serialize};
+use serde_derive::{Deserialize, Serialize};
 use std::io::Cursor;
 
 /// A structure representing a content-addressable Web3 store. Currently closely tied to IPFS
 /// specifically, but could be expanded to others, such as Iroh.
+
 pub struct Web3Store {
     client: IpfsClient,
 }
@@ -112,6 +113,18 @@ impl Web3Store {
             .try_concat()
             .await?;
         Ok(ret)
+    }
+
+    /// Pins the object
+    pub async fn pin_object(&self, cid: &str, recursive: bool) -> Result<Vec<String>> {
+        let res = self.client.pin_add(cid, recursive).await?;
+        Ok(res.pins)
+    }
+
+    /// Checks if object is pinned
+    pub async fn is_pinned(&self, cid: &str) -> Result<bool> {
+        let res = self.client.pin_ls(Some(cid), None).await?;
+        Ok(!res.keys.is_empty())
     }
 
     /// A method to retrieve stats from the IPFS service and return them

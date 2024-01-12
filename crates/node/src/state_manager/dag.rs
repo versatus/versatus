@@ -304,19 +304,9 @@ impl DagModule {
         Err(GraphError::Other("Error getting write guard".to_string()))
     }
 
-    //TODO: function not being used & use of deprecated .verify_signature
-    fn _check_valid_genesis(&self, block: &GenesisBlock, sig_engine: SignerEngine) -> bool {
-        if let Ok(validation_data) = block.get_validation_data() {
-            matches!(self.verify_signature(validation_data, sig_engine), Ok(true))
-        } else {
-            false
-        }
-    }
-
-    //TODO: use of deprecated .verify_signature
-    fn check_valid_proposal(&self, block: &ProposalBlock, sig_engine: SignerEngine) -> bool {
-        if let Ok(validation_data) = block.get_validation_data() {
-            matches!(self.verify_signature(validation_data, sig_engine), Ok(true))
+    fn check_valid_proposal(&self, block: &ProposalBlock, _sig_engine: SignerEngine) -> bool {
+        if let Ok(_validation_data) = block.get_validation_data() {
+            todo!();
         } else {
             false
         }
@@ -465,15 +455,6 @@ impl DagModule {
                 "Error parsing signature into array".to_string(),
             ))
         }
-    }
-
-    #[deprecated]
-    fn verify_signature(
-        &self,
-        _validation_data: BlockValidationData,
-        _sig_engine: SignerEngine,
-    ) -> SignerResult<bool> {
-        todo!()
     }
 
     #[deprecated]

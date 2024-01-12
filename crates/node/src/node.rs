@@ -1,13 +1,16 @@
-use std::net::SocketAddr;
-
 use events::{Event, EventPublisher, EventRouter, Topic};
 use mempool::MempoolReadHandleFactory;
+use metric_exporter::metric_factory::PrometheusFactory;
 use primitives::{
     KademliaPeerId, NodeType, JSON_RPC_API_TOPIC_STR, NETWORK_TOPIC_STR, RUNTIME_TOPIC_STR,
 };
+use std::collections::HashMap;
+use std::net::SocketAddr;
+use std::sync::Arc;
 use storage::vrrbdb::VrrbDbReadHandle;
-use telemetry::info;
+use telemetry::{info, tracing};
 use tokio::{
+    signal,
     sync::mpsc::{channel, UnboundedReceiver},
     task::JoinHandle,
 };
@@ -25,10 +28,8 @@ use crate::{
 #[derive(Debug)]
 pub struct Node {
     config: NodeConfig,
-
     // TODO: make this private
     pub keypair: Keypair,
-
     cancel_token: CancellationToken,
     runtime_control_handle: JoinHandle<Result<()>>,
     db_read_handle: VrrbDbReadHandle,
@@ -36,6 +37,10 @@ pub struct Node {
 }
 
 pub type UnboundedControlEventReceiver = UnboundedReceiver<Event>;
+
+const LABELS: &[(&str, &str)] = &[("service", "protocol"), ("source", "versatus")];
+
+const BUFFER_SIZE: usize = 5;
 
 impl Node {
     #[telemetry::instrument(skip(config))]
@@ -59,8 +64,35 @@ impl Node {
         let cancel_token = CancellationToken::new();
         let cloned_token = cancel_token.clone();
 
+        //Setting up the prometheus
+        let mut labels = HashMap::new();
+        for (key, value) in LABELS {
+            labels.insert(key.to_string(), value.to_string());
+        }
+
+        // Prometheus factory for metrics
+        let factory = Arc::new(
+            PrometheusFactory::new(
+                config.prometheus_bind_addr.clone(),
+                config.prometheus_bind_port,
+                false,
+                HashMap::new(),
+                config.prometheus_cert_path.clone(),
+                config.prometheus_private_key_path.clone(),
+                cancel_token.child_token(),
+            )
+            .unwrap(),
+        );
+
         let (runtime_component_manager, updated_node_config, db_read_handle, mempool_read_handle) =
-            setup_runtime_components(&config, &router, events_tx.clone()).await?;
+            setup_runtime_components(
+                &config,
+                &router,
+                events_tx.clone(),
+                factory.clone(),
+                labels.clone(),
+            )
+            .await?;
 
         // TODO: report error from handle
         let router_handle = tokio::spawn(async move { router.start(&mut events_rx).await });
@@ -70,6 +102,7 @@ impl Node {
             events_tx,
             runtime_component_manager,
             router_handle,
+            factory.clone(),
         ));
 
         Ok(Self {
@@ -99,8 +132,34 @@ impl Node {
         events_tx: EventPublisher,
         runtime_component_manager: RuntimeComponentManager,
         router_handle: JoinHandle<()>,
+        factory: Arc<PrometheusFactory>,
     ) -> Result<()> {
         info!("Node {} is up and running", id);
+
+        let mut sighup_receiver = signal::unix::signal(signal::unix::SignalKind::hangup())
+            .map_err(|e| {
+                NodeError::Other(format!(
+                    "Error occured while constructing sighup handler :{:?}",
+                    e
+                ))
+            })?;
+        let (sender, receiver) = channel::<()>(BUFFER_SIZE);
+        tokio::spawn(async move {
+            while sighup_receiver.recv().await.is_some() {
+                // Do something when a SIGHUP signal is received
+                if sender.send(()).await.is_err() {
+                    // Handle the error if sending fails
+                    info!("Failed to send signal");
+                } else {
+                    info!("Sending signal to reload config")
+                }
+            }
+        });
+        // Assuming async context
+        let server = factory.serve(receiver);
+        server
+            .await
+            .map_err(|e| NodeError::Other(format!("Prometheus server failed to start: {:?}", e)))?;
 
         // NOTE: wait for stop signal
         cancel_token.cancelled().await;
@@ -173,6 +232,12 @@ impl Node {
 
     pub fn jsonrpc_server_address(&self) -> SocketAddr {
         self.config.jsonrpc_server_address
+    }
+    pub fn prometheus_bind_address(&self) -> String {
+        self.config.prometheus_bind_addr.clone()
+    }
+    pub fn prometheus_bind_port(&self) -> u16 {
+        self.config.prometheus_bind_port
     }
 
     /// Reports metrics about the node's health

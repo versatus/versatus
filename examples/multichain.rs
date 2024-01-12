@@ -20,10 +20,23 @@ async fn main() {
         .find(|node| node.read_handle().state_store_values().is_ok())
         .unwrap();
 
+    let nodes = create_test_network(8).await;
     let node_id = node.id();
     let rpc_server_address = node.config().jsonrpc_server_address;
     let rpc_client = create_client(rpc_server_address).await.unwrap();
     let res = rpc_client.get_full_state().await;
+
+	for node in nodes.iter() {
+        println!("{}", node.jsonrpc_server_address());
+        println!(
+            "Prometheus Address {:?}:{}",
+            node.prometheus_bind_address(),
+            node.prometheus_bind_port()
+        );
+        let pubkey = PublicKey::from_str(&node.keypair.get_miner_public_key().to_string()).unwrap();
+        let address = Address::new(pubkey);
+        println!("Address: {}", address);
+    }
 
     if let Ok(res) = res {
         println!();

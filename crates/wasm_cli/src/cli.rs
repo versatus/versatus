@@ -1,6 +1,8 @@
 use clap::{Parser, Subcommand};
 
-use crate::commands::{describe::DescribeOpts, execute::ExecuteOpts, validate::ValidateOpts};
+use crate::commands::{
+    describe::DescribeOpts, execute::ExecuteOpts, publish::PublishOpts, validate::ValidateOpts,
+};
 
 #[derive(Parser)]
 #[clap(author, version, about)]
@@ -18,4 +20,6 @@ pub enum WasmCommands {
     Execute(ExecuteOpts),
     /// Validates a WASM module's ability to execute
     Validate(ValidateOpts),
+    /// Publishes a smart contract package to the network
+    Publish(PublishOpts),
 }

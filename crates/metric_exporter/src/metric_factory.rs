@@ -15,6 +15,7 @@ use std::{fs, io};
 use telemetry::{error, info};
 use thiserror::Error;
 use tokio::sync::mpsc::Receiver;
+use tokio_util::sync::CancellationToken;
 
 #[derive(Debug, Error)]
 pub enum PrometheusFactoryError {
@@ -57,6 +58,8 @@ pub struct PrometheusFactory {
     pub base_metrics: HashMap<String, Counter>,
     pub private_key_path: String,
     pub certificate_path: String,
+    pub cancellation_token: CancellationToken,
+    pub base_labels: HashMap<String, String>,
 }
 
 impl PrometheusFactory {
@@ -67,6 +70,7 @@ impl PrometheusFactory {
         base_labels: HashMap<String, String>,
         private_key_path: String,
         certificate_path: String,
+        cancellation_token: CancellationToken,
     ) -> Result<Self, PrometheusFactoryError> {
         let mut factory = Self {
             registry: Registry::new(),
@@ -75,6 +79,8 @@ impl PrometheusFactory {
             base_metrics: HashMap::new(),
             private_key_path,
             certificate_path,
+            cancellation_token,
+            base_labels: base_labels.clone(),
         };
         if include_base_metrics {
             Self::append_base_metrics(base_labels, &mut factory)?;
@@ -293,8 +299,11 @@ impl PrometheusFactory {
     }
     async fn handle_request(
         _req: Request<Body>,
-        factory: PrometheusFactory,
+        mut factory: PrometheusFactory,
     ) -> Result<Response<Body>, PrometheusFactoryError> {
+        if !factory.base_metrics.is_empty() {
+            PrometheusFactory::append_base_metrics(HashMap::new(), &mut factory)?;
+        }
         let response_body = factory.render_metrics()?;
         Ok(Response::new(Body::from(response_body)))
     }
@@ -305,12 +314,18 @@ impl PrometheusFactory {
     ) -> Result<(), PrometheusFactoryError> {
         {
             let (tx, mut rx) = tokio::sync::mpsc::channel(10);
+            let (tx_cancellation, mut rx_cancellation) = tokio::sync::mpsc::channel(1);
             tokio::spawn(async move {
                 let tx = tx.clone();
                 while (reload_config.recv().await).is_some() {
                     info!("SIGHUP received, now reloading the server with new configuration");
                     tx.send(()).await.ok();
                 }
+            });
+            let cancellation_token = self.cancellation_token.clone();
+            tokio::spawn(async move {
+                let _ = cancellation_token.cancelled().await;
+                let _ = tx_cancellation.send(()).await;
             });
             loop {
                 // tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
@@ -344,6 +359,7 @@ impl PrometheusFactory {
                         }))
                     }
                 });
+
                 let server = Server::builder(acceptor).serve(make_svc);
                 info!("Exporter listening on http://{}", socket_addr);
                 let mut reloading_requested = false;
@@ -354,6 +370,10 @@ impl PrometheusFactory {
                     e = server => {
                             error!("server error: {:?}", e);
                     }
+                    _=rx_cancellation.recv()=> {
+                        info!("Cancellation Token received now stopping the server");
+                        break
+                    }
                 }
                 if reloading_requested {
                     info!("Received SIGHUP,reloading server with new certificate");
@@ -361,6 +381,7 @@ impl PrometheusFactory {
                 }
                 return Ok(());
             }
+            Ok(())
         }
     }
 }
@@ -380,6 +401,10 @@ mod tests {
     use prometheus::labels;
     #[test]
     fn test_reset_factory() {
+        let labels = labels! {
+                "service".to_string() => "compute".to_string(),
+                "source".to_string() => "versatus".to_string(),
+        };
         let mut factory = PrometheusFactory::new(
             String::from("127.0.0.1"),
             8080,
@@ -387,12 +412,9 @@ mod tests {
             HashMap::new(),
             "examples/sample.rsa".to_string(),
             "examples/sample.pem".to_string(),
+            CancellationToken::new(),
         )
         .unwrap();
-        let labels = labels! {
-                "service".to_string() => "compute".to_string(),
-                "source".to_string() => "versatus".to_string(),
-        };
         let counter = factory
             .build_counter("counter", " counter metric", labels.clone())
             .unwrap();

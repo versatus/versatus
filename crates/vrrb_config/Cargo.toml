@@ -1,17 +1,19 @@
 [package]
 name = "vrrb_config"
-version = "0.0.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+edition.workspace = true
+license.workspace = true
+version.workspace = true
 
 [dependencies]
 derive_builder = { workspace = true }
-primitives = { workspace = true }
 hbbft = { workspace = true }
+primitives = { workspace = true }
 rand = { workspace = true }
-vrrb_core = { workspace = true }
 secp256k1 = { workspace = true }
 serde = { workspace = true }
-uuid = { workspace = true }
 thiserror = { workspace = true }
+uuid = { workspace = true }
+vrrb_core = { workspace = true }

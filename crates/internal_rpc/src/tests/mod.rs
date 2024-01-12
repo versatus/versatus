@@ -1,5 +1,6 @@
 //! tests must be run serially to avoid failures due to the test socket address being used in every test.
 
+use crate::api::IPFSDataType;
 use crate::{api::InternalRpcApiClient, client::InternalRpcClient, server::InternalRpcServer};
 use serial_test::serial;
 use service_config::ServiceConfig;
@@ -41,7 +42,7 @@ async fn test_client_connection_to_server() {
     )
     .await
     .unwrap();
-    let client = InternalRpcClient::new(&socket).await.unwrap();
+    let client = InternalRpcClient::new(socket).await.unwrap();
     assert!(client.is_connected());
 
     handle.stop().unwrap();
@@ -56,13 +57,66 @@ async fn test_get_response_from_server() {
         InternalRpcServer::start(&service_config, platform::services::ServiceType::Compute)
             .await
             .unwrap();
-    let client = InternalRpcClient::new(&socket).await.unwrap();
-    assert!(client.0.status().await.is_ok());
-    assert_eq!(client.0.service_config().await.unwrap(), service_config);
-    let res = client.0.service_status_response().await;
+    let client = InternalRpcClient::new(socket).await.unwrap();
+    let res = client.0.status().await;
     assert!(res.is_ok());
     dbg!(res.unwrap());
 
+    handle.stop().unwrap();
+    let _ = handle;
+}
+
+#[tokio::test]
+#[serial]
+#[ignore]
+async fn test_is_object_pinned_from_server() {
+    let sample_cid = "bafyreibd2pk7qsmsi5hab6xuvm37qvjlmyjcweiej2dg7nedpd4bwdsgw4";
+    let service_config = test_service_config();
+    let (handle, socket) =
+        InternalRpcServer::start(&service_config, platform::services::ServiceType::Compute)
+            .await
+            .unwrap();
+    let client = InternalRpcClient::new(socket).await.unwrap();
+    let res = client.0.is_pinned(sample_cid).await;
+    assert_eq!(res.unwrap(), true);
+    handle.stop().unwrap();
+    let _ = handle;
+}
+
+#[tokio::test]
+#[serial]
+#[ignore]
+async fn test_is_retrieve_obj_from_server() {
+    let sample_cid = "bafyreibd2pk7qsmsi5hab6xuvm37qvjlmyjcweiej2dg7nedpd4bwdsgw4";
+    let service_config = test_service_config();
+    let (handle, socket) =
+        InternalRpcServer::start(&service_config, platform::services::ServiceType::Storage)
+            .await
+            .unwrap();
+    let client = InternalRpcClient::new(socket).await.unwrap();
+    let res = client
+        .0
+        .get_data(sample_cid, IPFSDataType::Object)
+        .await
+        .unwrap();
+    assert!(!res.is_empty());
+    handle.stop().unwrap();
+    let _ = handle;
+}
+
+#[tokio::test]
+#[serial]
+#[ignore]
+async fn test_pin_object() {
+    let sample_cid = "bafyreibd2pk7qsmsi5hab6xuvm37qvjlmyjcweiej2dg7nedpd4bwdsgw4";
+    let service_config = test_service_config();
+    let (handle, socket) =
+        InternalRpcServer::start(&service_config, platform::services::ServiceType::Storage)
+            .await
+            .unwrap();
+    let client = InternalRpcClient::new(socket).await.unwrap();
+    let res = client.0.pin_object(sample_cid, true).await.unwrap();
+    assert!(!res.is_empty());
     handle.stop().unwrap();
     let _ = handle;
 }

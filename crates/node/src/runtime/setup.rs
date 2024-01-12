@@ -1,6 +1,9 @@
 use events::{EventPublisher, EventRouter};
 use mempool::MempoolReadHandleFactory;
+use metric_exporter::metric_factory::PrometheusFactory;
 use primitives::{JSON_RPC_API_TOPIC_STR, NETWORK_TOPIC_STR, RUNTIME_TOPIC_STR};
+use std::collections::HashMap;
+use std::sync::Arc;
 use storage::vrrbdb::VrrbDbReadHandle;
 use telemetry::info;
 use vrrb_config::NodeConfig;
@@ -20,6 +23,8 @@ pub async fn setup_runtime_components(
     original_config: &NodeConfig,
     router: &EventRouter,
     events_tx: EventPublisher,
+    factory: Arc<PrometheusFactory>,
+    labels: HashMap<String, String>,
 ) -> Result<(
     RuntimeComponentManager,
     NodeConfig,
@@ -35,11 +40,15 @@ pub async fn setup_runtime_components(
 
     let mut runtime_manager = RuntimeComponentManager::new();
 
-    let node_runtime_component_handle = NodeRuntime::setup(NodeRuntimeComponentConfig {
-        config: config.clone(),
-        events_tx: events_tx.clone(),
-        events_rx: runtime_events_rx,
-    })
+    let node_runtime_component_handle = NodeRuntime::setup(
+        NodeRuntimeComponentConfig {
+            config: config.clone(),
+            events_tx: events_tx.clone(),
+            events_rx: runtime_events_rx,
+        },
+        factory.clone(),
+        labels.clone(),
+    )
     .await?;
 
     let handle_data = node_runtime_component_handle.data();
@@ -56,15 +65,19 @@ pub async fn setup_runtime_components(
         node_runtime_component_handle.handle(),
     );
 
-    let network_component_handle = NetworkModule::setup(NetworkModuleComponentConfig {
-        config: config.clone(),
-        node_id: config.id.clone(),
-        events_tx: events_tx.clone(),
-        network_events_rx,
-        vrrbdb_read_handle: state_read_handle.clone(),
-        membership_config: config.quorum_config.clone(),
-        validator_public_key: config.keypair.validator_public_key_owned(),
-    })
+    let network_component_handle = NetworkModule::setup(
+        NetworkModuleComponentConfig {
+            config: config.clone(),
+            node_id: config.id.clone(),
+            events_tx: events_tx.clone(),
+            network_events_rx,
+            vrrbdb_read_handle: state_read_handle.clone(),
+            membership_config: config.quorum_config.clone(),
+            validator_public_key: config.keypair.validator_public_key_owned(),
+        },
+        factory,
+        labels,
+    )
     .await?;
 
     let resolved_network_data = network_component_handle.data();
