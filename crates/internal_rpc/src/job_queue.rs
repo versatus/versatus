@@ -89,11 +89,17 @@ impl Default for ServiceJobStatus {
     }
 }
 impl ServiceJobStatus {
+    /// Report the status of a job.
     pub fn report(&self) -> ServiceJobStatusResponse {
         ServiceJobStatusResponse {
             status: self.state.clone(),
             uptime: self.timestamp.elapsed().as_secs(),
         }
+    }
+    /// Update the status of a job.
+    pub fn update(&mut self, state: ServiceJobState) {
+        self.state = state;
+        self.timestamp = Instant::now();
     }
 }
 #[derive(Serialize, Deserialize, Debug)]
