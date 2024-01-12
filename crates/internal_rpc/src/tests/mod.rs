@@ -1,7 +1,7 @@
 //! tests must be run serially to avoid failures due to the test socket address being used in every test.
 
 use crate::api::IPFSDataType;
-use crate::job_queue::{ServiceJob, ServiceJobStatus, ServiceJobType};
+use crate::job_queue::{ServiceJobApi, ServiceJobStatus, ServiceJobType};
 use crate::{api::InternalRpcApiClient, client::InternalRpcClient, server::InternalRpcServer};
 use serial_test::serial;
 use service_config::ServiceConfig;
@@ -23,14 +23,16 @@ fn test_service_config() -> ServiceConfig {
 #[derive(Debug)]
 struct TestJob {
     cid: String,
+    uuid: uuid::Uuid,
     kind: ServiceJobType,
     inst: std::time::Instant,
     status: ServiceJobStatus,
 }
-impl ServiceJob for TestJob {
-    fn new(cid: &str, kind: crate::job_queue::ServiceJobType) -> Self {
+impl ServiceJobApi for TestJob {
+    fn new(cid: &str, uuid: uuid::Uuid, kind: crate::job_queue::ServiceJobType) -> Self {
         Self {
             cid: cid.into(),
+            uuid,
             kind,
             inst: std::time::Instant::now(),
             status: ServiceJobStatus::Waiting,
@@ -38,6 +40,9 @@ impl ServiceJob for TestJob {
     }
     fn cid(&self) -> String {
         self.cid.clone()
+    }
+    fn uuid(&self) -> uuid::Uuid {
+        self.uuid
     }
     fn kind(&self) -> crate::job_queue::ServiceJobType {
         self.kind.clone()
@@ -172,12 +177,12 @@ async fn test_queue_job() {
     .await
     .unwrap();
     let client = InternalRpcClient::new(socket).await.unwrap();
-    client
+    let uuid = client
         .0
         .queue_job(sample_cid, ServiceJobType::Compute)
         .await
         .unwrap();
-    let res = client.0.job_status(sample_cid).await.unwrap();
+    let res = client.0.job_status(uuid).await.unwrap();
     assert_eq!(Some(ServiceJobStatus::Waiting), res);
 
     handle.stop().unwrap();

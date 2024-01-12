@@ -1,6 +1,6 @@
 use crate::{
     api::{IPFSDataType, InternalRpcApiServer, RpcResult},
-    job_queue::{ServiceJob, ServiceJobQueue, ServiceJobStatus, ServiceJobType},
+    job_queue::{ServiceJobApi, ServiceJobQueue, ServiceJobStatus, ServiceJobType},
 };
 use jsonrpsee::core::__reexports::serde_json;
 use jsonrpsee::{
@@ -22,7 +22,7 @@ pub struct InternalRpcServer;
 impl InternalRpcServer {
     /// Starts the RPC server which listens for internal calls.
     /// The server will continue to run until the handle is consumed.
-    pub async fn start<J: ServiceJob + Debug + 'static>(
+    pub async fn start<J: ServiceJobApi + Debug + 'static>(
         service_config: &ServiceConfig,
         service_type: ServiceType,
     ) -> anyhow::Result<(ServerHandle, SocketAddr)> {
@@ -50,7 +50,7 @@ impl InternalRpcServer {
 
 /// Represents all information available to the server and client.
 /// Calls to the [`InternalRpcApi`] rely on this structure.
-struct InternalRpc<J: ServiceJob + Debug> {
+struct InternalRpc<J: ServiceJobApi + Debug> {
     /// An enum representing the service type. Compute, Storage, for example. More to come in the future.
     pub(crate) service_type: ServiceType,
     /// The time of the creation of the `InternalRpc`, used to get the uptime of a service.
@@ -64,7 +64,7 @@ struct InternalRpc<J: ServiceJob + Debug> {
     pub(crate) queue: RwLock<ServiceJobQueue<J>>,
 }
 
-impl<J: ServiceJob + Debug> InternalRpc<J> {
+impl<J: ServiceJobApi + Debug> InternalRpc<J> {
     pub fn new(service_type: ServiceType) -> anyhow::Result<Self> {
         let extra_service_capabilities = ServiceCapabilities::try_from(platform::uname()?)?;
         Ok(Self {
@@ -123,19 +123,19 @@ impl<J: ServiceJob + Debug> InternalRpc<J> {
 }
 
 #[async_trait]
-impl<J: ServiceJob + Debug + 'static> InternalRpcApiServer for InternalRpc<J> {
+impl<J: ServiceJobApi + Debug + 'static> InternalRpcApiServer for InternalRpc<J> {
     async fn status(&self) -> RpcResult<ServiceStatusResponse> {
         Ok(ServiceStatusResponse::from(self))
     }
 
-    async fn queue_job(&self, cid: &str, kind: ServiceJobType) -> RpcResult<()> {
+    async fn queue_job(&self, cid: &str, kind: ServiceJobType) -> RpcResult<uuid::Uuid> {
         let mut queue = self.queue.write().await;
         Ok(queue.queue_job(cid, kind))
     }
 
-    async fn job_status(&self, cid: &str) -> RpcResult<Option<ServiceJobStatus>> {
+    async fn job_status(&self, uuid: uuid::Uuid) -> RpcResult<Option<ServiceJobStatus>> {
         let queue = self.queue.read().await;
-        Ok(queue.job_status(cid))
+        Ok(queue.job_status(uuid))
     }
 
     async fn get_data(
@@ -157,7 +157,7 @@ impl<J: ServiceJob + Debug + 'static> InternalRpcApiServer for InternalRpc<J> {
     }
 }
 
-impl<'a, J: ServiceJob + Debug> From<&'a InternalRpc<J>> for ServiceStatusResponse {
+impl<'a, J: ServiceJobApi + Debug> From<&'a InternalRpc<J>> for ServiceStatusResponse {
     fn from(value: &'a InternalRpc<J>) -> Self {
         Self {
             service_type: value.service_type.clone(),

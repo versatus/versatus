@@ -11,9 +11,13 @@ pub struct ComputeJobOpts {
     #[clap(long)]
     cid: String,
 
+    /// The UUID of a queued or running job.
+    #[clap(long)]
+    uuid: uuid::Uuid,
+
     /// The type of compute job to add to the job queue.
     #[clap(long, short = 'j')]
-    job_type: Option<ServiceJobType>,
+    job_type: ServiceJobType,
 
     /// The path to a JSON file that represents the inputs
     /// for a compute job.

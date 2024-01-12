@@ -38,10 +38,10 @@ pub trait InternalRpcApi {
     async fn status(&self) -> RpcResult<ServiceStatusResponse>;
 
     #[method(name = "queue_job")]
-    async fn queue_job(&self, cid: &str, kind: ServiceJobType) -> RpcResult<()>;
+    async fn queue_job(&self, cid: &str, kind: ServiceJobType) -> RpcResult<uuid::Uuid>;
 
     #[method(name = "job_status")]
-    async fn job_status(&self, cid: &str) -> RpcResult<Option<ServiceJobStatus>>;
+    async fn job_status(&self, uuid: uuid::Uuid) -> RpcResult<Option<ServiceJobStatus>>;
 
     #[method(name = "get_object")]
     async fn get_data(
