@@ -16,7 +16,7 @@ pub trait ServiceJobApi: Send + Sync {
     /// Return the [`Instant`] the job was spawned
     fn inst(&self) -> Instant;
     /// Return the status of the job
-    fn status(&self) -> ServiceJobStatus;
+    fn status(&self) -> ServiceJobStatusResponse;
     /// Return the uptime of the job in seconds
     fn uptime(&self) -> u64 {
         self.inst().elapsed().as_secs()
@@ -40,7 +40,7 @@ impl ServiceJobApi for ServiceJob {
             uuid,
             kind,
             inst: Instant::now(),
-            status: ServiceJobStatus::Waiting,
+            status: Default::default(),
         }
     }
     fn cid(&self) -> String {
@@ -55,8 +55,8 @@ impl ServiceJobApi for ServiceJob {
     fn inst(&self) -> std::time::Instant {
         self.inst
     }
-    fn status(&self) -> ServiceJobStatus {
-        self.status.clone()
+    fn status(&self) -> ServiceJobStatusResponse {
+        self.status.report()
     }
 }
 
@@ -65,19 +65,48 @@ impl ServiceJobApi for ServiceJob {
 // UPDATE: you can use interfaces to get around serializing Instant directly
 // as done with ServiceJob and ServiceJobApi
 // so we can track how long each operation takes.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub enum ServiceJobStatus {
+#[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
+pub enum ServiceJobState {
     /// Job is in queue
+    #[default]
     Waiting,
     /// Job is in progress
     Running,
     /// Job is completed
     Complete,
 }
+#[derive(Clone, Debug, PartialEq)]
+pub struct ServiceJobStatus {
+    state: ServiceJobState,
+    timestamp: Instant,
+}
+impl Default for ServiceJobStatus {
+    fn default() -> Self {
+        Self {
+            timestamp: Instant::now(),
+            state: Default::default(),
+        }
+    }
+}
+impl ServiceJobStatus {
+    pub fn report(&self) -> ServiceJobStatusResponse {
+        ServiceJobStatusResponse {
+            status: self.state.clone(),
+            uptime: self.timestamp.elapsed().as_secs(),
+        }
+    }
+}
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ServiceJobStatusResponse {
+    pub(crate) status: ServiceJobState,
+    pub(crate) uptime: u64,
+}
 
 // TODO(@eureka-cpu): It may be possible to make most of these operations O(1) time.
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ServiceJobQueue<J: ServiceJobApi>(VecDeque<J>);
+pub struct ServiceJobQueue<J: ServiceJobApi> {
+    queue: VecDeque<J>,
+}
 // Something like this probably already exists just using as placeholder for now
 // to get something flowing.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -131,19 +160,21 @@ impl std::str::FromStr for ComputeJobExecutionType {
 }
 impl<J: ServiceJobApi + fmt::Debug> ServiceJobQueue<J> {
     pub(crate) fn new() -> Self {
-        Self(VecDeque::new())
+        Self {
+            queue: VecDeque::new(),
+        }
     }
     /// Add a new job to the front of the queue.
     pub(crate) fn queue_job(&mut self, cid: &str, kind: ServiceJobType) -> uuid::Uuid {
         let uuid = uuid::Uuid::new_v4();
-        self.0.push_front(J::new(cid, uuid, kind));
+        self.queue.push_front(J::new(cid, uuid, kind));
         uuid
     }
     /// Get the status of a job in queue. Takes O(n) time.
     /// Best case scenario, the job in question is the last job in queue,
     /// ie. it's the first item in the vec.
-    pub(crate) fn job_status(&self, uuid: uuid::Uuid) -> Option<ServiceJobStatus> {
-        for job in self.0.iter() {
+    pub(crate) fn job_status(&self, uuid: uuid::Uuid) -> Option<ServiceJobStatusResponse> {
+        for job in self.queue.iter() {
             if job.uuid() == uuid {
                 return Some(job.status());
             }
@@ -155,7 +186,7 @@ impl<J: ServiceJobApi + fmt::Debug> ServiceJobQueue<J> {
     /// To remove a particular job manually, use the `kill_job` method.
     // This operation take O(1) time.
     pub(crate) fn dequeue_job(&mut self, uuid_opt: Option<&uuid::Uuid>) -> Result<()> {
-        if let Some(job) = self.0.pop_back() {
+        if let Some(job) = self.queue.pop_back() {
             if let Some(uuid) = uuid_opt {
                 if &job.uuid() == uuid {
                     println!("{job:?} completed in {}s", job.uptime());
@@ -175,9 +206,9 @@ impl<J: ServiceJobApi + fmt::Debug> ServiceJobQueue<J> {
     // Takes O(n) time, but I don't realistically see this being
     // used often so the trade off isn't bad.
     pub(crate) fn kill_job(&mut self, uuid: &uuid::Uuid) -> Result<()> {
-        for (pos, job) in self.0.iter().enumerate() {
+        for (pos, job) in self.queue.iter().enumerate() {
             if &job.uuid() == uuid {
-                self.0.remove(pos);
+                self.queue.remove(pos);
                 break;
             }
         }

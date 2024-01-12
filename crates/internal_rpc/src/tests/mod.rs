@@ -1,7 +1,10 @@
 //! tests must be run serially to avoid failures due to the test socket address being used in every test.
 
 use crate::api::IPFSDataType;
-use crate::job_queue::{ComputeJobExecutionType, ServiceJobApi, ServiceJobStatus, ServiceJobType};
+use crate::job_queue::{
+    ComputeJobExecutionType, ServiceJobApi, ServiceJobState, ServiceJobStatus,
+    ServiceJobStatusResponse, ServiceJobType,
+};
 use crate::{api::InternalRpcApiClient, client::InternalRpcClient, server::InternalRpcServer};
 use serial_test::serial;
 use service_config::ServiceConfig;
@@ -35,7 +38,7 @@ impl ServiceJobApi for TestJob {
             uuid,
             kind,
             inst: std::time::Instant::now(),
-            status: ServiceJobStatus::Waiting,
+            status: Default::default(),
         }
     }
     fn cid(&self) -> String {
@@ -50,8 +53,8 @@ impl ServiceJobApi for TestJob {
     fn inst(&self) -> std::time::Instant {
         self.inst
     }
-    fn status(&self) -> ServiceJobStatus {
-        self.status.clone()
+    fn status(&self) -> ServiceJobStatusResponse {
+        self.status.report()
     }
 }
 
@@ -185,8 +188,10 @@ async fn test_queue_job() {
         )
         .await
         .unwrap();
-    let res = client.0.job_status(uuid).await.unwrap();
-    assert_eq!(Some(ServiceJobStatus::Waiting), res);
+    std::thread::sleep(std::time::Duration::from_secs(3));
+    let res = client.0.job_status(uuid).await.unwrap().unwrap();
+    assert_eq!(ServiceJobState::Waiting, res.status);
+    assert_eq!(3, res.uptime);
 
     handle.stop().unwrap();
     let _ = handle;
