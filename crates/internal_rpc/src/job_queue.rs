@@ -60,11 +60,7 @@ impl ServiceJobApi for ServiceJob {
     }
 }
 
-/// The status of a job.
-// TODO(@eureka-cpu): Figure out how to add Instant to bypass serde
-// UPDATE: you can use interfaces to get around serializing Instant directly
-// as done with ServiceJob and ServiceJobApi
-// so we can track how long each operation takes.
+/// The state of a job.
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 pub enum ServiceJobState {
     /// Job is in queue
@@ -75,6 +71,7 @@ pub enum ServiceJobState {
     /// Job is completed
     Complete,
 }
+/// The state of a job and the last time the state was updated.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ServiceJobStatus {
     state: ServiceJobState,
@@ -102,6 +99,8 @@ impl ServiceJobStatus {
         self.timestamp = Instant::now();
     }
 }
+/// The reponse sent from the server when requested by a client
+/// about the state of a job.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ServiceJobStatusResponse {
     pub(crate) status: ServiceJobState,
