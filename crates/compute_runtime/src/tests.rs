@@ -1,10 +1,9 @@
 use crate::kontain::KontainRuntime;
 use crate::kontain_wasm::KontainWasmRuntime;
 use crate::oci_runc::OpenComputeRuntime;
-use crate::runtime::{
-    ComputeJobExecutionType, ComputeJobRunner, ComputeRuntime, ComputeRuntimeCapabilities,
-};
+use crate::runtime::{ComputeJobRunner, ComputeRuntime, ComputeRuntimeCapabilities};
 use crate::youki::YoukiRuntime;
+use internal_rpc::job_queue::ComputeJobExecutionType;
 
 use log::info;
 use mktemp::Temp;

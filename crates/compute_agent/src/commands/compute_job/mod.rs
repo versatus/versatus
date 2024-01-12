@@ -1,5 +1,5 @@
 use clap::Parser;
-use internal_rpc::job_queue::ServiceJobType;
+use internal_rpc::job_queue::ComputeJobExecutionType;
 
 pub mod job_status;
 pub mod queue_job;
@@ -17,7 +17,7 @@ pub struct ComputeJobOpts {
 
     /// The type of compute job to add to the job queue.
     #[clap(long, short = 'j')]
-    job_type: ServiceJobType,
+    job_type: ComputeJobExecutionType,
 
     /// The path to a JSON file that represents the inputs
     /// for a compute job.

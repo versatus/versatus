@@ -3,13 +3,13 @@ use anyhow::Result;
 use bitmask_enum::bitmask;
 use flate2::write::GzEncoder;
 use flate2::Compression;
+use internal_rpc::job_queue::ComputeJobExecutionType;
 use internal_rpc::{api::IPFSDataType, api::InternalRpcApiClient, client::InternalRpcClient};
 use log::info;
 use mktemp::Temp;
 use serde_derive::{Deserialize, Serialize};
 use service_config::ServiceConfig;
 use std::collections::HashMap;
-use std::fmt;
 use std::fs::File;
 use std::io::{BufReader, Error, ErrorKind};
 use tar::Builder;
@@ -20,52 +20,6 @@ use walkdir::WalkDir;
 // testing along with the Null execution type below.
 pub const NULL_CID_TRUE: &str = "null-cid-true";
 pub const NULL_CID_FALSE: &str = "null-cid-false";
-
-/// The type of job we're intending to execute.
-#[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub enum ComputeJobExecutionType {
-    /// A Smart Contract job requiring a runtime capable of assembling JSON input and executing
-    /// WASM.
-    SmartContract,
-    /// An ad-hoc execution job. Always local to a node, and primarily used for
-    /// testing/development.
-    AdHoc,
-    /// A null job type primarily used for internal/unit testing and runs nothing.
-    Null,
-}
-
-impl fmt::Display for ComputeJobExecutionType {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self {
-            Self::SmartContract => {
-                write!(f, "Smart Contract")
-            }
-            Self::AdHoc => {
-                write!(f, "Ad Hoc Task")
-            }
-            Self::Null => {
-                write!(f, "Null Task")
-            }
-        }
-    }
-}
-impl std::str::FromStr for ComputeJobExecutionType {
-    type Err = anyhow::Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let job = match s.trim().to_lowercase().as_str() {
-            "contract" | "smart-contract" => ComputeJobExecutionType::SmartContract,
-            "adhoc" | "ad-hoc" => ComputeJobExecutionType::AdHoc,
-            "null" => ComputeJobExecutionType::Null,
-            _ => {
-                return Err(anyhow::anyhow!(
-                    "failed to parse compute job type from string"
-                ));
-            }
-        };
-        Ok(job)
-    }
-}
 
 /// A runtime-configurable mapping between [ComputeJobExecutionType]s and published package CIDs.
 /// This will allow us to set a bunch of sane defaults that can be overridden as new packages

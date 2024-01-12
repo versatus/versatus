@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::{collections::VecDeque, fmt::Debug, time::Instant};
+use std::{collections::VecDeque, fmt, time::Instant};
 
 /// The API for interacting with queued [`ServiceJob`]s
 /// in the [`ServiceJobQueue`]
@@ -82,18 +82,54 @@ pub struct ServiceJobQueue<J: ServiceJobApi>(VecDeque<J>);
 // to get something flowing.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ServiceJobType {
-    Compute,
+    Compute(ComputeJobExecutionType),
 }
-impl std::str::FromStr for ServiceJobType {
-    type Err = anyhow::Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.trim().to_lowercase().as_str() {
-            "compute" => Ok(Self::Compute),
-            _ => Err(anyhow::anyhow!("failed to parse string into job type")),
+/// The type of job we're intending to execute.
+#[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub enum ComputeJobExecutionType {
+    /// A Smart Contract job requiring a runtime capable of assembling JSON input and executing
+    /// WASM.
+    SmartContract,
+    /// An ad-hoc execution job. Always local to a node, and primarily used for
+    /// testing/development.
+    AdHoc,
+    /// A null job type primarily used for internal/unit testing and runs nothing.
+    Null,
+}
+
+impl fmt::Display for ComputeJobExecutionType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self {
+            Self::SmartContract => {
+                write!(f, "Smart Contract")
+            }
+            Self::AdHoc => {
+                write!(f, "Ad Hoc Task")
+            }
+            Self::Null => {
+                write!(f, "Null Task")
+            }
         }
     }
 }
-impl<J: ServiceJobApi + Debug> ServiceJobQueue<J> {
+impl std::str::FromStr for ComputeJobExecutionType {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let job = match s.trim().to_lowercase().as_str() {
+            "contract" | "smart-contract" => ComputeJobExecutionType::SmartContract,
+            "adhoc" | "ad-hoc" => ComputeJobExecutionType::AdHoc,
+            "null" => ComputeJobExecutionType::Null,
+            _ => {
+                return Err(anyhow::anyhow!(
+                    "failed to parse compute job type from string"
+                ));
+            }
+        };
+        Ok(job)
+    }
+}
+impl<J: ServiceJobApi + fmt::Debug> ServiceJobQueue<J> {
     pub(crate) fn new() -> Self {
         Self(VecDeque::new())
     }

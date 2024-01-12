@@ -1,7 +1,7 @@
 //! tests must be run serially to avoid failures due to the test socket address being used in every test.
 
 use crate::api::IPFSDataType;
-use crate::job_queue::{ServiceJobApi, ServiceJobStatus, ServiceJobType};
+use crate::job_queue::{ComputeJobExecutionType, ServiceJobApi, ServiceJobStatus, ServiceJobType};
 use crate::{api::InternalRpcApiClient, client::InternalRpcClient, server::InternalRpcServer};
 use serial_test::serial;
 use service_config::ServiceConfig;
@@ -179,7 +179,10 @@ async fn test_queue_job() {
     let client = InternalRpcClient::new(socket).await.unwrap();
     let uuid = client
         .0
-        .queue_job(sample_cid, ServiceJobType::Compute)
+        .queue_job(
+            sample_cid,
+            ServiceJobType::Compute(ComputeJobExecutionType::Null),
+        )
         .await
         .unwrap();
     let res = client.0.job_status(uuid).await.unwrap();
