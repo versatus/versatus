@@ -29,7 +29,7 @@ fn main() -> Result<()> {
         }
         Some(cli::WasmCommands::Publish(opts)) => {
             let rt = tokio::runtime::Runtime::new()?;
-            let _ = rt.block_on(async { commands::publish::run(opts).await })?;
+            rt.block_on(async { commands::publish::run(opts).await })?;
         }
         None => {}
     }
