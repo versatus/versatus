@@ -16,8 +16,8 @@ anyhow = { workspace = true }
 clap = { workspace = true }
 derive_builder = { workspace = true }
 futures = { version = "0.3", features = ["thread-pool"] }
-ipfs-api-backend-hyper = { version = "0.6" ,features = ["with-send-sync"] }
-ipfs-api = { version ="0.17" }
+ipfs-api-backend-hyper = { version = "0.6", features = ["with-send-sync"] }
+ipfs-api = { version = "0.17" }
 serde = { workspace = true }
 serde_derive = { workspace = true }
 serde_json = { workspace = true }

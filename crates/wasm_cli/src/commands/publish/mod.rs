@@ -10,7 +10,7 @@ use web3_pkg::web3_pkg::{
 };
 use web3_pkg::web3_store::Web3Store;
 
-pub const VERSATUS_STORAGE_ADDRESS: &'static str = "storage.versatus.net";
+pub const VERSATUS_STORAGE_ADDRESS: &str = "storage.versatus.net";
 #[derive(Parser, Debug)]
 pub struct PublishOpts {
     /// The path to the WASM object file to package and publish
@@ -32,6 +32,9 @@ pub struct PublishOpts {
 
     #[clap(short, long, value_parser, value_name = "IS_SRV_RECORD")]
     pub is_srv: bool,
+
+    #[clap(short, long, value_parser, value_name = "RECURSIVE_PUBLISH")]
+    pub recursive: bool,
 }
 
 /// Generate a web3-native package from a smart contract and publish it to the network. This is a

@@ -1,11 +1,11 @@
-use std::fmt::Debug;
-use std::str::FromStr;
 use jsonrpsee::proc_macros::rpc;
 use platform::services::ServiceStatusResponse;
 use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
+use std::str::FromStr;
 pub(crate) type RpcResult<T> = Result<T, jsonrpsee::core::Error>;
 
-#[derive(Serialize, Deserialize,Debug,Copy,Clone)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub enum IPFSDataType {
     Object,
     Dag,
@@ -23,8 +23,6 @@ impl FromStr for IPFSDataType {
         }
     }
 }
-
-
 
 /// The methods available to the [`InternalRpcServer`] for both
 /// the client and the server.

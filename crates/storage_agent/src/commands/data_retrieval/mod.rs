@@ -32,11 +32,7 @@ pub async fn run(opts: &DataRetrievalOpts, config: &ServiceConfig) -> Result<()>
         error!("Path does not exist.");
         return Err(anyhow::anyhow!("Path does not exist.".to_string()));
     }
-    let blob = client
-        .0
-        .get_data(&opts.cid, opts.data_type)
-        .await?;
-    
+    let blob = client.0.get_data(&opts.cid, opts.data_type).await?;
     if !blob.is_empty() {
         for (cid, blob) in blob.iter() {
             let file_path = std::path::Path::new(&opts.blob_path).join(cid);
