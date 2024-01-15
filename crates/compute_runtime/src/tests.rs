@@ -2,12 +2,10 @@ use crate::kontain::KontainRuntime;
 use crate::kontain_wasm::KontainWasmRuntime;
 use crate::oci_runc::OpenComputeRuntime;
 use crate::runtime::{
-    ComputeJobExecutionType, ComputeJobRunner, ComputeRuntime, ComputeRuntimeCapabilities,
+    ComputeJobExecutionType, ComputeJobRunner, ComputeRuntime, ComputeRuntimeCapabilities, JobSet,
 };
 use crate::youki::YoukiRuntime;
 
-use log::info;
-use mktemp::Temp;
 use uuid::Uuid;
 
 #[test]
@@ -42,87 +40,15 @@ fn check_oci_runc_caps() {
     );
 }
 
-// The ignored tests below depend on other local binaries that likely won't exist or run on many
-// developer workstations. Once we have some of the dependency and build issues solved in this
-// repo, we ought to be able to develop tests that have custom payloads that are built inline
-// without requiring any external dependencies.
-
+// This test requires external services to be running, so belongs more in the e2e test
+// infrastructure that we're yet to build.
 #[test]
-fn check_kontain_wasm_setup() {
-    let _ = env_logger::builder().is_test(true).try_init();
-    info!("Test output");
-    let r = KontainWasmRuntime {};
-    let path = Temp::new_dir().unwrap();
-    let uuid = "0xdeadbeef"; // TODO: This ought to be a UUID and be passed in
-    r.setup(&uuid, &path.to_str().unwrap()).unwrap();
-    // TODO: Check that temp_dir exists, then drop it and make sure it no longer exists.
-    std::mem::drop(r);
-}
-
-#[test]
-#[ignore]
-fn check_oci_runc_exec() {
-    let _ = env_logger::builder().is_test(true).try_init();
-    let r = OpenComputeRuntime {};
-    let path = Temp::new_dir().unwrap();
-    let uuid = "0xdeadbeef"; // TODO: This ought to be a UUID and be passed in
-    r.setup(&uuid, &path.to_str().unwrap()).unwrap();
-    // TODO: Check that temp_dir exists, then drop it and make sure it no longer exists.
-}
-
-#[test]
-#[ignore]
-fn check_youki_exec() {
-    let _ = env_logger::builder().is_test(true).try_init();
-    let r = YoukiRuntime {};
-    let path = Temp::new_dir().unwrap();
-    let uuid = "0xdeadbeef"; // TODO: This ought to be a UUID and be passed in
-    r.setup(&uuid, &path.to_str().unwrap()).unwrap();
-    // TODO: Check that temp_dir exists, then drop it and make sure it no longer exists.
-}
-
-#[test]
-#[ignore]
-fn check_kontain_exec() {
-    let _ = env_logger::builder().is_test(true).try_init();
-    let r = KontainRuntime {};
-    let path = Temp::new_dir().unwrap();
-    let uuid = "0xdeadbeef"; // TODO: This ought to be a UUID and be passed in
-    r.setup(&uuid, &path.to_str().unwrap()).unwrap();
-    // TODO: Check that temp_dir exists, then drop it and make sure it no longer exists.
-}
-
-#[test]
-fn compute_job_runner_null_true() {
+fn compute_job_runner() {
     let _ = env_logger::builder().is_test(true).try_init();
     let r = ComputeJobRunner::run(
         &Uuid::new_v4().to_string(),
         "bafyreicrmhglkwxvvesr5bxrpo6slgjthlhhf3l6pfti52ipl733cnvpla", // new contract package
-        crate::runtime::NULL_CID_TRUE,
-        ComputeJobExecutionType::AdHoc,
-        &service_config::ServiceConfig {
-            name: "storage-test".to_string(),
-            rpc_address: "::1".to_string(),
-            rpc_port: 9126,
-            pre_shared_key: "xxx".to_string(),
-            tls_ca_cert_file: "".to_string(),
-            tls_private_key_file: "".to_string(),
-            tls_public_cert_file: "".to_string(),
-            exporter_address: "0.0.0.0".to_string(),
-            exporter_port: "9101".to_string(),
-        },
-    )
-    .expect("Job execution failed");
-    dbg!(r);
-}
-
-#[test]
-fn compute_job_runner_null_false() {
-    let _ = env_logger::builder().is_test(true).try_init();
-    let r = ComputeJobRunner::run(
-        &Uuid::new_v4().to_string(),
-        crate::runtime::NULL_CID_FALSE,
-        ComputeJobExecutionType::AdHoc,
+        ComputeJobExecutionType::SmartContract,
         &service_config::ServiceConfig {
             name: "storage-test".to_string(),
             rpc_address: "::1".to_string(),

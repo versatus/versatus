@@ -5,8 +5,8 @@ use derive_builder::Builder;
 use log::{debug, info};
 use oci_spec::runtime::{Process, ProcessBuilder, Root, RootBuilder, Spec};
 use std::collections::HashMap;
+use std::fs::create_dir;
 use std::fs::File;
-use std::fs::{copy, create_dir};
 use std::io::Read;
 use std::os::unix::io::FromRawFd;
 use std::os::unix::net::UnixListener;
@@ -91,6 +91,7 @@ impl OciManager {
 
         // TODO: once the package stuff exists and the caller passes in the details, we'll replace
         // these placeholders.
+        /*
         let _ret = copy(
             "/usr/bin/busybox",
             format!("{}/{}/bin/sh", self.runtime_path, CONTAINER_ROOT),
@@ -100,7 +101,7 @@ impl OciManager {
             "/usr/bin/busybox",
             format!("{}/{}/bin/busybox", self.runtime_path, CONTAINER_ROOT),
         )
-        .context("busybox")?;
+        .context("busybox")?;*/
         self.stats.0.stop("setup".to_string())?;
         Ok(())
     }
@@ -118,6 +119,8 @@ impl OciManager {
             .current_dir(&self.runtime_path)
             .output()
             .context(self.oci_runtime.to_string())?;
+
+        dbg!(&cmd);
 
         debug!(
             "Spec generation errors: {}",

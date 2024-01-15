@@ -1,14 +1,12 @@
 use std::net::SocketAddr;
 use log::info;
 use crate::api::{IPFSDataType, InternalRpcApiServer, RpcResult};
-use jsonrpsee::core::__reexports::serde_json;
 use jsonrpsee::{
     core::async_trait,
     server::{ServerBuilder, ServerHandle},
 };
 use platform::services::*;
 use service_config::ServiceConfig;
-use web3_pkg::web3_pkg::Web3Package;
 use web3_pkg::web3_store::Web3Store;
 
 
@@ -75,23 +73,17 @@ impl InternalRpc {
         })
     }
 
-    async fn retrieve_object(&self, cid: &str) -> RpcResult<Vec<(String, Vec<u8>)>> {
+    async fn retrieve_object(&self, cid: &str) -> RpcResult<Vec<u8>> {
         info!("Retrieving object '{}' from local IPFS instance.", &cid);
         let store = Web3Store::local()?;
         let obj = store.read_object(cid).await?;
-        Ok(vec![(cid.to_string(), obj)])
+        Ok(obj)
     }
-    async fn retrieve_dag(&self, cid: &str) -> RpcResult<Vec<(String, Vec<u8>)>> {
+    async fn retrieve_dag(&self, cid: &str) -> RpcResult<Vec<u8>> {
         info!("Retrieving DAG object '{}' from local IPFS instance.", &cid);
         let store = Web3Store::local()?;
-       let obj = store.read_dag(cid).await?;
-        let pkg: Web3Package = serde_json::from_slice(&obj)?;
-        let mut objs = Vec::new();
-        for obj in &pkg.pkg_objects {
-            let blob = store.read_object(&obj.object_cid.cid).await?;
-            objs.push((obj.object_cid.cid.clone(), blob))
-        }
-        Ok(objs)
+        let obj = store.read_dag(cid).await?;
+        Ok(obj)
     }
 
     async fn pin_object_ipfs(&self, cid: &str, recursive: bool) -> RpcResult<Vec<String>> {
@@ -119,7 +111,7 @@ impl InternalRpcApiServer for InternalRpc {
         &self,
         cid: &str,
         data_type: IPFSDataType,
-    ) -> RpcResult<Vec<(String, Vec<u8>)>> {
+    ) -> RpcResult<Vec<u8>> {
         return match data_type {
             IPFSDataType::Object => self.retrieve_object(cid).await,
             IPFSDataType::Dag => self.retrieve_dag(cid).await,

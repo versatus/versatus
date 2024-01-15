@@ -43,7 +43,7 @@ pub trait InternalRpcApi {
         &self,
         cid: &str,
         data_type: IPFSDataType,
-    ) -> RpcResult<Vec<(String, Vec<u8>)>>;
+    ) -> RpcResult<Vec<u8>>;
 
     #[method(name = "pin_object")]
     async fn pin_object(&self, cid: &str, recursive: bool) -> RpcResult<Vec<String>>;
