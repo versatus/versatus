@@ -2,6 +2,7 @@ use clap::clap_derive::ArgEnum;
 use derive_builder::Builder;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fmt;
 
 /// An enum representing different flavours of package payload. In some cases, a package might
 /// contain a smart contract (or potentially multiple smart contracts), in other cases it could be
@@ -17,6 +18,27 @@ pub enum Web3PackageType {
     SmartContractRuntime,
     /// A package containing a smart contract
     SmartContract,
+    /// A package containing a native-binary container runtime.
+    NativeContainerRuntime,
+}
+
+impl fmt::Display for Web3PackageType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self {
+            Self::SmartContract => {
+                write!(f, "Smart Contract")
+            }
+            Self::SmartContractRuntime => {
+                write!(f, "Smart Contract Runtime")
+            }
+            Self::NativeContainerRuntime => {
+                write!(f, "Native Container Runtime")
+            }
+            Self::None => {
+                write!(f, "Unknown")
+            }
+        }
+    }
 }
 
 /// An enum representing different architectures/platforms a compute workload could be targetted
@@ -39,6 +61,31 @@ pub enum Web3PackageArchitecture {
     Wasm32Wasi,
 }
 
+impl fmt::Display for Web3PackageArchitecture {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self {
+            Self::None => {
+                write!(f, "Arch independent")
+            }
+            Self::Amd64Musl => {
+                write!(f, "x86_64 with MUSL libc")
+            }
+            Self::Amd64Linux => {
+                write!(f, "x86_64 with glibc")
+            }
+            Self::Aarch64Musl => {
+                write!(f, "ARM64 with MUSL libc")
+            }
+            Self::Aarch64Linux => {
+                write!(f, "ARM64 with glibc")
+            }
+            Self::Wasm32Wasi => {
+                write!(f, "WASM32 with WASI")
+            }
+        }
+    }
+}
+
 /// A struct representing a content ID. Currently somewhat specific to IPFS CIDs and IPLD's
 /// DAG-JSON format. The member name 'cid' is renamed by serde to '/' specifically to appease the
 /// DAG-JSON gods.
@@ -50,7 +97,7 @@ pub struct Web3ContentId {
 
 /// An enum representing the type of object within the package. This is only as accurate as the
 /// package publisher makes it.
-#[derive(Debug, Default, Serialize, Deserialize, Clone, ArgEnum)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone, ArgEnum, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum Web3ObjectType {
     #[default]

@@ -1,5 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
+use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::path::Path;
 use std::path::PathBuf;
@@ -41,10 +42,17 @@ pub async fn run(opts: &PublishOpts) -> Result<()> {
         .to_str()
         .unwrap_or_default();
 
+    // Some temporary annotations. Required, but not currently used.
+    let mut o_ann = HashMap::<String, String>::new();
+    o_ann.insert("role".to_string(), "contract".to_string());
+    let mut p_ann = HashMap::<String, String>::new();
+    p_ann.insert("status".to_string(), "test".to_string());
+
     let obj = Web3PackageObjectBuilder::default()
         .object_arch(Web3PackageArchitecture::Wasm32Wasi)
         .object_path(path.to_string().to_owned())
         .object_cid(Web3ContentId { cid })
+        .object_annotations(o_ann)
         .object_type(Web3ObjectType::Executable)
         .build()?;
 
@@ -56,6 +64,7 @@ pub async fn run(opts: &PublishOpts) -> Result<()> {
         .pkg_author(opts.author.to_owned())
         .pkg_type(Web3PackageType::SmartContract)
         .pkg_objects(objects)
+        .pkg_annotations(p_ann)
         .pkg_replaces(vec![])
         .build()?;
     let json = serde_json::to_string(&pkg_meta)?;

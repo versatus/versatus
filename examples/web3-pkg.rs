@@ -1,10 +1,10 @@
 use anyhow::{anyhow, Result};
 use clap::Parser;
 use serde_derive::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::path::Path;
 use std::str;
-use std::collections::HashMap;
 
 use web3_pkg::web3_pkg::{
     Web3ContentId, Web3ObjectType, Web3Package, Web3PackageArchitecture, Web3PackageBuilder,
@@ -147,8 +147,8 @@ async fn package_init(opts: &InitOpts) -> Result<()> {
     Ok(())
 }
 
-async fn parse_annotations(annotations: &[String]) -> Result<HashMap<(String, String)>> {
-    let mut ret = vec![];
+async fn parse_annotations(annotations: &[String]) -> Result<HashMap<String, String>> {
+    let mut ret = HashMap::<String, String>::new();
     for a_str in annotations.iter() {
         let mut split = a_str.split('=');
         let (key, value) = (
