@@ -35,6 +35,9 @@ pub struct PublishOpts {
 
     #[clap(short, long, value_parser, value_name = "RECURSIVE_PUBLISH")]
     pub recursive: bool,
+
+    #[clap(short, long, value_parser, value_name = "LOCAL")]
+    pub is_local: bool,
 }
 
 /// Generate a web3-native package from a smart contract and publish it to the network. This is a
@@ -43,7 +46,7 @@ pub struct PublishOpts {
 pub async fn run(opts: &PublishOpts) -> Result<()> {
     let store = if let Some(address) = opts.storage_server.as_ref() {
         if let Ok(ip) = address.parse::<IpAddr>() {
-            println!("Input is an IP address: {}", ip);
+            Web3Store::from_multiaddr(ip.to_string().as_str())?;
         } else if address.to_socket_addrs().is_ok() {
             Web3Store::from_hostname(address, opts.is_srv)?;
         } else {
@@ -52,9 +55,12 @@ pub async fn run(opts: &PublishOpts) -> Result<()> {
             ));
         }
         Web3Store::local()?
+    } else if opts.is_local {
+        Web3Store::local()?
     } else {
         Web3Store::from_hostname(VERSATUS_STORAGE_ADDRESS, opts.is_srv)?
     };
+
     let mut objects: Vec<Web3PackageObject> = vec![];
 
     let cid = store.write_object(std::fs::read(&opts.wasm)?).await?;

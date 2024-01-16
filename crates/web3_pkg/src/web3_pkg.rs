@@ -1,3 +1,5 @@
+use std::fmt;
+use std::fmt::Display;
 use clap::clap_derive::ArgEnum;
 use derive_builder::Builder;
 use serde_derive::{Deserialize, Serialize};
@@ -102,4 +104,52 @@ pub struct Web3Package {
     /// A vector of packages that this replaces. XXX: This could be problematic when exporting a
     /// DAG when there's a long history.
     pub pkg_replaces: Vec<Web3ContentId>,
+}
+
+impl Display for Web3Package {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "Name: {}       Author: {}", self.pkg_name, self.pkg_author)?;
+        writeln!(f, "Type: {:?}                 Package Version: {}", self.pkg_type, self.pkg_version)?;
+        writeln!(f, "Objects:")?;
+        for obj in &self.pkg_objects {
+            writeln!(f, "     {}", obj.object_cid)?;
+            writeln!(f, "     Architecture: {}", obj.object_arch)?;
+            writeln!(f, "     Type: {:?}", obj.object_type)?;
+            writeln!(f, "     Name: {}", obj.object_path)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl Display for Web3ContentId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Cid: {} ", self.cid)?;
+        Ok(())
+    }
+}
+
+impl Display for Web3PackageType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let display_name = match self {
+            Web3PackageType::None => "None",
+            Web3PackageType::SmartContractRuntime => "Smart Contract Runtime",
+            Web3PackageType::SmartContract => "Smart Contract",
+        };
+        write!(f, "{}", display_name)
+    }
+}
+
+impl Display for Web3PackageArchitecture {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let display_name = match self {
+            Web3PackageArchitecture::None => "None",
+            Web3PackageArchitecture::Amd64Linux => "x64_64-unknown-linux-gnu",
+            Web3PackageArchitecture::Amd64Musl => "x64_64-unknown-linux-musl",
+            Web3PackageArchitecture::Aarch64Linux => "aarch64-unknown-linux-gnu",
+            Web3PackageArchitecture::Aarch64Musl => "aarch64-unknown-linux-musl",
+            Web3PackageArchitecture::Wasm32Wasi => "wasm32-wasi",
+        };
+        write!(f, "{}", display_name)
+    }
 }

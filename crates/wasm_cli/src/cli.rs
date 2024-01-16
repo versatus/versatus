@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 
+use crate::commands::pkginfo::FetchMetadataOpts;
 use crate::commands::{
     describe::DescribeOpts, execute::ExecuteOpts, publish::PublishOpts, validate::ValidateOpts,
 };
@@ -22,4 +23,6 @@ pub enum WasmCommands {
     Validate(ValidateOpts),
     /// Publishes a smart contract package to the network
     Publish(PublishOpts),
+    /// Fetching metadata about smart contract package from the network
+    PkgInfo(FetchMetadataOpts),
 }
