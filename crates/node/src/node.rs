@@ -145,9 +145,9 @@ impl Node {
             })?;
         let (sender, receiver) = channel::<()>(BUFFER_SIZE);
         tokio::spawn(async move {
-            while let Some(_) = sighup_receiver.recv().await {
+            while sighup_receiver.recv().await.is_some() {
                 // Do something when a SIGHUP signal is received
-                if let Err(_) = sender.send(()).await {
+                if sender.send(()).await.is_err() {
                     // Handle the error if sending fails
                     info!("Failed to send signal");
                 } else {

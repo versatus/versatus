@@ -146,7 +146,7 @@ async fn package_init(opts: &InitOpts) -> Result<()> {
     Ok(())
 }
 
-async fn parse_annotations(annotations: &Vec<String>) -> Result<Vec<(String, String)>> {
+async fn parse_annotations(annotations: &[String]) -> Result<Vec<(String, String)>> {
     let mut ret = vec![];
     for a_str in annotations.iter() {
         let mut split = a_str.split('=');

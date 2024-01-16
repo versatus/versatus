@@ -90,7 +90,7 @@ async fn test_is_retrieve_obj_from_server() {
     let sample_cid = "bafyreibd2pk7qsmsi5hab6xuvm37qvjlmyjcweiej2dg7nedpd4bwdsgw4";
     let service_config = test_service_config();
     let (handle, socket) =
-        InternalRpcServer::start(&service_config, platform::services::ServiceType::Compute)
+        InternalRpcServer::start(&service_config, platform::services::ServiceType::Storage)
             .await
             .unwrap();
     let client = InternalRpcClient::new(socket).await.unwrap();
@@ -111,7 +111,7 @@ async fn test_pin_object() {
     let sample_cid = "bafyreibd2pk7qsmsi5hab6xuvm37qvjlmyjcweiej2dg7nedpd4bwdsgw4";
     let service_config = test_service_config();
     let (handle, socket) =
-        InternalRpcServer::start(&service_config, platform::services::ServiceType::Compute)
+        InternalRpcServer::start(&service_config, platform::services::ServiceType::Storage)
             .await
             .unwrap();
     let client = InternalRpcClient::new(socket).await.unwrap();
