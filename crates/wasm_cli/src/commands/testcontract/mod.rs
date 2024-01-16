@@ -220,10 +220,21 @@ fn get_protocol_inputs(storage_connection: &Storage) -> Result<(i32, (u64, u64))
 
 #[cfg(test)]
 mod contract_tests {
+    use ethnum::U256;
     use primitives::Address;
+    use versatus_rust::{
+        eip20::{Erc20Result, Erc20TransferEvent},
+        versatus_rust::{ContractResult, SmartContractOutputs},
+    };
 
-    use crate::commands::{testcontract, testinitdb};
+    use crate::commands::{
+        testbalance::get_balance,
+        testcontract,
+        testinitdb::{self, open_storage, DEFAULT_DB_PATH},
+    };
     use std::path::PathBuf;
+
+    use super::update_db;
 
     #[test]
     fn test_create_contract_inputs() {
@@ -270,5 +281,32 @@ mod contract_tests {
         });
         dbg!(&res);
         assert!(res.is_ok());
+    }
+
+    #[test]
+    fn test_update_storage() {
+        let storage_connection =
+            open_storage(&DEFAULT_DB_PATH.to_string()).expect("could not open storage");
+        let from_key = testinitdb::AccountAddress { address: ([2; 20]) };
+        let to_key = testinitdb::AccountAddress { address: ([3; 20]) };
+        let from_bal = get_balance(&from_key, &storage_connection).unwrap();
+        let to_bal = get_balance(&to_key, &storage_connection).unwrap();
+
+        let contract_outputs = &SmartContractOutputs {
+            result: vec![ContractResult::Erc20({
+                Erc20Result::Transfer(Erc20TransferEvent {
+                    from: versatus_rust::versatus_rust::Address([2; 20]),
+                    to: versatus_rust::versatus_rust::Address([3; 20]),
+                    value: U256([10; 2]),
+                })
+            })],
+        };
+        assert!(update_db(&storage_connection, contract_outputs).is_ok());
+
+        let from_ending_bal = get_balance(&from_key, &storage_connection).unwrap();
+        let to_ending_bal = get_balance(&to_key, &storage_connection).unwrap();
+
+        assert!(to_bal.contents.value < to_ending_bal.contents.value);
+        assert!(from_bal.contents.value > from_ending_bal.contents.value);
     }
 }
