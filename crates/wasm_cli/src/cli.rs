@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 
+use crate::commands::pkginfo::FetchMetadataOpts;
 use crate::commands::{
     describe::DescribeOpts, execute::ExecuteOpts, publish::PublishOpts,
     testbalance::TestBalanceOpts, testcontract::TestContractOpts, testinitdb::TestInitDBOpts,
@@ -30,4 +31,6 @@ pub enum WasmCommands {
     TestContract(TestContractOpts),
     /// Publishes a smart contract package to the network
     Publish(PublishOpts),
+    /// Fetching metadata about smart contract package from the network
+    PkgInfo(FetchMetadataOpts),
 }
