@@ -22,6 +22,9 @@ fn main() -> Result<()> {
             let rt = tokio::runtime::Runtime::new()?;
             rt.block_on(async { commands::publish::run(opts).await })?;
         }
+        Some(cli::WasmCommands::PkgInfo(opts)) => {
+            commands::pkginfo::run(opts)?;
+        }
         None => {}
     }
 
