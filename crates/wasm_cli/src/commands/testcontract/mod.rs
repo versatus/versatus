@@ -23,12 +23,11 @@ use wasm_runtime::{
 };
 use wasmer::{Cranelift, Target};
 
-use crate::commands::testinitdb;
-
 use super::{
     testbalance::get_balance,
     testinitdb::{AccountAddress, AccountBalance},
 };
+use crate::commands::testinitdb;
 
 #[derive(Parser, Debug)]
 pub struct TestContractOpts {
@@ -39,6 +38,9 @@ pub struct TestContractOpts {
     /// The path to the WASM object file to load and describe
     #[clap(short, long, value_parser, value_name = "FILE")]
     pub wasm: PathBuf,
+    /// The contract caller's Address.
+    #[clap(short, long, value_parser, value_name = "CONTRACT_CALLER")]
+    pub contract_caller: primitives::Address,
     /// The function to call within the smart contract. #716 this will influence the JSON we
     /// generate below to pass into the smart contract when we execute it. TODO: mg@ needs to also
     /// remember to add some function-specific arguments here to allow those to be passed in.
@@ -98,6 +100,7 @@ pub fn run(opts: &TestContractOpts) -> Result<()> {
     )?
     .stdin(
         &serde_json::to_string(&create_contract_inputs(
+            &opts.contract_caller,
             &opts.function,
             &opts.inputs,
             &storage_connection,
@@ -107,16 +110,9 @@ pub fn run(opts: &TestContractOpts) -> Result<()> {
     .env(&env_vars)
     .args(&opts.args);
     wasm.execute()?;
-    let contract_outputs: &SmartContractOutputs = &serde_json::from_str(&wasm.stdout())?;
-    let updated_contract_outputs = update_db(&storage_connection, contract_outputs);
 
-    // #716 We shouldn't print the output here, but rather parse it and use it to update the
-    // database. For example, if an ErcTransferEvent is part of the output(https://github.com/versatus/versatus-rust/blob/main/src/eip20.rs#L48), we should move the balance from the from account to the to account.
-    println!("{:?}", &updated_contract_outputs);
-    // TODO: Update storage with the output of the contract
-    // using the overwrite method in SerializedCollection
-    // similarly to the use of insert_into for AccountBalance
-    // in the testinitdb module.
+    update_db(&storage_connection, &serde_json::from_str(&wasm.stdout())?)?;
+
     eprintln!("Contract errors: {}", &wasm.stderr());
 
     Ok(())
@@ -165,7 +161,7 @@ fn update_db(storage_connection: &Storage, contract_outputs: &SmartContractOutpu
                         )?;
                     }
                 }
-                _ => {}
+                _ => todo!(),
             }
         }
     }
@@ -177,14 +173,14 @@ fn update_db(storage_connection: &Storage, contract_outputs: &SmartContractOutpu
 // repository, but build it from the contents of the database and command line inputs. We can
 // assume (for now) that all contracts will be ERC20 when dealing with inputs and outputs.
 fn create_contract_inputs(
+    caller: &primitives::Address,
     function: &str,
     inputs: &str,
     storage_connection: &bonsaidb::local::Storage,
 ) -> Result<SmartContractInputs> {
     let (version, (block_height, block_time)) = get_protocol_inputs(storage_connection)?;
-    let raw_address = Address([2; 20]); // TODO: get this from the command line args?
     let account_address = AccountAddress {
-        address: raw_address.0,
+        address: caller.raw_address(),
     };
     let balance_document = get_balance(&account_address, storage_connection)?;
     let account_balance = balance_document.contents.value;
@@ -192,7 +188,7 @@ fn create_contract_inputs(
     Ok(SmartContractInputs {
         version,
         account_info: AccountInfo {
-            account_address: raw_address, // TODO: is this the sender or receiver?
+            account_address: Address(caller.raw_address()),
             account_balance,
         },
         protocol_input: ProtocolInputs {
@@ -224,14 +220,17 @@ fn get_protocol_inputs(storage_connection: &Storage) -> Result<(i32, (u64, u64))
 
 #[cfg(test)]
 mod contract_tests {
+    use primitives::Address;
+
     use crate::commands::{testcontract, testinitdb};
     use std::path::PathBuf;
 
     #[test]
     fn test_create_contract_inputs() {
-        let storage =
-            testinitdb::open_storage(&"./bonsaidb".to_string()).expect("could not open storage");
+        let storage = testinitdb::open_storage(&testinitdb::DEFAULT_DB_PATH.to_string())
+            .expect("could not open storage");
         let contract_inputs = testcontract::create_contract_inputs(
+            &Address([2; 20]),
             "transfer",
             "{\
                 \"erc20\": {
@@ -254,6 +253,7 @@ mod contract_tests {
         let res = testcontract::run(&testcontract::TestContractOpts {
             dbpath: testinitdb::DEFAULT_DB_PATH.to_string(),
             wasm: d,
+            contract_caller: Address([2; 20]),
             function: "transfer".to_string(),
             inputs: "{\
                 \"erc20\": {
@@ -265,7 +265,7 @@ mod contract_tests {
             }"
             .to_string(),
             env: vec![],
-            meter_limit: 1000,
+            meter_limit: 10000,
             args: vec![],
         });
         dbg!(&res);

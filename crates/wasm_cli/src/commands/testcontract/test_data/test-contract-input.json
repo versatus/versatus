@@ -1,0 +1,23 @@
+{
+    "version": 1,
+	"accountInfo": {
+	    "accountAddress": "0x0202020202020202020202020202020202020202",
+	    "accountBalance": "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+	},
+	"protocolInput": {
+	    "version": 1,
+	    "blockHeight": 1,
+	    "blockTime": 1
+	},
+	"contractInput": {
+	    "contractFn": "transfer",
+	    "functionInputs": {
+		"erc20": {
+		    "transfer": {
+			"value": "0xffff",
+			"address": "0x0303030303030303030303030303030303030303"
+		    }
+		}
+	    }
+	}
+}
