@@ -222,21 +222,53 @@ fn get_protocol_inputs(storage_connection: &Storage) -> Result<(i32, (u64, u64))
     Ok((latest_version, (block_height, block_time)))
 }
 
-#[test]
-fn test_create_contract_inputs() {
-    let storage =
-        testinitdb::open_storage(&"./bonsaidb".to_string()).expect("could not open storage");
-    let contract_inputs = create_contract_inputs(
-        "transfer",
-        "{\
-		    \"erc20\": {
-		        \"transfer\": {
-		    	\"value\": \"0xffff\",
-		    	\"address\": \"0x0303030303030303030303030303030303030303\"
-		        }
-		    }
-	    }",
-        &storage,
-    );
-    assert!(contract_inputs.is_ok());
+#[cfg(test)]
+mod contract_tests {
+    use crate::commands::{testcontract, testinitdb};
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_create_contract_inputs() {
+        let storage =
+            testinitdb::open_storage(&"./bonsaidb".to_string()).expect("could not open storage");
+        let contract_inputs = testcontract::create_contract_inputs(
+            "transfer",
+            "{\
+                \"erc20\": {
+                    \"transfer\": {
+                    \"value\": \"0xffff\",
+                    \"address\": \"0x0303030303030303030303030303030303030303\"
+                    }
+                }
+            }",
+            &storage,
+        );
+        assert!(contract_inputs.is_ok());
+    }
+
+    #[test]
+    fn test_contract() {
+        let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        d.push("src/commands/testcontract/test_data/erc20.wasm");
+
+        let res = testcontract::run(&testcontract::TestContractOpts {
+            dbpath: testinitdb::DEFAULT_DB_PATH.to_string(),
+            wasm: d,
+            function: "transfer".to_string(),
+            inputs: "{\
+                \"erc20\": {
+                    \"transfer\": {
+                    \"value\": \"0xffff\",
+                    \"address\": \"0x0303030303030303030303030303030303030303\"
+                    }
+                }
+            }"
+            .to_string(),
+            env: vec![],
+            meter_limit: 1000,
+            args: vec![],
+        });
+        dbg!(&res);
+        assert!(res.is_ok());
+    }
 }
