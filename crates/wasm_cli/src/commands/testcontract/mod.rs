@@ -158,7 +158,7 @@ fn update_db(storage_connection: &Storage, contract_outputs: &SmartContractOutpu
                         )?;
                     }
                 }
-                _ => todo!(),
+                _ => eprintln!("The function specified is invalid, or not supported at this time."),
             }
         }
     }
