@@ -126,10 +126,10 @@ fn update_db(storage_connection: &Storage, contract_outputs: &SmartContractOutpu
                         storage_connection.database::<AccountBalance>("account-balance")?;
                     let transfer_amount = transfer.value;
                     let from_account = AccountAddress {
-                        address: transfer.from.0.clone(),
+                        address: transfer.from.0,
                     };
                     let to_account = AccountAddress {
-                        address: transfer.to.0.clone(),
+                        address: transfer.to.0,
                     };
                     let from_balance = get_balance(&from_account, storage_connection)?;
                     let to_balance = get_balance(&to_account, storage_connection)?;
@@ -145,8 +145,7 @@ fn update_db(storage_connection: &Storage, contract_outputs: &SmartContractOutpu
 
                         let protocol_db = storage_connection
                             .database::<testinitdb::ProtocolInputs>("protocol-inputs")?;
-                        let (version, (block_height, _)) =
-                            get_protocol_inputs(&storage_connection)?;
+                        let (version, (block_height, _)) = get_protocol_inputs(storage_connection)?;
                         let system_time = std::time::SystemTime::now()
                             .duration_since(SystemTime::UNIX_EPOCH)
                             .map_err(|e| anyhow!("{e:?}"))?;
