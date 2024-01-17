@@ -1,6 +1,11 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use std::{collections::VecDeque, fmt, time::Instant};
+use std::{
+    collections::VecDeque,
+    fmt,
+    sync::{Arc, Condvar, Mutex},
+    time::Instant,
+};
 
 /// The API for interacting with queued [`ServiceJob`]s
 /// in the [`ServiceJobQueue`]
@@ -34,7 +39,7 @@ pub struct ServiceJob {
     status: ServiceJobStatus,
 }
 impl ServiceJobApi for ServiceJob {
-    fn new(cid: &str, uuid: uuid::Uuid, kind: crate::job_queue::ServiceJobType) -> Self {
+    fn new(cid: &str, uuid: uuid::Uuid, kind: ServiceJobType) -> Self {
         Self {
             cid: cid.into(),
             uuid,
@@ -49,7 +54,7 @@ impl ServiceJobApi for ServiceJob {
     fn uuid(&self) -> uuid::Uuid {
         self.uuid
     }
-    fn kind(&self) -> crate::job_queue::ServiceJobType {
+    fn kind(&self) -> ServiceJobType {
         self.kind.clone()
     }
     fn inst(&self) -> std::time::Instant {
@@ -110,7 +115,88 @@ pub struct ServiceJobStatusResponse {
 // TODO(@eureka-cpu): It may be possible to make most of these operations O(1) time.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ServiceJobQueue<J: ServiceJobApi> {
-    queue: VecDeque<J>,
+    pub(crate) queue: VecDeque<J>,
+}
+#[derive(Debug)]
+pub struct Transmitter<J: ServiceJobApi> {
+    store: Arc<Mutex<ServiceJobQueue<J>>>,
+    emitter: Arc<Condvar>,
+}
+pub trait ServiceTransmitter<J: ServiceJobApi>: Send + Sync {
+    fn send(&self, cid: &str, kind: ServiceJobType) -> uuid::Uuid;
+    fn new(store: &Arc<Mutex<ServiceJobQueue<J>>>, emitter: &Arc<Condvar>) -> Self;
+}
+impl<J: ServiceJobApi> ServiceTransmitter<J> for Transmitter<J> {
+    // TODO(@eureka-cpu): Use if let and return an Option<Uuid>
+    /// Add a new job to the front of the queue.
+    fn send(&self, cid: &str, kind: ServiceJobType) -> uuid::Uuid {
+        let uuid = uuid::Uuid::new_v4();
+        self.store
+            .lock()
+            .expect("failed to get lock for queue")
+            .queue
+            .push_front(J::new(cid, uuid, kind));
+        self.emitter.notify_one();
+
+        uuid
+    }
+    fn new(store: &Arc<Mutex<ServiceJobQueue<J>>>, emitter: &Arc<Condvar>) -> Self {
+        Self {
+            store: Arc::clone(store),
+            emitter: Arc::clone(emitter),
+        }
+    }
+}
+#[derive(Debug)]
+pub struct Receiver<J: ServiceJobApi> {
+    store: Arc<Mutex<ServiceJobQueue<J>>>,
+    emitter: Arc<Condvar>,
+}
+pub trait ServiceReceiver<J: ServiceJobApi>: Send + Sync {
+    fn recv(&self) -> Option<J>;
+    fn new(store: &Arc<Mutex<ServiceJobQueue<J>>>, emitter: &Arc<Condvar>) -> Self;
+}
+impl<J: ServiceJobApi> ServiceReceiver<J> for Receiver<J> {
+    /// Wait for a job to be queued by a client.
+    fn recv(&self) -> Option<J> {
+        let mut store = self.store.lock().unwrap();
+
+        while store.queue.is_empty() {
+            store = self.emitter.wait(store).unwrap();
+        }
+
+        store.queue.pop_back()
+    }
+    fn new(store: &Arc<Mutex<ServiceJobQueue<J>>>, emitter: &Arc<Condvar>) -> Self {
+        Self {
+            store: Arc::clone(store),
+            emitter: Arc::clone(emitter),
+        }
+    }
+}
+#[derive(Debug)]
+pub(crate) struct ServiceQueueChannel<
+    T: ServiceTransmitter<J>,
+    R: ServiceReceiver<J>,
+    J: ServiceJobApi,
+> {
+    pub(crate) tx: T,
+    pub(crate) rx: R,
+    marker: std::marker::PhantomData<J>,
+}
+impl<T: ServiceTransmitter<J>, R: ServiceReceiver<J>, J: ServiceJobApi + std::fmt::Debug>
+    ServiceQueueChannel<T, R, J>
+{
+    pub(crate) fn new() -> Self {
+        let store = Arc::new(Mutex::new(ServiceJobQueue::new()));
+        let emitter = Arc::new(Condvar::new());
+
+        Self {
+            tx: T::new(&store, &emitter),
+            rx: R::new(&store, &emitter),
+            marker: std::marker::PhantomData,
+        }
+    }
 }
 // Something like this probably already exists just using as placeholder for now
 // to get something flowing.

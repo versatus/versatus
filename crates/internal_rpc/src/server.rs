@@ -1,6 +1,9 @@
 use crate::{
     api::{IPFSDataType, InternalRpcApiServer, RpcResult},
-    job_queue::{ServiceJobApi, ServiceJobQueue, ServiceJobStatusResponse, ServiceJobType},
+    job_queue::{
+        ServiceJobApi, ServiceJobQueue, ServiceJobStatusResponse, ServiceJobType,
+        ServiceQueueChannel, ServiceReceiver, ServiceTransmitter,
+    },
 };
 use jsonrpsee::{
     core::async_trait,
@@ -20,11 +23,18 @@ pub struct InternalRpcServer;
 impl InternalRpcServer {
     /// Starts the RPC server which listens for internal calls.
     /// The server will continue to run until the handle is consumed.
-    pub async fn start<J: ServiceJobApi + Debug + 'static>(
+    pub async fn start<
+        T: ServiceTransmitter<J> + 'static,
+        R: ServiceReceiver<J> + 'static,
+        J: ServiceJobApi + Debug + 'static,
+    >(
         service_config: &ServiceConfig,
         service_type: ServiceType,
-    ) -> anyhow::Result<(ServerHandle, SocketAddr)> {
-        let rpc = InternalRpc::<J>::new(service_type)?;
+    ) -> anyhow::Result<(ServerHandle, SocketAddr, R)> {
+        let channel = ServiceQueueChannel::<T, R, J>::new();
+        let rx = channel.rx;
+        let tx = channel.tx;
+        let rpc = InternalRpc::<T, J>::new(service_type, tx)?;
         let server = ServerBuilder::default()
             .max_response_body_size(MAX_RESPONSE_SIZE)
             .max_request_body_size(MAX_REQUEST_SIZE)
@@ -42,13 +52,13 @@ impl InternalRpcServer {
         let addr = server.local_addr()?;
         let handle = server.start(rpc.into_rpc())?;
 
-        Ok((handle, addr))
+        Ok((handle, addr, rx))
     }
 }
 
 /// Represents all information available to the server and client.
 /// Calls to the [`InternalRpcApi`] rely on this structure.
-struct InternalRpc<J: ServiceJobApi + Debug> {
+struct InternalRpc<T: ServiceTransmitter<J>, J: ServiceJobApi + Debug> {
     /// An enum representing the service type. Compute, Storage, for example. More to come in the future.
     pub(crate) service_type: ServiceType,
     /// The time of the creation of the `InternalRpc`, used to get the uptime of a service.
@@ -60,10 +70,12 @@ struct InternalRpc<J: ServiceJobApi + Debug> {
     pub(crate) version: VersionNumber,
     /// The service job queue.
     pub(crate) queue: RwLock<ServiceJobQueue<J>>,
+    /// A transmitter that tracks service jobs with a built in queue.
+    pub(crate) tx: T,
 }
 
-impl<J: ServiceJobApi + Debug> InternalRpc<J> {
-    pub fn new(service_type: ServiceType) -> anyhow::Result<Self> {
+impl<T: ServiceTransmitter<J>, J: ServiceJobApi + Debug> InternalRpc<T, J> {
+    pub fn new(service_type: ServiceType, tx: T) -> anyhow::Result<Self> {
         let extra_service_capabilities = ServiceCapabilities::try_from(platform::uname()?)?;
         Ok(Self {
             service_type: service_type.clone(),
@@ -79,6 +91,7 @@ impl<J: ServiceJobApi + Debug> InternalRpc<J> {
             },
             version: VersionNumber::cargo_pkg(),
             queue: RwLock::new(ServiceJobQueue::new()),
+            tx,
         })
     }
 
@@ -115,14 +128,15 @@ impl<J: ServiceJobApi + Debug> InternalRpc<J> {
 }
 
 #[async_trait]
-impl<J: ServiceJobApi + Debug + 'static> InternalRpcApiServer for InternalRpc<J> {
+impl<T: ServiceTransmitter<J> + 'static, J: ServiceJobApi + Debug + 'static> InternalRpcApiServer
+    for InternalRpc<T, J>
+{
     async fn status(&self) -> RpcResult<ServiceStatusResponse> {
         Ok(ServiceStatusResponse::from(self))
     }
 
     async fn queue_job(&self, cid: &str, kind: ServiceJobType) -> RpcResult<uuid::Uuid> {
-        let mut queue = self.queue.write().await;
-        Ok(queue.queue_job(cid, kind))
+        Ok(self.tx.send(cid, kind))
     }
 
     async fn job_status(&self, uuid: uuid::Uuid) -> RpcResult<Option<ServiceJobStatusResponse>> {
@@ -145,8 +159,10 @@ impl<J: ServiceJobApi + Debug + 'static> InternalRpcApiServer for InternalRpc<J>
     }
 }
 
-impl<'a, J: ServiceJobApi + Debug> From<&'a InternalRpc<J>> for ServiceStatusResponse {
-    fn from(value: &'a InternalRpc<J>) -> Self {
+impl<'a, T: ServiceTransmitter<J>, J: ServiceJobApi + Debug> From<&'a InternalRpc<T, J>>
+    for ServiceStatusResponse
+{
+    fn from(value: &'a InternalRpc<T, J>) -> Self {
         Self {
             service_type: value.service_type.clone(),
             service_capabilities: value.service_capabilities,

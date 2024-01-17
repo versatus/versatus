@@ -1,11 +1,16 @@
 use anyhow::Result;
 use clap::Parser;
-use internal_rpc::{job_queue::ServiceJob, server::InternalRpcServer};
+use internal_rpc::{
+    job_queue::{
+        Receiver, ServiceJob, ServiceJobApi, ServiceJobType, ServiceReceiver, Transmitter,
+    },
+    server::InternalRpcServer,
+};
 use metric_exporter::metric_factory::PrometheusFactory;
 use platform::services::ServiceType;
 use prometheus::labels;
 use service_config::ServiceConfig;
-use telemetry::info;
+use telemetry::{error, info};
 use tokio::{signal, spawn};
 use tokio_util::sync::CancellationToken;
 
@@ -20,8 +25,30 @@ pub struct DaemonOpts;
 pub async fn run(_opts: &DaemonOpts, config: &ServiceConfig) -> Result<()> {
     // XXX: This is where we should start the RPC server listener and process incoming requests
     // using the service name and service config provided in the global command line options.
-    let (_server_handle, _server_local_addr) =
-        InternalRpcServer::start::<ServiceJob>(config, ServiceType::Compute).await?;
+    let (_server_handle, _server_local_addr, job_queue_rx) = InternalRpcServer::start::<
+        Transmitter<ServiceJob>,
+        Receiver<ServiceJob>,
+        ServiceJob,
+    >(config, ServiceType::Compute)
+    .await?;
+    let storage = config.clone(); // copy of config to satisfy the closure
+    let job_handle = std::thread::spawn(move || loop {
+        match job_queue_rx.recv() {
+            Some(compute_job) => {
+                if let ServiceJobType::Compute(job_type) = compute_job.kind() {
+                    compute_runtime::runtime::ComputeJobRunner::run(
+                        &compute_job.uuid().to_string(),
+                        &compute_job.cid(),
+                        job_type,
+                        &storage,
+                    )
+                    .expect("failed to execute compute job: {compute_job:?}");
+                }
+            }
+            None => break,
+        }
+    });
+
     let base_labels = labels! {
                 "service".to_string() => SERVICE_NAME.to_string(),
                 "source".to_string() => SERVICE_SOURCE.to_string(),

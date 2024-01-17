@@ -37,18 +37,16 @@ pub trait InternalRpcApi {
     #[method(name = "status")]
     async fn status(&self) -> RpcResult<ServiceStatusResponse>;
 
+    /// Add a job to the job queue via the queue channel's transmitter
     #[method(name = "queue_job")]
     async fn queue_job(&self, cid: &str, kind: ServiceJobType) -> RpcResult<uuid::Uuid>;
 
+    /// Get the status of a job
     #[method(name = "job_status")]
     async fn job_status(&self, uuid: uuid::Uuid) -> RpcResult<Option<ServiceJobStatusResponse>>;
 
     #[method(name = "get_object")]
-    async fn get_data(
-        &self,
-        cid: &str,
-        data_type: IPFSDataType,
-    ) -> RpcResult<Vec<u8>>;
+    async fn get_data(&self, cid: &str, data_type: IPFSDataType) -> RpcResult<Vec<u8>>;
 
     #[method(name = "pin_object")]
     async fn pin_object(&self, cid: &str, recursive: bool) -> RpcResult<Vec<String>>;
