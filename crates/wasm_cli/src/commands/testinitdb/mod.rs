@@ -40,18 +40,14 @@ pub const DEFAULT_ADDRESSES: &[Address; 10] = &[
 
 #[derive(Clone, Parser, Debug)]
 pub struct TestInitDBOpts {
-    /// This is the path to the database to be created/used. #716, this path is what we'll feed
-    /// into the database driver.
+    /// This is the path to the database to be created.
     #[clap(short, long)]
     pub dbpath: String,
-    /// Force DB to be initialised, even if it already exists. #716 I think that if this option is
-    /// missing or false, we should only recreate the database from defaults if it doesn't already
-    /// exist. If it exists, we should exit with a failure and an error message indicating that the
-    /// database already exists and to use --force.
+    /// Force DB to be initialised, even if it already exists.
     #[clap(short, long)]
     pub force: bool,
     /// Default balance for new test accounts created. The protocol supports values up to
-    /// [ethnum::U256] in size, but u128 ought to be fine for now.
+    /// U256 in size.
     #[clap(short, long)]
     pub default_balance: Option<U256>,
     #[clap(short, long)]

@@ -16,8 +16,7 @@ use crate::commands::testinitdb::*;
 
 #[derive(Parser, Debug, Clone)]
 pub struct TestBalanceOpts {
-    /// This is the path to the database to be created/used. #716, this path is what we'll feed
-    /// into the database driver.
+    /// This is the path to the database to be used.
     // TODO: Make this an option, and look for the db path in the file tree
     // using std::fs or std::env if we choose to allow it.
     // REASON: If the db path is the current directory, we should infer this.
