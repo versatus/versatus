@@ -4,14 +4,19 @@ use crate::job_queue::{
     job::{ServiceJobApi, ServiceJobState, ServiceJobStatusResponse, ServiceJobType},
     ServiceJobQueue,
 };
-use std::sync::{Arc, Condvar, Mutex};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Condvar, Mutex},
+};
+
+use super::job::ServiceJobStatus;
 
 /// The interface for transmitting messages over a [`ServiceQueueChannel`]
 pub trait ServiceTransmitter<J: ServiceJobApi>: Send + Sync {
     /// Send a job over a [`ServiceQueueChannel`] and return its UUID
     fn send(&self, cid: &str, kind: ServiceJobType) -> uuid::Uuid;
     fn new(
-        all_jobs: &Arc<Mutex<ServiceJobQueue<J>>>,
+        state: &Arc<Mutex<HashMap<uuid::Uuid, ServiceJobStatus>>>,
         store: &Arc<Mutex<ServiceJobQueue<J>>>,
         emitter: &Arc<Condvar>,
     ) -> Self;
@@ -24,8 +29,9 @@ pub trait ServiceReceiver<J: ServiceJobApi>: Send + Sync {
     /// Wait for a job to be sent over a [`ServiceQueueChannel`] and return
     /// the job when it is received
     fn recv(&self) -> Option<J>;
+    fn update_state(&self, job_opt: &Option<J>, state: ServiceJobState);
     fn new(
-        all_jobs: &Arc<Mutex<ServiceJobQueue<J>>>,
+        state: &Arc<Mutex<HashMap<uuid::Uuid, ServiceJobStatus>>>,
         store: &Arc<Mutex<ServiceJobQueue<J>>>,
         emitter: &Arc<Condvar>,
     ) -> Self;
@@ -35,7 +41,7 @@ pub trait ServiceReceiver<J: ServiceJobApi>: Send + Sync {
 #[derive(Debug)]
 pub struct Transmitter<J: ServiceJobApi> {
     /// tracks the status of any job requested by a client
-    all_jobs: Arc<Mutex<ServiceJobQueue<J>>>,
+    state: Arc<Mutex<HashMap<uuid::Uuid, ServiceJobStatus>>>,
     store: Arc<Mutex<ServiceJobQueue<J>>>,
     emitter: Arc<Condvar>,
 }
@@ -44,7 +50,10 @@ impl<J: ServiceJobApi + Clone> ServiceTransmitter<J> for Transmitter<J> {
     fn send(&self, cid: &str, kind: ServiceJobType) -> uuid::Uuid {
         let uuid = uuid::Uuid::new_v4();
         let job = J::new(cid, uuid, kind);
-        self.all_jobs.lock().unwrap().queue.push_front(job.clone());
+        self.state
+            .lock()
+            .unwrap()
+            .insert(job.uuid(), ServiceJobStatus::default());
         self.store
             .lock()
             .expect("failed to get lock for queue")
@@ -55,32 +64,29 @@ impl<J: ServiceJobApi + Clone> ServiceTransmitter<J> for Transmitter<J> {
         uuid
     }
     fn new(
-        all_jobs: &Arc<Mutex<ServiceJobQueue<J>>>,
+        state: &Arc<Mutex<HashMap<uuid::Uuid, ServiceJobStatus>>>,
         store: &Arc<Mutex<ServiceJobQueue<J>>>,
         emitter: &Arc<Condvar>,
     ) -> Self {
         Self {
-            all_jobs: Arc::clone(all_jobs),
+            state: Arc::clone(state),
             store: Arc::clone(store),
             emitter: Arc::clone(emitter),
         }
     }
     fn job_status(&self, uuid: uuid::Uuid) -> Option<ServiceJobStatusResponse> {
-        for job in self.all_jobs.lock().unwrap().queue.iter() {
-            if job.uuid() == uuid {
-                return Some(job.status());
-            }
-        }
-        None
+        self.state
+            .lock()
+            .unwrap()
+            .get(&uuid)
+            .and_then(|state| Some(state.report()))
     }
 }
 
 /// The receiving end of a [`ServiceQueueChannel`]
 #[derive(Debug)]
 pub struct Receiver<J: ServiceJobApi> {
-    // TODO(@eureka-cpu): Make this more robust
-    // possibly by using a HashMap<Uuid, J>
-    all_jobs: Arc<Mutex<ServiceJobQueue<J>>>,
+    state: Arc<Mutex<HashMap<uuid::Uuid, ServiceJobStatus>>>,
     store: Arc<Mutex<ServiceJobQueue<J>>>,
     emitter: Arc<Condvar>,
 }
@@ -93,25 +99,25 @@ impl<J: ServiceJobApi> ServiceReceiver<J> for Receiver<J> {
             store = self.emitter.wait(store).unwrap();
         }
 
-        let mut job_opt = store.queue.pop_back();
-        if let Some(current_job) = &mut job_opt {
-            for job in self.all_jobs.lock().unwrap().queue.iter_mut() {
-                if job.uuid() == current_job.uuid() {
-                    current_job.update_status(ServiceJobState::Received);
-                    job.update_status(ServiceJobState::Received);
-                    break;
-                }
-            }
-        }
+        let job_opt = store.queue.pop_back();
+        self.update_state(&job_opt, ServiceJobState::Received);
+
         job_opt
     }
+    fn update_state(&self, job_opt: &Option<J>, state: ServiceJobState) {
+        if let Some(current_job) = job_opt {
+            if let Some(job_state) = self.state.lock().unwrap().get_mut(&current_job.uuid()) {
+                job_state.update(state);
+            }
+        }
+    }
     fn new(
-        all_jobs: &Arc<Mutex<ServiceJobQueue<J>>>,
+        state: &Arc<Mutex<HashMap<uuid::Uuid, ServiceJobStatus>>>,
         store: &Arc<Mutex<ServiceJobQueue<J>>>,
         emitter: &Arc<Condvar>,
     ) -> Self {
         Self {
-            all_jobs: Arc::clone(all_jobs),
+            state: Arc::clone(state),
             store: Arc::clone(store),
             emitter: Arc::clone(emitter),
         }
@@ -134,13 +140,13 @@ impl<T: ServiceTransmitter<J>, R: ServiceReceiver<J>, J: ServiceJobApi + std::fm
     ServiceQueueChannel<T, R, J>
 {
     pub(crate) fn new() -> Self {
-        let all_jobs = Arc::new(Mutex::new(ServiceJobQueue::new()));
+        let state = Arc::new(Mutex::new(HashMap::new()));
         let store = Arc::new(Mutex::new(ServiceJobQueue::new()));
         let emitter = Arc::new(Condvar::new());
 
         Self {
-            tx: T::new(&all_jobs, &store, &emitter),
-            rx: R::new(&all_jobs, &store, &emitter),
+            tx: T::new(&state, &store, &emitter),
+            rx: R::new(&state, &store, &emitter),
             marker: std::marker::PhantomData,
         }
     }

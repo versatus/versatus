@@ -14,25 +14,22 @@ pub trait ServiceJobApi: Send + Sync {
     fn kind(&self) -> ServiceJobType;
     /// Return the [`Instant`] the job was spawned
     fn inst(&self) -> Instant;
-    /// Return the status of the job
-    fn status(&self) -> ServiceJobStatusResponse;
-    /// Update the status of a job
-    fn update_status(&mut self, state: ServiceJobState);
     /// Return the uptime of the job in seconds
     fn uptime(&self) -> u64 {
         self.inst().elapsed().as_secs()
     }
 }
 
-/// A special struct used for implementing the `ServiceJobApi` to
-/// get around certain types (`Instant`) not `implementing serde::{Serialize, Deserialize}`
+/// A special struct that implements the `ServiceJobApi`.
+/// The interface itself is used to interact with the `ServiceJob`
+/// in memory in order to side-step the `serde` derive macro
+/// requirements of `jsonrpsee`'s proc macro.
 #[derive(Debug, Clone)]
 pub struct ServiceJob {
     cid: String,
     uuid: uuid::Uuid,
     kind: ServiceJobType,
     inst: Instant,
-    status: ServiceJobStatus,
 }
 impl ServiceJobApi for ServiceJob {
     fn new(cid: &str, uuid: uuid::Uuid, kind: ServiceJobType) -> Self {
@@ -41,7 +38,6 @@ impl ServiceJobApi for ServiceJob {
             uuid,
             kind,
             inst: Instant::now(),
-            status: Default::default(),
         }
     }
     fn cid(&self) -> String {
@@ -55,12 +51,6 @@ impl ServiceJobApi for ServiceJob {
     }
     fn inst(&self) -> std::time::Instant {
         self.inst
-    }
-    fn status(&self) -> ServiceJobStatusResponse {
-        self.status.report()
-    }
-    fn update_status(&mut self, state: ServiceJobState) {
-        self.status.update(state)
     }
 }
 
@@ -117,7 +107,8 @@ impl std::str::FromStr for ComputeJobExecutionType {
     }
 }
 
-// TODO(@eureka-cpu): Impl Display and make the timestamps human-readable
+// TODO(@eureka-cpu): Impl Display and make the timestamps human-readable.
+// Overall, this could be more robust.
 /// The state of a job and the last time the state was updated.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ServiceJobStatus {
