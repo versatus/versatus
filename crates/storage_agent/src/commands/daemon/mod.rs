@@ -1,7 +1,10 @@
 use anyhow::Result;
 use clap::Parser;
 use internal_rpc::{
-    job_queue::{Receiver, ServiceJob, Transmitter},
+    job_queue::{
+        channel::{Receiver, Transmitter},
+        job::ServiceJob,
+    },
     server::InternalRpcServer,
 };
 use metric_exporter::metric_factory::PrometheusFactory;
