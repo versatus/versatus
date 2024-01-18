@@ -32,18 +32,20 @@ pub async fn run(_opts: &DaemonOpts, config: &ServiceConfig) -> Result<()> {
     >(config, ServiceType::Compute)
     .await?;
     let storage = config.clone(); // copy of config to satisfy the closure
-    let job_handle = std::thread::spawn(move || loop {
+    std::thread::spawn(move || loop {
         match job_queue_rx.recv() {
-            Some(compute_job) => {
-                if let ServiceJobType::Compute(job_type) = compute_job.kind() {
+            Some(job) => {
+                if let ServiceJobType::Compute(job_type) = job.kind() {
                     compute_runtime::runtime::ComputeJobRunner::run(
-                        &compute_job.uuid().to_string(),
-                        &compute_job.cid(),
+                        &job.uuid().to_string(),
+                        &job.cid(),
                         job_type,
                         &storage,
                     )
                     .expect("failed to execute compute job: {compute_job:?}");
-                }
+                } else {
+                    error!("expected a compute job, found: {:?}", job.kind());
+                };
             }
             None => break,
         }

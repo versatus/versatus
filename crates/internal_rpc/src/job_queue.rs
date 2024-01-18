@@ -262,6 +262,7 @@ impl<T: ServiceTransmitter<J>, R: ServiceReceiver<J>, J: ServiceJobApi + std::fm
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ServiceJobType {
     Compute(ComputeJobExecutionType),
+    Storage,
 }
 /// The type of job we're intending to execute.
 #[derive(Clone, Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
