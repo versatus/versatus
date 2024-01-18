@@ -1,23 +1,28 @@
+//! A generic channel module with a built in job queue that uses interfaces to get around
+//! the need for `serde` derive macros required by `jsonrpsee`'s proc macro.
 use crate::job_queue::{
     job::{ServiceJobApi, ServiceJobState, ServiceJobStatusResponse, ServiceJobType},
     ServiceJobQueue,
 };
 use std::sync::{Arc, Condvar, Mutex};
 
+/// The interface for transmitting messages over a [`ServiceQueueChannel`]
 pub trait ServiceTransmitter<J: ServiceJobApi>: Send + Sync {
+    /// Send a job over a [`ServiceQueueChannel`] and return its UUID
     fn send(&self, cid: &str, kind: ServiceJobType) -> uuid::Uuid;
     fn new(
         all_jobs: &Arc<Mutex<ServiceJobQueue<J>>>,
         store: &Arc<Mutex<ServiceJobQueue<J>>>,
         emitter: &Arc<Condvar>,
     ) -> Self;
-    /// Get the status of a job in queue. Takes O(n) time.
-    /// Best case scenario, the job in question is the last job in queue,
-    /// ie. it's the first item in the vec.
+    /// Get the status of a job
     fn job_status(&self, uuid: uuid::Uuid) -> Option<ServiceJobStatusResponse>;
 }
 
+/// The interface for receiving messages over a [`ServiceQueueChannel`]
 pub trait ServiceReceiver<J: ServiceJobApi>: Send + Sync {
+    /// Wait for a job to be sent over a [`ServiceQueueChannel`] and return
+    /// the job when it is received
     fn recv(&self) -> Option<J>;
     fn new(
         all_jobs: &Arc<Mutex<ServiceJobQueue<J>>>,
@@ -26,6 +31,7 @@ pub trait ServiceReceiver<J: ServiceJobApi>: Send + Sync {
     ) -> Self;
 }
 
+/// The transmitting end of a [`ServiceQueueChannel`]
 #[derive(Debug)]
 pub struct Transmitter<J: ServiceJobApi> {
     /// tracks the status of any job requested by a client
@@ -35,7 +41,6 @@ pub struct Transmitter<J: ServiceJobApi> {
 }
 impl<J: ServiceJobApi + Clone> ServiceTransmitter<J> for Transmitter<J> {
     // TODO(@eureka-cpu): Use if let and return an Option<Uuid>
-    /// Add a new job to the front of the queue.
     fn send(&self, cid: &str, kind: ServiceJobType) -> uuid::Uuid {
         let uuid = uuid::Uuid::new_v4();
         let job = J::new(cid, uuid, kind);
@@ -60,9 +65,6 @@ impl<J: ServiceJobApi + Clone> ServiceTransmitter<J> for Transmitter<J> {
             emitter: Arc::clone(emitter),
         }
     }
-    /// Get the status of a job in queue. Takes O(n) time.
-    /// Best case scenario, the job in question is the last job in queue,
-    /// ie. it's the first item in the vec.
     fn job_status(&self, uuid: uuid::Uuid) -> Option<ServiceJobStatusResponse> {
         for job in self.all_jobs.lock().unwrap().queue.iter() {
             if job.uuid() == uuid {
@@ -73,6 +75,7 @@ impl<J: ServiceJobApi + Clone> ServiceTransmitter<J> for Transmitter<J> {
     }
 }
 
+/// The receiving end of a [`ServiceQueueChannel`]
 #[derive(Debug)]
 pub struct Receiver<J: ServiceJobApi> {
     // TODO(@eureka-cpu): Make this more robust
