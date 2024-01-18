@@ -2,8 +2,8 @@
 
 use crate::api::IPFSDataType;
 use crate::job_queue::{
-    ComputeJobExecutionType, ServiceJobApi, ServiceJobState, ServiceJobStatus,
-    ServiceJobStatusResponse, ServiceJobType,
+    ComputeJobExecutionType, Receiver, ServiceJob, ServiceJobState, ServiceJobType,
+    ServiceReceiver, Transmitter,
 };
 use crate::{api::InternalRpcApiClient, client::InternalRpcClient, server::InternalRpcServer};
 use serial_test::serial;
@@ -23,50 +23,16 @@ fn test_service_config() -> ServiceConfig {
     }
 }
 
-#[derive(Debug)]
-struct TestJob {
-    cid: String,
-    uuid: uuid::Uuid,
-    kind: ServiceJobType,
-    inst: std::time::Instant,
-    status: ServiceJobStatus,
-}
-impl ServiceJobApi for TestJob {
-    fn new(cid: &str, uuid: uuid::Uuid, kind: crate::job_queue::ServiceJobType) -> Self {
-        Self {
-            cid: cid.into(),
-            uuid,
-            kind,
-            inst: std::time::Instant::now(),
-            status: Default::default(),
-        }
-    }
-    fn cid(&self) -> String {
-        self.cid.clone()
-    }
-    fn uuid(&self) -> uuid::Uuid {
-        self.uuid
-    }
-    fn kind(&self) -> crate::job_queue::ServiceJobType {
-        self.kind.clone()
-    }
-    fn inst(&self) -> std::time::Instant {
-        self.inst
-    }
-    fn status(&self) -> ServiceJobStatusResponse {
-        self.status.report()
-    }
-}
-
 #[tokio::test]
 #[serial]
 async fn test_start_server() {
-    let (handle, _socket) = InternalRpcServer::start::<TestJob>(
-        &test_service_config(),
-        platform::services::ServiceType::Compute,
-    )
-    .await
-    .unwrap();
+    let (handle, _socket, _) =
+        InternalRpcServer::start::<Transmitter<ServiceJob>, Receiver<ServiceJob>, ServiceJob>(
+            &test_service_config(),
+            platform::services::ServiceType::Compute,
+        )
+        .await
+        .unwrap();
 
     handle.stop().unwrap();
     let _ = handle;
@@ -75,12 +41,13 @@ async fn test_start_server() {
 #[tokio::test]
 #[serial]
 async fn test_client_connection_to_server() {
-    let (handle, socket) = InternalRpcServer::start::<TestJob>(
-        &test_service_config(),
-        platform::services::ServiceType::Compute,
-    )
-    .await
-    .unwrap();
+    let (handle, socket, _) =
+        InternalRpcServer::start::<Transmitter<ServiceJob>, Receiver<ServiceJob>, ServiceJob>(
+            &test_service_config(),
+            platform::services::ServiceType::Compute,
+        )
+        .await
+        .unwrap();
     let client = InternalRpcClient::new(socket).await.unwrap();
     assert!(client.is_connected());
 
@@ -92,10 +59,11 @@ async fn test_client_connection_to_server() {
 #[serial]
 async fn test_get_response_from_server() {
     let service_config = test_service_config();
-    let (handle, socket) = InternalRpcServer::start::<TestJob>(
-        &service_config,
-        platform::services::ServiceType::Compute,
-    )
+    let (handle, socket, _) = InternalRpcServer::start::<
+        Transmitter<ServiceJob>,
+        Receiver<ServiceJob>,
+        ServiceJob,
+    >(&service_config, platform::services::ServiceType::Compute)
     .await
     .unwrap();
     let client = InternalRpcClient::new(socket).await.unwrap();
@@ -113,10 +81,11 @@ async fn test_get_response_from_server() {
 async fn test_is_object_pinned_from_server() {
     let sample_cid = "bafyreibd2pk7qsmsi5hab6xuvm37qvjlmyjcweiej2dg7nedpd4bwdsgw4";
     let service_config = test_service_config();
-    let (handle, socket) = InternalRpcServer::start::<TestJob>(
-        &service_config,
-        platform::services::ServiceType::Compute,
-    )
+    let (handle, socket, _) = InternalRpcServer::start::<
+        Transmitter<ServiceJob>,
+        Receiver<ServiceJob>,
+        ServiceJob,
+    >(&service_config, platform::services::ServiceType::Compute)
     .await
     .unwrap();
     let client = InternalRpcClient::new(socket).await.unwrap();
@@ -132,10 +101,11 @@ async fn test_is_object_pinned_from_server() {
 async fn test_is_retrieve_obj_from_server() {
     let sample_cid = "bafyreibd2pk7qsmsi5hab6xuvm37qvjlmyjcweiej2dg7nedpd4bwdsgw4";
     let service_config = test_service_config();
-    let (handle, socket) = InternalRpcServer::start::<TestJob>(
-        &service_config,
-        platform::services::ServiceType::Storage,
-    )
+    let (handle, socket, _) = InternalRpcServer::start::<
+        Transmitter<ServiceJob>,
+        Receiver<ServiceJob>,
+        ServiceJob,
+    >(&service_config, platform::services::ServiceType::Storage)
     .await
     .unwrap();
     let client = InternalRpcClient::new(socket).await.unwrap();
@@ -155,10 +125,11 @@ async fn test_is_retrieve_obj_from_server() {
 async fn test_pin_object() {
     let sample_cid = "bafyreibd2pk7qsmsi5hab6xuvm37qvjlmyjcweiej2dg7nedpd4bwdsgw4";
     let service_config = test_service_config();
-    let (handle, socket) = InternalRpcServer::start::<TestJob>(
-        &service_config,
-        platform::services::ServiceType::Storage,
-    )
+    let (handle, socket, _) = InternalRpcServer::start::<
+        Transmitter<ServiceJob>,
+        Receiver<ServiceJob>,
+        ServiceJob,
+    >(&service_config, platform::services::ServiceType::Storage)
     .await
     .unwrap();
     let client = InternalRpcClient::new(socket).await.unwrap();
@@ -173,13 +144,20 @@ async fn test_pin_object() {
 async fn test_queue_job() {
     let sample_cid = "bafyreibd2pk7qsmsi5hab6xuvm37qvjlmyjcweiej2dg7nedpd4bwdsgw4";
     let service_config = test_service_config();
-    let (handle, socket) = InternalRpcServer::start::<TestJob>(
-        &service_config,
-        platform::services::ServiceType::Compute,
-    )
-    .await
-    .unwrap();
+    let (handle, socket, job_queue_rx) =
+        InternalRpcServer::start::<Transmitter<ServiceJob>, Receiver<ServiceJob>, ServiceJob>(
+            &service_config,
+            platform::services::ServiceType::Compute,
+        )
+        .await
+        .unwrap();
     let client = InternalRpcClient::new(socket).await.unwrap();
+    let job_handle = std::thread::spawn(move || loop {
+        match job_queue_rx.recv() {
+            Some(_compute_job) => {}
+            None => break,
+        }
+    });
     let uuid = client
         .0
         .queue_job(
@@ -190,9 +168,10 @@ async fn test_queue_job() {
         .unwrap();
     std::thread::sleep(std::time::Duration::from_secs(3));
     let res = client.0.job_status(uuid).await.unwrap().unwrap();
-    assert_eq!(ServiceJobState::Waiting, res.status);
+    assert_eq!(ServiceJobState::Received, res.status);
     assert_eq!(3, res.uptime);
 
+    let _ = job_handle;
     handle.stop().unwrap();
     let _ = handle;
 }

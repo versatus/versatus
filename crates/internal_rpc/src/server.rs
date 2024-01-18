@@ -1,8 +1,8 @@
 use crate::{
     api::{IPFSDataType, InternalRpcApiServer, RpcResult},
     job_queue::{
-        ServiceJobApi, ServiceJobQueue, ServiceJobStatusResponse, ServiceJobType,
-        ServiceQueueChannel, ServiceReceiver, ServiceTransmitter,
+        ServiceJobApi, ServiceJobStatusResponse, ServiceJobType, ServiceQueueChannel,
+        ServiceReceiver, ServiceTransmitter,
     },
 };
 use jsonrpsee::{
@@ -13,7 +13,6 @@ use log::info;
 use platform::services::*;
 use service_config::ServiceConfig;
 use std::{fmt::Debug, net::SocketAddr};
-use tokio::sync::RwLock;
 use web3_pkg::web3_store::Web3Store;
 
 pub const MAX_RESPONSE_SIZE: u32 = 104_857_600;
@@ -68,10 +67,9 @@ struct InternalRpc<T: ServiceTransmitter<J>, J: ServiceJobApi + Debug> {
     pub(crate) service_capabilities: ServiceCapabilities,
     /// The `CARGO_PKG_VERSION` as specified by `std::env`.
     pub(crate) version: VersionNumber,
-    /// The service job queue.
-    pub(crate) queue: RwLock<ServiceJobQueue<J>>,
     /// A transmitter that tracks service jobs with a built in queue.
     pub(crate) tx: T,
+    marker: std::marker::PhantomData<J>,
 }
 
 impl<T: ServiceTransmitter<J>, J: ServiceJobApi + Debug> InternalRpc<T, J> {
@@ -90,8 +88,8 @@ impl<T: ServiceTransmitter<J>, J: ServiceJobApi + Debug> InternalRpc<T, J> {
                 _ => extra_service_capabilities,
             },
             version: VersionNumber::cargo_pkg(),
-            queue: RwLock::new(ServiceJobQueue::new()),
             tx,
+            marker: std::marker::PhantomData,
         })
     }
 
@@ -140,8 +138,7 @@ impl<T: ServiceTransmitter<J> + 'static, J: ServiceJobApi + Debug + 'static> Int
     }
 
     async fn job_status(&self, uuid: uuid::Uuid) -> RpcResult<Option<ServiceJobStatusResponse>> {
-        let queue = self.queue.read().await;
-        Ok(queue.job_status(uuid))
+        Ok(self.tx.job_status(uuid))
     }
 
     async fn get_data(&self, cid: &str, data_type: IPFSDataType) -> RpcResult<Vec<u8>> {

@@ -22,6 +22,8 @@ pub trait ServiceJobApi: Send + Sync {
     fn inst(&self) -> Instant;
     /// Return the status of the job
     fn status(&self) -> ServiceJobStatusResponse;
+    /// Update the status of a job
+    fn update_status(&mut self, state: ServiceJobState);
     /// Return the uptime of the job in seconds
     fn uptime(&self) -> u64 {
         self.inst().elapsed().as_secs()
@@ -30,7 +32,7 @@ pub trait ServiceJobApi: Send + Sync {
 
 /// A special struct used for implementing the `ServiceJobApi` to
 /// get around certain types (`Instant`) not `implementing serde::{Serialize, Deserialize}`
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ServiceJob {
     cid: String,
     uuid: uuid::Uuid,
@@ -63,19 +65,25 @@ impl ServiceJobApi for ServiceJob {
     fn status(&self) -> ServiceJobStatusResponse {
         self.status.report()
     }
+    fn update_status(&mut self, state: ServiceJobState) {
+        self.status.update(state)
+    }
 }
 
 /// The state of a job.
 #[derive(Clone, Debug, PartialEq, Default, Serialize, Deserialize)]
 pub enum ServiceJobState {
-    /// Job is in queue
+    /// Job was sent to the server
     #[default]
-    Waiting,
-    /// Job is in progress
-    Running,
+    Sent,
+    /// Job was received by a [`ServiceReceiver`]
+    Received,
+    /// Job has started
+    InProgress,
     /// Job is completed
     Complete,
 }
+// TODO(@eureka-cpu): Impl Display and make the timestamps human-readable
 /// The state of a job and the last time the state was updated.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ServiceJobStatus {
@@ -119,42 +127,77 @@ pub struct ServiceJobQueue<J: ServiceJobApi> {
 }
 #[derive(Debug)]
 pub struct Transmitter<J: ServiceJobApi> {
+    /// tracks the status of any job requested by a client
+    all_jobs: Arc<Mutex<ServiceJobQueue<J>>>,
     store: Arc<Mutex<ServiceJobQueue<J>>>,
     emitter: Arc<Condvar>,
 }
 pub trait ServiceTransmitter<J: ServiceJobApi>: Send + Sync {
     fn send(&self, cid: &str, kind: ServiceJobType) -> uuid::Uuid;
-    fn new(store: &Arc<Mutex<ServiceJobQueue<J>>>, emitter: &Arc<Condvar>) -> Self;
+    fn new(
+        all_jobs: &Arc<Mutex<ServiceJobQueue<J>>>,
+        store: &Arc<Mutex<ServiceJobQueue<J>>>,
+        emitter: &Arc<Condvar>,
+    ) -> Self;
+    /// Get the status of a job in queue. Takes O(n) time.
+    /// Best case scenario, the job in question is the last job in queue,
+    /// ie. it's the first item in the vec.
+    fn job_status(&self, uuid: uuid::Uuid) -> Option<ServiceJobStatusResponse>;
 }
-impl<J: ServiceJobApi> ServiceTransmitter<J> for Transmitter<J> {
+impl<J: ServiceJobApi + Clone> ServiceTransmitter<J> for Transmitter<J> {
     // TODO(@eureka-cpu): Use if let and return an Option<Uuid>
     /// Add a new job to the front of the queue.
     fn send(&self, cid: &str, kind: ServiceJobType) -> uuid::Uuid {
         let uuid = uuid::Uuid::new_v4();
+        let job = J::new(cid, uuid, kind);
+        self.all_jobs.lock().unwrap().queue.push_front(job.clone());
         self.store
             .lock()
             .expect("failed to get lock for queue")
             .queue
-            .push_front(J::new(cid, uuid, kind));
+            .push_front(job);
         self.emitter.notify_one();
 
         uuid
     }
-    fn new(store: &Arc<Mutex<ServiceJobQueue<J>>>, emitter: &Arc<Condvar>) -> Self {
+    fn new(
+        all_jobs: &Arc<Mutex<ServiceJobQueue<J>>>,
+        store: &Arc<Mutex<ServiceJobQueue<J>>>,
+        emitter: &Arc<Condvar>,
+    ) -> Self {
         Self {
+            all_jobs: Arc::clone(all_jobs),
             store: Arc::clone(store),
             emitter: Arc::clone(emitter),
         }
     }
+    /// Get the status of a job in queue. Takes O(n) time.
+    /// Best case scenario, the job in question is the last job in queue,
+    /// ie. it's the first item in the vec.
+    fn job_status(&self, uuid: uuid::Uuid) -> Option<ServiceJobStatusResponse> {
+        for job in self.all_jobs.lock().unwrap().queue.iter() {
+            if job.uuid() == uuid {
+                return Some(job.status());
+            }
+        }
+        None
+    }
 }
 #[derive(Debug)]
 pub struct Receiver<J: ServiceJobApi> {
+    // TODO(@eureka-cpu): Make this more robust
+    // possibly by using a HashMap<Uuid, J>
+    all_jobs: Arc<Mutex<ServiceJobQueue<J>>>,
     store: Arc<Mutex<ServiceJobQueue<J>>>,
     emitter: Arc<Condvar>,
 }
 pub trait ServiceReceiver<J: ServiceJobApi>: Send + Sync {
     fn recv(&self) -> Option<J>;
-    fn new(store: &Arc<Mutex<ServiceJobQueue<J>>>, emitter: &Arc<Condvar>) -> Self;
+    fn new(
+        all_jobs: &Arc<Mutex<ServiceJobQueue<J>>>,
+        store: &Arc<Mutex<ServiceJobQueue<J>>>,
+        emitter: &Arc<Condvar>,
+    ) -> Self;
 }
 impl<J: ServiceJobApi> ServiceReceiver<J> for Receiver<J> {
     /// Wait for a job to be queued by a client.
@@ -165,10 +208,25 @@ impl<J: ServiceJobApi> ServiceReceiver<J> for Receiver<J> {
             store = self.emitter.wait(store).unwrap();
         }
 
-        store.queue.pop_back()
+        let mut job_opt = store.queue.pop_back();
+        if let Some(current_job) = &mut job_opt {
+            for job in self.all_jobs.lock().unwrap().queue.iter_mut() {
+                if job.uuid() == current_job.uuid() {
+                    current_job.update_status(ServiceJobState::Received);
+                    job.update_status(ServiceJobState::Received);
+                    break;
+                }
+            }
+        }
+        job_opt
     }
-    fn new(store: &Arc<Mutex<ServiceJobQueue<J>>>, emitter: &Arc<Condvar>) -> Self {
+    fn new(
+        all_jobs: &Arc<Mutex<ServiceJobQueue<J>>>,
+        store: &Arc<Mutex<ServiceJobQueue<J>>>,
+        emitter: &Arc<Condvar>,
+    ) -> Self {
         Self {
+            all_jobs: Arc::clone(all_jobs),
             store: Arc::clone(store),
             emitter: Arc::clone(emitter),
         }
@@ -188,12 +246,13 @@ impl<T: ServiceTransmitter<J>, R: ServiceReceiver<J>, J: ServiceJobApi + std::fm
     ServiceQueueChannel<T, R, J>
 {
     pub(crate) fn new() -> Self {
+        let all_jobs = Arc::new(Mutex::new(ServiceJobQueue::new()));
         let store = Arc::new(Mutex::new(ServiceJobQueue::new()));
         let emitter = Arc::new(Condvar::new());
 
         Self {
-            tx: T::new(&store, &emitter),
-            rx: R::new(&store, &emitter),
+            tx: T::new(&all_jobs, &store, &emitter),
+            rx: R::new(&all_jobs, &store, &emitter),
             marker: std::marker::PhantomData,
         }
     }
@@ -254,55 +313,5 @@ impl<J: ServiceJobApi + fmt::Debug> ServiceJobQueue<J> {
         Self {
             queue: VecDeque::new(),
         }
-    }
-    /// Add a new job to the front of the queue.
-    pub(crate) fn queue_job(&mut self, cid: &str, kind: ServiceJobType) -> uuid::Uuid {
-        let uuid = uuid::Uuid::new_v4();
-        self.queue.push_front(J::new(cid, uuid, kind));
-        uuid
-    }
-    /// Get the status of a job in queue. Takes O(n) time.
-    /// Best case scenario, the job in question is the last job in queue,
-    /// ie. it's the first item in the vec.
-    pub(crate) fn job_status(&self, uuid: uuid::Uuid) -> Option<ServiceJobStatusResponse> {
-        for job in self.queue.iter() {
-            if job.uuid() == uuid {
-                return Some(job.status());
-            }
-        }
-        None
-    }
-    /// De-queue a job from the end of the queue once it is complete.
-    /// This is only to be used by the automated process when a job completes.
-    /// To remove a particular job manually, use the `kill_job` method.
-    // This operation take O(1) time.
-    pub(crate) fn dequeue_job(&mut self, uuid_opt: Option<&uuid::Uuid>) -> Result<()> {
-        if let Some(job) = self.queue.pop_back() {
-            if let Some(uuid) = uuid_opt {
-                if &job.uuid() == uuid {
-                    println!("{job:?} completed in {}s", job.uptime());
-                    Ok(())
-                } else {
-                    Err(anyhow::anyhow!("given CID is not the current job"))
-                }
-            } else {
-                println!("{job:?} completed in {}s", job.uptime());
-                Ok(())
-            }
-        } else {
-            Err(anyhow::anyhow!("job queue is empty"))
-        }
-    }
-    /// Remove a job from queue that is not the current job.
-    // Takes O(n) time, but I don't realistically see this being
-    // used often so the trade off isn't bad.
-    pub(crate) fn kill_job(&mut self, uuid: &uuid::Uuid) -> Result<()> {
-        for (pos, job) in self.queue.iter().enumerate() {
-            if &job.uuid() == uuid {
-                self.queue.remove(pos);
-                break;
-            }
-        }
-        Ok(())
     }
 }
