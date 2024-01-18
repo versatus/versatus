@@ -150,6 +150,8 @@ pub enum ServiceJobState {
     InProgress,
     /// Job is completed
     Complete,
+    /// Job failed to complete
+    Failed,
 }
 
 /// The reponse sent from the server when requested by a client

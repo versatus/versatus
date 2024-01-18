@@ -3,7 +3,7 @@ use clap::Parser;
 use internal_rpc::{
     job_queue::{
         channel::{Receiver, ServiceReceiver, Transmitter},
-        job::{ServiceJob, ServiceJobApi, ServiceJobType},
+        job::{ServiceJob, ServiceJobApi, ServiceJobState, ServiceJobType},
     },
     server::InternalRpcServer,
 };
@@ -37,16 +37,22 @@ pub async fn run(_opts: &DaemonOpts, config: &ServiceConfig) -> Result<()> {
         match job_queue_rx.recv() {
             Some(job) => {
                 if let ServiceJobType::Compute(job_type) = job.kind() {
-                    compute_runtime::runtime::ComputeJobRunner::run(
+                    job_queue_rx.update_state(&Some(job.clone()), ServiceJobState::InProgress);
+                    if let Err(err) = compute_runtime::runtime::ComputeJobRunner::run(
                         &job.uuid().to_string(),
                         &job.cid(),
                         job_type,
                         &storage,
-                    )
-                    .expect("failed to execute compute job: {compute_job:?}");
+                    ) {
+                        error!("failed to execute compute job {:?}: {:?}", job, err);
+                        job_queue_rx.update_state(&Some(job), ServiceJobState::Failed);
+                    } else {
+                        info!("compute job {:?} was successfully completed", job);
+                        job_queue_rx.update_state(&Some(job), ServiceJobState::Complete);
+                    }
                 } else {
                     error!("expected a compute job, found: {:?}", job.kind());
-                };
+                }
             }
             None => break,
         }
