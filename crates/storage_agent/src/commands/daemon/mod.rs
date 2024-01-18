@@ -1,6 +1,9 @@
 use anyhow::Result;
 use clap::Parser;
-use internal_rpc::{job_queue::ServiceJob, server::InternalRpcServer};
+use internal_rpc::{
+    job_queue::{Receiver, ServiceJob, Transmitter},
+    server::InternalRpcServer,
+};
 use metric_exporter::metric_factory::PrometheusFactory;
 use platform::services::ServiceType;
 use prometheus::labels;
@@ -20,8 +23,12 @@ pub struct DaemonOpts;
 pub async fn run(_opts: &DaemonOpts, config: &ServiceConfig) -> Result<()> {
     // XXX: This is where we should start the RPC server listener and process incoming requests
     // using the service name and service config provided in the global command line options.
-    let (_server_handle, _server_local_addr) =
-        InternalRpcServer::start::<ServiceJob>(config, ServiceType::Storage).await?;
+    let (_server_handle, _server_local_addr, _job_queue_rx) = InternalRpcServer::start::<
+        Transmitter<ServiceJob>,
+        Receiver<ServiceJob>,
+        ServiceJob,
+    >(config, ServiceType::Storage)
+    .await?;
 
     let base_labels = labels! {
                 "service".to_string() => SERVICE_NAME.to_string(),
