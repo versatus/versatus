@@ -1,8 +1,8 @@
 use crate::{
     api::{IPFSDataType, InternalRpcApiServer, RpcResult},
     job_queue::{
-        ServiceJobApi, ServiceJobStatusResponse, ServiceJobType, ServiceQueueChannel,
-        ServiceReceiver, ServiceTransmitter,
+        channel::{ServiceQueueChannel, ServiceReceiver, ServiceTransmitter},
+        job::{ServiceJobApi, ServiceJobStatusResponse, ServiceJobType},
     },
 };
 use jsonrpsee::{

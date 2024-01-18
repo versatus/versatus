@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::str::FromStr;
 
-use crate::job_queue::{ServiceJobStatusResponse, ServiceJobType};
+use crate::job_queue::job::{ServiceJobStatusResponse, ServiceJobType};
 pub(crate) type RpcResult<T> = Result<T, jsonrpsee::core::Error>;
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]

@@ -2,8 +2,8 @@
 
 use crate::api::IPFSDataType;
 use crate::job_queue::{
-    ComputeJobExecutionType, Receiver, ServiceJob, ServiceJobState, ServiceJobType,
-    ServiceReceiver, Transmitter,
+    channel::{Receiver, ServiceReceiver, Transmitter},
+    job::{ComputeJobExecutionType, ServiceJob, ServiceJobState, ServiceJobType},
 };
 use crate::{api::InternalRpcApiClient, client::InternalRpcClient, server::InternalRpcServer};
 use serial_test::serial;
