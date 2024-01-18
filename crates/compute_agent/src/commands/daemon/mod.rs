@@ -2,7 +2,8 @@ use anyhow::Result;
 use clap::Parser;
 use internal_rpc::{
     job_queue::{
-        Receiver, ServiceJob, ServiceJobApi, ServiceJobType, ServiceReceiver, Transmitter,
+        channel::{Receiver, ServiceReceiver, Transmitter},
+        job::{ServiceJob, ServiceJobApi, ServiceJobType},
     },
     server::InternalRpcServer,
 };

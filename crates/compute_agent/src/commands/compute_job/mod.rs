@@ -1,5 +1,5 @@
 use clap::Parser;
-use internal_rpc::job_queue::ComputeJobExecutionType;
+use internal_rpc::job_queue::job::ComputeJobExecutionType;
 
 pub mod job_status;
 pub mod queue_job;

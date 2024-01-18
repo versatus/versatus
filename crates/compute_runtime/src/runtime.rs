@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use bitmask_enum::bitmask;
 use flate2::write::GzEncoder;
 use flate2::Compression;
-use internal_rpc::job_queue::ComputeJobExecutionType;
+use internal_rpc::job_queue::job::ComputeJobExecutionType;
 use internal_rpc::{api::IPFSDataType, api::InternalRpcApiClient, client::InternalRpcClient};
 use log::{debug, info};
 use mktemp::Temp;

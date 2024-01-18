@@ -1,7 +1,7 @@
 use crate::commands::compute_job::ComputeJobOpts;
 use anyhow::Result;
 use internal_rpc::{
-    api::InternalRpcApiClient, client::InternalRpcClient, job_queue::ServiceJobType,
+    api::InternalRpcApiClient, client::InternalRpcClient, job_queue::job::ServiceJobType,
 };
 use service_config::ServiceConfig;
 
