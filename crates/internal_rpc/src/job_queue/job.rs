@@ -31,6 +31,7 @@ pub struct ServiceJob {
     cid: String,
     uuid: uuid::Uuid,
     kind: ServiceJobType,
+    /// Stringified JSON inputs to a job.
     inputs: String,
     inst: Instant,
 }
