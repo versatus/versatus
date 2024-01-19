@@ -14,7 +14,7 @@ use super::job::ServiceJobStatus;
 /// The interface for transmitting messages over a [`ServiceQueueChannel`]
 pub trait ServiceTransmitter<J: ServiceJobApi>: Send + Sync {
     /// Send a job over a [`ServiceQueueChannel`] and return its UUID
-    fn send(&self, cid: &str, kind: ServiceJobType) -> uuid::Uuid;
+    fn send(&self, cid: &str, kind: ServiceJobType, inputs: String) -> uuid::Uuid;
     fn new(
         state: &Arc<Mutex<HashMap<uuid::Uuid, ServiceJobStatus>>>,
         store: &Arc<Mutex<ServiceJobQueue<J>>>,
@@ -47,9 +47,9 @@ pub struct Transmitter<J: ServiceJobApi> {
 }
 impl<J: ServiceJobApi + Clone> ServiceTransmitter<J> for Transmitter<J> {
     // TODO(@eureka-cpu): Use if let and return an Option<Uuid>
-    fn send(&self, cid: &str, kind: ServiceJobType) -> uuid::Uuid {
+    fn send(&self, cid: &str, kind: ServiceJobType, inputs: String) -> uuid::Uuid {
         let uuid = uuid::Uuid::new_v4();
-        let job = J::new(cid, uuid, kind);
+        let job = J::new(cid, uuid, kind, inputs);
         self.state
             .lock()
             .unwrap()
@@ -79,7 +79,7 @@ impl<J: ServiceJobApi + Clone> ServiceTransmitter<J> for Transmitter<J> {
             .lock()
             .unwrap()
             .get(&uuid)
-            .and_then(|state| Some(state.report()))
+            .map(|state| state.report())
     }
 }
 

@@ -5,13 +5,15 @@ use std::{fmt, time::Instant};
 /// in the [`ServiceJobQueue`]
 pub trait ServiceJobApi: Send + Sync {
     /// Create a new service job
-    fn new(cid: &str, uuid: uuid::Uuid, kind: ServiceJobType) -> Self;
+    fn new(cid: &str, uuid: uuid::Uuid, kind: ServiceJobType, inputs: String) -> Self;
     /// Return the job's CID
     fn cid(&self) -> String;
     /// Return the job's UUID
     fn uuid(&self) -> uuid::Uuid;
     /// Return the type of the job
     fn kind(&self) -> ServiceJobType;
+    /// The JSON inputs needed to run the job
+    fn inputs(&self) -> &str;
     /// Return the [`Instant`] the job was spawned
     fn inst(&self) -> Instant;
     /// Return the uptime of the job in seconds
@@ -29,14 +31,16 @@ pub struct ServiceJob {
     cid: String,
     uuid: uuid::Uuid,
     kind: ServiceJobType,
+    inputs: String,
     inst: Instant,
 }
 impl ServiceJobApi for ServiceJob {
-    fn new(cid: &str, uuid: uuid::Uuid, kind: ServiceJobType) -> Self {
+    fn new(cid: &str, uuid: uuid::Uuid, kind: ServiceJobType, inputs: String) -> Self {
         Self {
             cid: cid.into(),
             uuid,
             kind,
+            inputs,
             inst: Instant::now(),
         }
     }
@@ -48,6 +52,9 @@ impl ServiceJobApi for ServiceJob {
     }
     fn kind(&self) -> ServiceJobType {
         self.kind.clone()
+    }
+    fn inputs(&self) -> &str {
+        &self.inputs
     }
     fn inst(&self) -> std::time::Instant {
         self.inst

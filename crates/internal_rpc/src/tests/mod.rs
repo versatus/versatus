@@ -163,6 +163,7 @@ async fn test_queue_job() {
         .queue_job(
             sample_cid,
             ServiceJobType::Compute(ComputeJobExecutionType::Null),
+            "test".to_string(),
         )
         .await
         .unwrap();

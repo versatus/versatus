@@ -133,8 +133,13 @@ impl<T: ServiceTransmitter<J> + 'static, J: ServiceJobApi + Debug + 'static> Int
         Ok(ServiceStatusResponse::from(self))
     }
 
-    async fn queue_job(&self, cid: &str, kind: ServiceJobType) -> RpcResult<uuid::Uuid> {
-        Ok(self.tx.send(cid, kind))
+    async fn queue_job(
+        &self,
+        cid: &str,
+        kind: ServiceJobType,
+        inputs: String,
+    ) -> RpcResult<uuid::Uuid> {
+        Ok(self.tx.send(cid, kind, inputs))
     }
 
     async fn job_status(&self, uuid: uuid::Uuid) -> RpcResult<Option<ServiceJobStatusResponse>> {

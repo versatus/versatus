@@ -39,7 +39,12 @@ pub trait InternalRpcApi {
 
     /// Add a job to the job queue via the queue channel's transmitter
     #[method(name = "queue_job")]
-    async fn queue_job(&self, cid: &str, kind: ServiceJobType) -> RpcResult<uuid::Uuid>;
+    async fn queue_job(
+        &self,
+        cid: &str,
+        kind: ServiceJobType,
+        inputs: String,
+    ) -> RpcResult<uuid::Uuid>;
 
     /// Get the status of a job
     #[method(name = "job_status")]
