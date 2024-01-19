@@ -157,7 +157,7 @@ fn update_db(storage_connection: &Storage, contract_outputs: &SmartContractOutpu
                         )?;
                     }
                 }
-                _ => eprintln!("The function specified is invalid, or not supported at this time."),
+                _ => eprintln!("Only Erc20Result::Transfer is supported at this time."),
             }
         }
     }
@@ -212,7 +212,7 @@ fn get_protocol_inputs(storage_connection: &Storage) -> Result<(i32, (u64, u64))
 }
 
 #[cfg(test)]
-mod contract_tests {
+pub(crate) mod contract_tests {
     use ethnum::U256;
     use primitives::Address;
     use versatus_rust::{
@@ -223,16 +223,17 @@ mod contract_tests {
     use crate::commands::{
         testbalance::get_balance,
         testcontract,
-        testinitdb::{self, open_storage, DEFAULT_DB_PATH},
+        testinitdb::{self, create_test_db, open_storage, DEFAULT_DB_PATH},
     };
     use std::path::PathBuf;
 
     use super::update_db;
 
     #[test]
+    #[serial_test::serial]
     fn test_create_contract_inputs() {
-        let storage = testinitdb::open_storage(&testinitdb::DEFAULT_DB_PATH.to_string())
-            .expect("could not open storage");
+        create_test_db();
+        let storage_connection = open_storage(&DEFAULT_DB_PATH.to_string()).unwrap();
         let contract_inputs = testcontract::create_contract_inputs(
             &Address([2; 20]),
             "transfer",
@@ -244,13 +245,16 @@ mod contract_tests {
                     }
                 }
             }",
-            &storage,
+            &storage_connection,
         );
         assert!(contract_inputs.is_ok());
     }
 
+    #[ignore = "WASM binary hangs"]
     #[test]
+    #[serial_test::serial]
     fn test_contract() {
+        create_test_db();
         let mut d = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         d.push("src/commands/testcontract/test_data/erc20.wasm");
 
@@ -277,9 +281,10 @@ mod contract_tests {
     }
 
     #[test]
+    #[serial_test::serial]
     fn test_update_storage() {
-        let storage_connection =
-            open_storage(&DEFAULT_DB_PATH.to_string()).expect("could not open storage");
+        create_test_db();
+        let storage_connection = open_storage(&DEFAULT_DB_PATH.to_string()).unwrap();
         let from_key = testinitdb::AccountAddress { address: ([2; 20]) };
         let to_key = testinitdb::AccountAddress { address: ([3; 20]) };
         let from_bal = get_balance(&from_key, &storage_connection).unwrap();

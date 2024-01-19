@@ -30,3 +30,6 @@ serde = { workspace = true }
 serde_derive = { workspace = true }
 serde_json = { workspace = true }
 versatus-rust = { git = "https://github.com/versatus/versatus-rust" }
+
+[dev-dependencies]
+serial_test = { workspace = true }

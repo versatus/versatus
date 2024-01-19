@@ -207,9 +207,15 @@ FAIL: {e:?}",
 }
 
 #[test]
+#[serial_test::serial]
 fn init_db() {
+    create_test_db();
+}
+
+#[cfg(test)]
+pub(crate) fn create_test_db() {
     run(&TestInitDBOpts {
-        dbpath: (DEFAULT_DB_PATH).to_string(),
+        dbpath: DEFAULT_DB_PATH.to_string(),
         force: true,
         default_balance: Some(DEFAULT_BALANCE),
         address: None,

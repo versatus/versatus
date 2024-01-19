@@ -69,7 +69,9 @@ pub(crate) fn get_balance(
 }
 
 #[test]
+#[serial_test::serial]
 fn test_bal() {
+    create_test_db();
     run(&TestBalanceOpts {
         dbpath: (DEFAULT_DB_PATH).to_string(),
         address: DEFAULT_ADDRESSES[7].clone(),
