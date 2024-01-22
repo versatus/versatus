@@ -14,7 +14,7 @@ on:
         required: true
 
 jobs:
-  build-and-release:
+  build-and-release-wasm:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
