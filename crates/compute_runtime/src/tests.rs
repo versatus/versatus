@@ -48,6 +48,7 @@ fn compute_job_runner() {
         &Uuid::new_v4().to_string(),
         "bafyreicrmhglkwxvvesr5bxrpo6slgjthlhhf3l6pfti52ipl733cnvpla", // new contract package
         ComputeJobExecutionType::SmartContract,
+        "test",
         &service_config::ServiceConfig {
             name: "storage-test".to_string(),
             rpc_address: "::1".to_string(),

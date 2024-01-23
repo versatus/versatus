@@ -49,8 +49,9 @@ impl ComputeJobRunner {
         job_id: &str,
         package_cid: &str,
         job_type: ComputeJobExecutionType,
+        _inputs: &str,
         storage: &ServiceConfig,
-    ) -> Result<()> {
+    ) -> Result<String> {
         // Create a stats object to track how long we take to perform certain phases of execution.
         let mut stats = RequestStats::new("ComputeJobRunner".to_string(), job_id.to_string())?;
         info!(
@@ -148,7 +149,7 @@ impl ComputeJobRunner {
         stats.start("post-exec".to_string())?;
         Self::post_execute(job_id, runtime_root)?;
         stats.stop("post-exec".to_string())?;
-        Ok(())
+        Ok("".to_string())
     }
 
     /// Retrieve a package from the web3 blob store via an internal RPC.

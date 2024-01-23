@@ -42,6 +42,7 @@ pub async fn run(_opts: &DaemonOpts, config: &ServiceConfig) -> Result<()> {
                         &job.uuid().to_string(),
                         &job.cid(),
                         job_type,
+                        &job.inputs(),
                         &storage,
                     ) {
                         error!("failed to execute compute job {:?}: {:?}", job, err);
