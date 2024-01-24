@@ -4,49 +4,19 @@ use anyhow::{Context, Result};
 use bitmask_enum::bitmask;
 use flate2::write::GzEncoder;
 use flate2::Compression;
+use internal_rpc::job_queue::job::ComputeJobExecutionType;
 use internal_rpc::{api::IPFSDataType, api::InternalRpcApiClient, client::InternalRpcClient};
 use log::{debug, info};
 use mktemp::Temp;
 use serde_derive::{Deserialize, Serialize};
 use service_config::ServiceConfig;
 use std::collections::HashMap;
-use std::fmt;
 use std::fs::{create_dir, hard_link, metadata, set_permissions, File};
 use std::io::{BufReader, Write};
 use std::os::unix::fs::PermissionsExt;
 use tar::Builder;
 use telemetry::request_stats::RequestStats;
 use web3_pkg::web3_pkg::{Web3ObjectType, Web3Package};
-
-/// The type of job we're intending to execute.
-#[derive(Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub enum ComputeJobExecutionType {
-    /// A Smart Contract job requiring a runtime capable of assembling JSON input and executing
-    /// WASM.
-    SmartContract,
-    /// An ad-hoc execution job. Always local to a node, and primarily used for
-    /// testing/development.
-    AdHoc,
-    /// A null job type primarily used for internal/unit testing and runs nothing.
-    Null,
-}
-
-impl fmt::Display for ComputeJobExecutionType {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self {
-            Self::SmartContract => {
-                write!(f, "Smart Contract")
-            }
-            Self::AdHoc => {
-                write!(f, "Ad Hoc Task")
-            }
-            Self::Null => {
-                write!(f, "Null Task")
-            }
-        }
-    }
-}
 
 /// A runtime-configurable mapping between [ComputeJobExecutionType]s and published package CIDs.
 /// This will allow us to set a bunch of sane defaults that can be overridden as new packages
@@ -79,8 +49,9 @@ impl ComputeJobRunner {
         job_id: &str,
         package_cid: &str,
         job_type: ComputeJobExecutionType,
+        _inputs: &str,
         storage: &ServiceConfig,
-    ) -> Result<()> {
+    ) -> Result<String> {
         // Create a stats object to track how long we take to perform certain phases of execution.
         let mut stats = RequestStats::new("ComputeJobRunner".to_string(), job_id.to_string())?;
         info!(
@@ -141,9 +112,7 @@ impl ComputeJobRunner {
         // We currently wrap this in a tokio runtime to keep it sync, but there's no reason we
         // can't make this whole module async when calling from elsewhere.
         let rt = tokio::runtime::Runtime::new()?;
-        rt.block_on(async {
-            Self::retrieve_package(runtime_root, storage, package_cid).await
-        })?;
+        rt.block_on(async { Self::retrieve_package(runtime_root, storage, package_cid).await })?;
         stats.stop("payload".to_string())?;
 
         // Retrieve runtime package by CID
@@ -180,7 +149,7 @@ impl ComputeJobRunner {
         stats.start("post-exec".to_string())?;
         Self::post_execute(job_id, runtime_root)?;
         stats.stop("post-exec".to_string())?;
-        Ok(())
+        Ok("".to_string())
     }
 
     /// Retrieve a package from the web3 blob store via an internal RPC.

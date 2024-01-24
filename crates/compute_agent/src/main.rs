@@ -35,6 +35,12 @@ async fn main() -> Result<()> {
         Some(cli::ComputeCommands::Status(opts)) => {
             commands::status::run(opts, &config).await?;
         }
+        Some(cli::ComputeCommands::QueueJob(opts)) => {
+            commands::compute_job::queue_job::run(opts, &config).await?;
+        }
+        Some(cli::ComputeCommands::JobStatus(opts)) => {
+            commands::compute_job::job_status::run(opts, &config).await?;
+        }
         None => {}
     }
 

@@ -1,11 +1,17 @@
 use anyhow::Result;
 use clap::Parser;
-use internal_rpc::server::InternalRpcServer;
+use internal_rpc::{
+    job_queue::{
+        channel::{Receiver, ServiceReceiver, Transmitter},
+        job::{ServiceJob, ServiceJobApi, ServiceJobState, ServiceJobType},
+    },
+    server::InternalRpcServer,
+};
 use metric_exporter::metric_factory::PrometheusFactory;
 use platform::services::ServiceType;
 use prometheus::labels;
 use service_config::ServiceConfig;
-use telemetry::info;
+use telemetry::{error, info};
 use tokio::{signal, spawn};
 use tokio_util::sync::CancellationToken;
 
@@ -20,8 +26,39 @@ pub struct DaemonOpts;
 pub async fn run(_opts: &DaemonOpts, config: &ServiceConfig) -> Result<()> {
     // XXX: This is where we should start the RPC server listener and process incoming requests
     // using the service name and service config provided in the global command line options.
-    let (_server_handle, _server_local_addr) =
-        InternalRpcServer::start(config, ServiceType::Compute).await?;
+    let (_server_handle, _server_local_addr, job_queue_rx) = InternalRpcServer::start::<
+        Transmitter<ServiceJob>,
+        Receiver<ServiceJob>,
+        ServiceJob,
+    >(config, ServiceType::Compute)
+    .await?;
+    let storage = config.clone(); // copy of config to satisfy the closure
+    std::thread::spawn(move || loop {
+        match job_queue_rx.recv() {
+            Some(job) => {
+                if let ServiceJobType::Compute(job_type) = job.kind() {
+                    job_queue_rx.update_state(&Some(job.clone()), ServiceJobState::InProgress);
+                    if let Err(err) = compute_runtime::runtime::ComputeJobRunner::run(
+                        &job.uuid().to_string(),
+                        &job.cid(),
+                        job_type,
+                        &job.inputs(),
+                        &storage,
+                    ) {
+                        error!("failed to execute compute job {:?}: {:?}", job, err);
+                        job_queue_rx.update_state(&Some(job), ServiceJobState::Failed);
+                    } else {
+                        info!("compute job {:?} was successfully completed", job);
+                        job_queue_rx.update_state(&Some(job), ServiceJobState::Complete);
+                    }
+                } else {
+                    error!("expected a compute job, found: {:?}", job.kind());
+                }
+            }
+            None => break,
+        }
+    });
+
     let base_labels = labels! {
                 "service".to_string() => SERVICE_NAME.to_string(),
                 "source".to_string() => SERVICE_SOURCE.to_string(),

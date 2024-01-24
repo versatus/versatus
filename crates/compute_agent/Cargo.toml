@@ -15,6 +15,7 @@ path = "src/main.rs"
 [dependencies]
 anyhow = { workspace = true }
 clap = { workspace = true }
+compute_runtime = { path = "../compute_runtime" }
 env_logger = { workspace = true }
 hyper = { workspace = true }
 internal_rpc = { workspace = true }
@@ -27,3 +28,4 @@ rand = { workspace = true }
 service_config = { workspace = true }
 telemetry = { workspace = true }
 tokio = { workspace = true }
+uuid = { workspace = true }
