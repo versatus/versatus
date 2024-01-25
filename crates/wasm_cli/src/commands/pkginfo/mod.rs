@@ -1,7 +1,7 @@
 use crate::commands::publish::VERSATUS_STORAGE_ADDRESS;
 use anyhow::Result;
 use clap::Parser;
-use std::net::{IpAddr, ToSocketAddrs};
+use std::net::IpAddr;
 use std::str::from_utf8;
 use web3_pkg::web3_pkg::Web3Package;
 use web3_pkg::web3_store::Web3Store;
@@ -16,33 +16,49 @@ pub struct FetchMetadataOpts {
     #[clap(short, long, value_parser, value_name = "CID")]
     pub cid: String,
 
-    #[clap(short, long, value_parser, value_name = "IS_SRV_RECORD")]
-    pub is_srv: bool,
+    #[clap(
+        short,
+        long,
+        value_name = "IS_SRV_RECORD",
+        requires_if("STORAGE_SERVER", "IS_SRV_RECORD")
+    )]
+    pub is_srv: Option<bool>,
 
     /// Flag that indicates whether storage server is running locally
     #[clap(short, long, value_parser, value_name = "LOCAL")]
     pub is_local: bool,
 }
 
+impl FetchMetadataOpts {
+    pub fn validate(&self) -> Result<()> {
+        if let Some(_) = &self.storage_server {
+            if self.is_srv.is_none() {
+                return Err(anyhow::anyhow!(
+                    "If storage-server is provided, is_srv must also be provided."
+                ));
+            }
+        }
+        Ok(())
+    }
+}
 /// Fetch metadata of web3 package from the network.
 pub fn run(opts: &FetchMetadataOpts) -> Result<()> {
+    let is_srv = if let Some(value) = opts.is_srv {
+        value
+    } else {
+        false
+    };
     let store = if let Some(address) = opts.storage_server.as_ref() {
         if let Ok(ip) = address.parse::<IpAddr>() {
-            Web3Store::from_multiaddr(ip.to_string().as_str())?;
-        } else if address.to_socket_addrs().is_ok() {
-            Web3Store::from_hostname(address, opts.is_srv)?;
+            Web3Store::from_multiaddr(ip.to_string().as_str())?
         } else {
-            return Err(anyhow::Error::msg(
-                "Address is neither hostname nor IP address",
-            ));
+            Web3Store::from_hostname(address, is_srv)?
         }
-        Web3Store::local()?
     } else if opts.is_local {
         Web3Store::local()?
     } else {
-        Web3Store::from_hostname(VERSATUS_STORAGE_ADDRESS, opts.is_srv)?
+        Web3Store::from_hostname(VERSATUS_STORAGE_ADDRESS, is_srv)?
     };
-
     let rt = tokio::runtime::Runtime::new()?;
     rt.block_on(async {
         let obj_result = store.read_dag(opts.cid.as_str()).await;

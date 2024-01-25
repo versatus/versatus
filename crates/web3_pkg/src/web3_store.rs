@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use futures::TryStreamExt;
 use ipfs_api::{IpfsApi, IpfsClient, TryFromUri};
 use serde_derive::{Deserialize, Serialize};
@@ -73,6 +73,7 @@ impl Web3Store {
     /// and then use the address for RPC service on an IPFS instance
     pub fn from_hostname(addr: &str, is_srv: bool) -> Result<Self> {
         let addresses = Self::resolve_dns(addr, is_srv)?;
+        println!("Addresses {:?}", addresses);
         let address = addresses.get(0).unwrap();
         Ok(Web3Store {
             client: IpfsClient::from_multiaddr_str(&address.to_string())?,
@@ -112,14 +113,17 @@ impl Web3Store {
     /// }
     /// ```
     pub fn resolve_dns(name: &str, is_srv: bool) -> Result<Vec<IpAddr>> {
-        let resolver = Resolver::new(ResolverConfig::default(), ResolverOpts::default())?;
+        let resolver = Resolver::from_system_conf()?;
         let mut addresses = Vec::new();
         if is_srv {
             let lookup = resolver.lookup(name, RecordType::SRV)?;
             for record in lookup.records() {
                 if let Some(srv_data) = record.data().and_then(|data| data.as_srv()) {
                     let target = srv_data.target();
-                    addresses = Self::resolve_ip_addresses(&resolver, target.to_string().as_str())?;
+                    let address_list = Self::resolve_ip_addresses(&resolver, target.to_string().as_str())?;
+                    for addr in address_list{
+                        addresses.push(addr)
+                    }
                 }
             }
         } else {
@@ -133,18 +137,27 @@ impl Web3Store {
 
     fn resolve_ip_addresses(resolver: &Resolver, target: &str) -> Result<Vec<IpAddr>> {
         let mut addresses = Vec::new();
-        let ip4_address = resolver.lookup(target, RecordType::A)?;
-        let ip6_address = resolver.lookup(target, RecordType::AAAA)?;
-        let ip4_records = ip4_address.records();
-        for record in ip4_records {
-            if let Some(ip4_data) = record.data().and_then(|data| data.as_a()) {
-                addresses.push(IpAddr::V4(ip4_data.0));
-            }
+        let ip_address = resolver.lookup_ip(target)
+            .context("Failed to resolve DNS to IP address")?;
+        for addr in ip_address.iter(){
+            addresses.push(addr)
         }
-        let ip6_records = ip6_address.records();
-        for record in ip6_records {
-            if let Some(ip6_data) = record.data().and_then(|data| data.as_aaaa()) {
-                addresses.push(IpAddr::V6(ip6_data.0));
+        if addresses.is_empty(){
+            let ip4_address = resolver.lookup(target, RecordType::A)
+                .context("Failed to resolve DNS to IPv4 address")?;
+            let ip6_address = resolver.lookup(target, RecordType::AAAA)
+                .context("Failed to resolve DNS to IPv6 address")?;
+            let ip4_records = ip4_address.records();
+            for record in ip4_records {
+                if let Some(ip4_data) = record.data().and_then(|data| data.as_a()) {
+                    addresses.push(IpAddr::V4(ip4_data.0));
+                }
+            }
+            let ip6_records = ip6_address.records();
+            for record in ip6_records {
+                if let Some(ip6_data) = record.data().and_then(|data| data.as_aaaa()) {
+                    addresses.push(IpAddr::V6(ip6_data.0));
+                }
             }
         }
         Ok(addresses)
