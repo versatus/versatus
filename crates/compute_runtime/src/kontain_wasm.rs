@@ -28,23 +28,49 @@ impl ComputeRuntime for KontainWasmRuntime {
         let payload_source = format!("{}/{}/contract", &runtime_path, &job_set.payload_id);
         // The path within the container to the contract binary. We copy this below once we have an
         // [OciManager] object to work with.
-        let _payload_exec_path = "/contract.wasm".to_string();
+        let payload_exec_path = "/contract.wasm".to_string();
         // The path to the retrieved Kontain kontainer runtime executable
         let runc_path = format!("{}/{}/krun", &runtime_path, &job_set.runtime_id);
-        // The path within the container to the kontain monitor binary.
-        let km_path = format!("{}/bin/km", &runtime_path);
+        // The path to the versatus-wasm runtime executable outside the container.
+        let vwasm_source = format!("{}/{}/versatus-wasm", &runtime_path, &job_set.runtime_id);
+        // The path to the versatus-wasm runtime executable within the container (bind mounted).
+        let vwasm_dest = format!("/versatus-wasm");
+        // The path within the container to the kontain monitor binary. The krun binary will
+        // actually bind-mount the real binary to this path inside the container root.
+        let km_path = "/opt/kontain/bin/km".to_string();
 
         // base_payload is the start command line to execute within the container. Specifically the
         // Kontain Unikernel monitor.
-        // TODO: needs to execute the versatus WASM runtime, which in turn needs to execute the
-        // smart contract.
         let base_payload: Vec<String> = vec![
             km_path,
             "--verbose".to_string(),
             "--km-log-to=/diag/km.log".to_string(),
-            "--output-data=/diag/km.out".to_string(),
             "--log-to=/diag/km-guest.log".to_string(),
+            "--".to_string(),
+            vwasm_dest.to_string(),
+            "execute".to_string(),
+            "--wasm".to_string(),
+            payload_exec_path,
+            "--meter-limit".to_string(),
+            "10000".to_string(), // TODO: hard-coded
+            "--json".to_string(),
+            "/input.json".to_string(),
         ];
+        /*
+        let base_payload: Vec<String> = vec![
+            km_path,
+            "--verbose".to_string(),
+            "--km-log-to=/diag/km.log".to_string(),
+            "--log-to=/diag/km-guest.log".to_string(),
+            "--".to_string(),
+            "/bin/busybox".to_string(),
+            "ps".to_string(),
+            "ax".to_string(),
+        ];*/
+
+        let mut linked_files: Vec<(String, String)> = vec![];
+        linked_files.push((vwasm_source.to_string(), vwasm_dest.to_string()));
+        //linked_files.push(("/bin/busybox".to_string(), "/bin/busybox".to_string()));
 
         let mut annotations: HashMap<String, String> = HashMap::new();
         annotations.insert("payload_type".to_string(), "unikernel+wasm".to_string());
@@ -57,6 +83,7 @@ impl ComputeRuntime for KontainWasmRuntime {
             .container_id(job_set.job_id.to_string())
             .domainname(RUNTIME_DOMAINNAME.to_string())
             .hostname(job_set.job_id.to_string())
+            .linked_files(Some(linked_files.to_owned()))
             .annotations(annotations.to_owned())
             .build()
             .context("OCI runtime builder")?;

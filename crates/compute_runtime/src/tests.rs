@@ -1,9 +1,9 @@
 use crate::kontain::KontainRuntime;
 use crate::kontain_wasm::KontainWasmRuntime;
 use crate::oci_runc::OpenComputeRuntime;
-use crate::runtime::{ComputeJobRunner, ComputeRuntime, ComputeRuntimeCapabilities, JobSet};
+use crate::runtime::{ComputeJobRunner, ComputeRuntime, ComputeRuntimeCapabilities};
 use crate::youki::YoukiRuntime;
-use internal_rpc::job_queue::ComputeJobExecutionType;
+use internal_rpc::job_queue::job::ComputeJobExecutionType;
 
 use uuid::Uuid;
 

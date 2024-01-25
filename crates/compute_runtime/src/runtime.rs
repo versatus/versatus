@@ -62,17 +62,11 @@ impl ComputeJobRunner {
         // start initial prep
         stats.start("setup".to_string())?;
         // Create a temporary directory tree that will be cleaned up (unlinked) when tmp goes out
-        // of scope. This is easy with the mktemp::Temp crate, but the hurdles that Rust makes us
-        // jump through to get a string representation of the path out is insane. Yes, it is
-        // possible for paths to contain non-UTF8 characters, but given that the whole path was
-        // created from Rust, Rust could guarantee that this was in fact UTF8 from the start. No
-        // need to map an OsString into an ambiguous error.
-        //
-        // Making matters more fun, we can't even barf with a reasonable error code.
-        // ErrorKind::InvalidFilename (the most accurate description) is only available as a
-        // feature in nightly builds. FML.
+        // of scope.
+        /*
         let tmp = Temp::new_dir()?;
-        let runtime_root = &tmp.to_string_lossy();
+        let runtime_root = &tmp.to_string_lossy();*/
+        let runtime_root = "/tmp/runtime";
         info!("Runtime root for {} is {}", job_id, runtime_root);
 
         // Read the CID manifest file. This makes a runtime-configurable map between CIDs of web3
