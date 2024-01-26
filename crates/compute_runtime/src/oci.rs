@@ -2,23 +2,20 @@
 
 use anyhow::{anyhow, Context, Result};
 use derive_builder::Builder;
-use flate2::write::GzEncoder;
-use flate2::Compression;
 use log::{debug, info};
 use oci_spec::runtime::{
     LinuxBuilder, LinuxIdMappingBuilder, LinuxNamespace, LinuxNamespaceBuilder, LinuxNamespaceType,
     Mount, MountBuilder, ProcessBuilder, RootBuilder, Spec, SpecBuilder,
 };
 use std::collections::HashMap;
-use std::fs::create_dir;
 use std::fs::File;
+use std::fs::{create_dir, remove_file};
 use std::io::Read;
 use std::os::unix::io::FromRawFd;
 use std::os::unix::net::UnixListener;
 use std::process::Command;
 use std::str;
 use std::thread;
-use tar::Builder;
 use telemetry::request_stats::RequestStats;
 use uds::{UnixListenerExt, UnixSocketAddr, UnixStreamExt};
 use users::{get_current_gid, get_current_uid};
@@ -308,7 +305,7 @@ impl OciManager {
     }
 
     /// Executes a prepped OCI-compliant container
-    pub fn execute(&mut self) -> Result<()> {
+    pub fn execute(&mut self) -> Result<String> {
         // First, write out our configuration file over the default one generated earlier.
         self.stats.0.start("exec".to_string())?;
         match &self.oci_config {
@@ -332,12 +329,9 @@ impl OciManager {
 
         dbg!(&self.runtime_path);
 
-        // XXX: Note that because we have access to /dev/kvm (and some other magic?) we're able to
-        // run both Kontain and OCI runc without being root.
+        // Execute the container runtime job
         let job = Command::new(&self.oci_runtime)
             .arg("run")
-            //.arg("--detach") // TODO: not all runtimes will want or need this and it leaves the
-            //container around afterwards
             .arg("--bundle")
             .arg(&self.runtime_path)
             .arg("--console-socket")
@@ -350,6 +344,11 @@ impl OciManager {
         // the socket and collected in the parallel thread.
         dbg!(&job);
         dbg!(&self.runtime_path);
+
+        // The socket file is no longer needed and messes with us trying to tar up the container
+        // runtime tree.
+        remove_file(&console_socket)?;
+
         match job.status.code() {
             Some(0) => {}
             _ => {
@@ -363,27 +362,20 @@ impl OciManager {
                     str::from_utf8(&job.stderr).context("Retreving stderr")?
                 );
 
-                // Temporarily create archive
-                dbg!(&self.runtime_path);
-                let tarball_path = "/tmp/oci-fail.tar.gz".to_string();
-                let file = File::create(&tarball_path)?;
-                let enc = GzEncoder::new(file, Compression::default());
-                let mut archive = Builder::new(enc);
-
-                // This is best-effort. Ignore things like sockets that we can't archive.
-                archive.append_dir_all(".", &self.runtime_path).ok();
-                let _ = archive.finish();
-
                 return Err(anyhow!("Container runtime exec failed"));
             }
         }
 
+        let mut ret = str::from_utf8(&job.stdout).context("Retrieving output")?;
+
         let tret = con_thread.join().expect("Thread panic");
-        // TODO: When the caller exists, pass this back up to them.
-        info!("Thread output: {}", tret);
+        debug!("Thread output: {}", tret);
+        if ret.is_empty() && !tret.is_empty() {
+            ret = &tret;
+        }
 
         self.stats.0.stop("exec".to_string())?;
-        Ok(())
+        Ok(ret.to_string())
     }
 }
 
@@ -404,6 +396,12 @@ fn runtime_output(console_socket: String) -> String {
         "Received {} file descriptors ({:?}) over socket {}",
         num_fds, fds, console_socket
     );
+
+    if num_fds == 0 {
+        // This particular runtime isn't using the socket for I/O. We have to assume that stdout
+        // and stderr will be captured by the usual means.
+        return "".to_string();
+    }
 
     // Create Rust file handles from the raw Linux descriptor(s) passed back over the socket. We
     // only ever get one file descriptor back from the container runtime. This file handle

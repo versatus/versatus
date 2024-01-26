@@ -1,5 +1,5 @@
 //! This module defines the ComputeRuntime trait adhered to by Versatus compute runtimes.
-use crate::{kontain_wasm::KontainWasmRuntime, oci_runc::OpenComputeRuntime};
+use crate::{oci_wasm::OciWasmRuntime, oci_runc::OpenComputeRuntime};
 use anyhow::{Context, Result};
 use bitmask_enum::bitmask;
 use flate2::write::GzEncoder;
@@ -63,10 +63,9 @@ impl ComputeJobRunner {
         stats.start("setup".to_string())?;
         // Create a temporary directory tree that will be cleaned up (unlinked) when tmp goes out
         // of scope.
-        /*
         let tmp = Temp::new_dir()?;
-        let runtime_root = &tmp.to_string_lossy();*/
-        let runtime_root = "/tmp/runtime";
+        let runtime_root = &tmp.to_string_lossy();
+        //let runtime_root = "/tmp/runtime";
         info!("Runtime root for {} is {}", job_id, runtime_root);
 
         // Read the CID manifest file. This makes a runtime-configurable map between CIDs of web3
@@ -124,15 +123,17 @@ impl ComputeJobRunner {
             payload_id: package_cid.to_string(),
             runtime_id: manifest.entries[&job_type].to_string(),
         };
+        let mut ret = String::new();
         match job_type {
             ComputeJobExecutionType::SmartContract => {
-                let r = KontainWasmRuntime {};
-                let ret = r.execute(&job_set, runtime_root)?;
+                //let r = KontainWasmRuntime {};
+                let r = OciWasmRuntime {};
+                ret = r.execute(&job_set, runtime_root)?;
                 debug!("Job ID {} returned {}", job_set.job_id, ret);
             }
             ComputeJobExecutionType::AdHoc => {
                 let r = OpenComputeRuntime {};
-                let ret = r.execute(&job_set, runtime_root)?;
+                ret = r.execute(&job_set, runtime_root)?;
                 debug!("Job ID {} returned {}", job_set.job_id, ret);
             }
             ComputeJobExecutionType::Null => {} //_ => return Err(anyhow!("Unsupported compute job type {:?}", job_type)),
@@ -141,9 +142,12 @@ impl ComputeJobRunner {
 
         // Perform post-execution tasks
         stats.start("post-exec".to_string())?;
+        // We probably want to catch failures from r.execute() above and still call post_execute()
+        // here, because that'll cause us to grab a tarball.
         Self::post_execute(job_id, runtime_root)?;
         stats.stop("post-exec".to_string())?;
-        Ok("".to_string())
+        // Ret contains job stdout
+        Ok(ret)
     }
 
     /// Retrieve a package from the web3 blob store via an internal RPC.
@@ -224,7 +228,7 @@ impl ComputeJobRunner {
         let enc = GzEncoder::new(file, Compression::default());
         let mut archive = Builder::new(enc);
 
-        archive.append_dir_all(runtime_root, ".")?;
+        let _ret = archive.append_dir_all(".", runtime_root)?;
 
         info!("Created diagnostics bundle of files in {}", tarball_path);
         Ok(())

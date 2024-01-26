@@ -47,8 +47,7 @@ impl ComputeRuntime for YoukiRuntime {
             .context("OCI runtime builder")?;
         oci.prep().context("OCI prep")?;
         oci.spec().context("OCI spec")?;
-        oci.execute().context("OCI execute")?;
-        // TODO
-        Ok("{ \"fake\": \"JSON output\" }".to_string())
+        let output = oci.execute().context("OCI execute")?;
+        Ok(output.to_string())
     }
 }

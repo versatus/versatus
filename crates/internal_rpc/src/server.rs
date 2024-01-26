@@ -15,7 +15,7 @@ use service_config::ServiceConfig;
 use std::{fmt::Debug, net::SocketAddr};
 use web3_pkg::web3_store::Web3Store;
 
-pub const MAX_RESPONSE_SIZE: u32 = 104_857_600;
+pub const MAX_RESPONSE_SIZE: u32 = 125_829_120;
 pub const MAX_REQUEST_SIZE: u32 = 10240;
 
 pub struct InternalRpcServer;

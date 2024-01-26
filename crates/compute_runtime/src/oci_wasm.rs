@@ -1,5 +1,5 @@
-//! A Versatus compute implementation for running a WASM payload (smart contract) under a Kontain
-//! runtime.
+//! A Versatus compute implementation for running a WASM payload (smart contract) under the OCI
+//! reference implementation container runtime.
 use crate::oci::OciManagerBuilder;
 use crate::runtime::{ComputeRuntime, ComputeRuntimeCapabilities, JobSet};
 use anyhow::{Context, Result};
@@ -7,14 +7,14 @@ use log::info;
 use std::collections::HashMap;
 use std::fs::copy;
 
-const RUNTIME_DOMAINNAME: &str = "kontain-wasm";
+const RUNTIME_DOMAINNAME: &str = "oci-wasm";
 
 /// A [ComputeRuntime] designed to execute a Web Assembly (WASM) payload in the Versatus WASM
-/// runtime, inside a Kontain Unikernel container.
+/// runtime, inside an OCI container runtime.
 #[derive(Debug)]
-pub struct KontainWasmRuntime {}
+pub struct OciWasmRuntime {}
 
-impl ComputeRuntime for KontainWasmRuntime {
+impl ComputeRuntime for OciWasmRuntime {
     fn capabilities() -> ComputeRuntimeCapabilities {
         ComputeRuntimeCapabilities::Wasm
     }
@@ -29,24 +29,16 @@ impl ComputeRuntime for KontainWasmRuntime {
         // The path within the container to the contract binary. We copy this below once we have an
         // [OciManager] object to work with.
         let payload_exec_path = "/contract.wasm".to_string();
-        // The path to the retrieved Kontain kontainer runtime executable
-        let runc_path = format!("{}/{}/krun", &runtime_path, &job_set.runtime_id);
+        // The path to the retrieved OCI container runtime binary
+        let runc_path = format!("{}/{}/crun", &runtime_path, &job_set.runtime_id);
         // The path to the versatus-wasm runtime executable outside the container.
         let vwasm_source = format!("{}/{}/versatus-wasm", &runtime_path, &job_set.runtime_id);
         // The path to the versatus-wasm runtime executable within the container (bind mounted).
         let vwasm_dest = format!("/versatus-wasm");
-        // The path within the container to the kontain monitor binary. The krun binary will
-        // actually bind-mount the real binary to this path inside the container root.
-        let km_path = "/opt/kontain/bin/km".to_string();
 
-        // base_payload is the start command line to execute within the container. Specifically the
-        // Kontain Unikernel monitor.
+        // base_payload is the start command line to execute within the container. Namely the
+        // command line for executing versatus-wasm to execute a container payload.
         let base_payload: Vec<String> = vec![
-            km_path,
-            "--verbose".to_string(),
-            "--km-log-to=/diag/km.log".to_string(),
-            "--log-to=/diag/km-guest.log".to_string(),
-            "--".to_string(),
             vwasm_dest.to_string(),
             "execute".to_string(),
             "--wasm".to_string(),
@@ -94,6 +86,8 @@ impl ComputeRuntime for KontainWasmRuntime {
         let payload_dest = format!("{}/contract.wasm", oci.rootfs());
         info!("Copying payload {} to {}", payload_source, payload_dest);
         let _ret = copy(payload_source, payload_dest)?;
+        // XXX: hack til we have the real JSON passed in
+        let _ret = copy("/tmp/input.json", format!("{}/input.json", oci.rootfs()))?;
 
         info!("Generating container spec file");
         oci.spec().context("OCI spec")?;
@@ -103,4 +97,4 @@ impl ComputeRuntime for KontainWasmRuntime {
     }
 }
 
-impl KontainWasmRuntime {}
+impl OciWasmRuntime {}

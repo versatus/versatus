@@ -52,7 +52,7 @@ impl ComputeRuntime for OpenComputeRuntime {
             .context("OCI runtime builder")?;
         oci.prep().context("OCI prep")?;
         oci.spec().context("OCI spec")?;
-        oci.execute().context("OCI spec")?;
-        Ok("{ \"fake\": \"JSON payload\" }".to_string())
+        let output = oci.execute().context("OCI spec")?;
+        Ok(output.to_string())
     }
 }
