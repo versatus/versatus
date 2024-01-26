@@ -1,7 +1,7 @@
 use crate::commands::publish::VERSATUS_STORAGE_ADDRESS;
 use anyhow::Result;
 use clap::Parser;
-use std::net::IpAddr;
+use multiaddr::Multiaddr;
 use std::str::from_utf8;
 use web3_pkg::web3_pkg::Web3Package;
 use web3_pkg::web3_store::Web3Store;
@@ -49,7 +49,7 @@ pub fn run(opts: &FetchMetadataOpts) -> Result<()> {
         false
     };
     let store = if let Some(address) = opts.storage_server.as_ref() {
-        if let Ok(ip) = address.parse::<IpAddr>() {
+        if let Ok(ip) = address.parse::<Multiaddr>() {
             Web3Store::from_multiaddr(ip.to_string().as_str())?
         } else {
             Web3Store::from_hostname(address, is_srv)?

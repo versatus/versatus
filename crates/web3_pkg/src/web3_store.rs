@@ -1,10 +1,10 @@
 use anyhow::{Context, Result};
 use futures::TryStreamExt;
+use http::uri::Scheme;
 use ipfs_api::{IpfsApi, IpfsClient, TryFromUri};
 use serde_derive::{Deserialize, Serialize};
 use std::io::Cursor;
-use std::net::IpAddr;
-use trust_dns_resolver::config::*;
+use std::net::{IpAddr, SocketAddr};
 use trust_dns_resolver::proto::rr::RecordType;
 use trust_dns_resolver::Resolver;
 
@@ -73,10 +73,11 @@ impl Web3Store {
     /// and then use the address for RPC service on an IPFS instance
     pub fn from_hostname(addr: &str, is_srv: bool) -> Result<Self> {
         let addresses = Self::resolve_dns(addr, is_srv)?;
-        println!("Addresses {:?}", addresses);
         let address = addresses.get(0).unwrap();
+        let ip = address.ip();
+        let port = address.port();
         Ok(Web3Store {
-            client: IpfsClient::from_multiaddr_str(&address.to_string())?,
+            client: IpfsClient::from_host_and_port(Scheme::HTTP, ip.to_string().as_str(), port)?,
         })
     }
 
@@ -112,7 +113,7 @@ impl Web3Store {
     ///     }
     /// }
     /// ```
-    pub fn resolve_dns(name: &str, is_srv: bool) -> Result<Vec<IpAddr>> {
+    pub fn resolve_dns(name: &str, is_srv: bool) -> Result<Vec<SocketAddr>> {
         let resolver = Resolver::from_system_conf()?;
         let mut addresses = Vec::new();
         if is_srv {
@@ -120,14 +121,18 @@ impl Web3Store {
             for record in lookup.records() {
                 if let Some(srv_data) = record.data().and_then(|data| data.as_srv()) {
                     let target = srv_data.target();
-                    let address_list = Self::resolve_ip_addresses(&resolver, target.to_string().as_str())?;
-                    for addr in address_list{
-                        addresses.push(addr)
+                    let address_list =
+                        Self::resolve_ip_addresses(&resolver, target.to_string().as_str())?;
+                    for addr in address_list {
+                        addresses.push(SocketAddr::new(addr, srv_data.port()));
                     }
                 }
             }
         } else {
-            addresses = Self::resolve_ip_addresses(&resolver, name)?;
+            let address_list = Self::resolve_ip_addresses(&resolver, name)?;
+            for addr in address_list {
+                addresses.push(SocketAddr::new(addr, 5001));
+            }
         }
         if addresses.is_empty() {
             return Err(anyhow::Error::msg("No addresses found"));
@@ -137,15 +142,18 @@ impl Web3Store {
 
     fn resolve_ip_addresses(resolver: &Resolver, target: &str) -> Result<Vec<IpAddr>> {
         let mut addresses = Vec::new();
-        let ip_address = resolver.lookup_ip(target)
+        let ip_address = resolver
+            .lookup_ip(target)
             .context("Failed to resolve DNS to IP address")?;
-        for addr in ip_address.iter(){
+        for addr in ip_address.iter() {
             addresses.push(addr)
         }
-        if addresses.is_empty(){
-            let ip4_address = resolver.lookup(target, RecordType::A)
+        if addresses.is_empty() {
+            let ip4_address = resolver
+                .lookup(target, RecordType::A)
                 .context("Failed to resolve DNS to IPv4 address")?;
-            let ip6_address = resolver.lookup(target, RecordType::AAAA)
+            let ip6_address = resolver
+                .lookup(target, RecordType::AAAA)
                 .context("Failed to resolve DNS to IPv6 address")?;
             let ip4_records = ip4_address.records();
             for record in ip4_records {

@@ -1,7 +1,8 @@
 use anyhow::Result;
 use clap::Parser;
+use multiaddr::Multiaddr;
 use std::ffi::OsStr;
-use std::net::{IpAddr, ToSocketAddrs};
+use std::net::ToSocketAddrs;
 use std::path::Path;
 use std::path::PathBuf;
 use web3_pkg::web3_pkg::{
@@ -9,7 +10,6 @@ use web3_pkg::web3_pkg::{
     Web3PackageObjectBuilder, Web3PackageType,
 };
 use web3_pkg::web3_store::Web3Store;
-
 pub const VERSATUS_STORAGE_ADDRESS: &str = "_storage._tcp.incomplete.io";
 #[derive(Parser, Debug)]
 pub struct PublishOpts {
@@ -63,7 +63,7 @@ pub async fn run(opts: &PublishOpts) -> Result<()> {
         false
     };
     let store = if let Some(address) = opts.storage_server.as_ref() {
-        if let Ok(ip) = address.parse::<IpAddr>() {
+        if let Ok(ip) = address.parse::<Multiaddr>() {
             Web3Store::from_multiaddr(ip.to_string().as_str())?;
         } else if address.to_socket_addrs().is_ok() {
             Web3Store::from_hostname(address, is_srv)?;
