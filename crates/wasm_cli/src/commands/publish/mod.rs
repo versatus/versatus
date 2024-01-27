@@ -1,7 +1,8 @@
 use anyhow::Result;
 use clap::Parser;
+use multiaddr::Multiaddr;
 use std::ffi::OsStr;
-use std::net::{IpAddr, ToSocketAddrs};
+use std::net::ToSocketAddrs;
 use std::path::Path;
 use std::path::PathBuf;
 use web3_pkg::web3_pkg::{
@@ -9,8 +10,7 @@ use web3_pkg::web3_pkg::{
     Web3PackageObjectBuilder, Web3PackageType,
 };
 use web3_pkg::web3_store::Web3Store;
-
-pub const VERSATUS_STORAGE_ADDRESS: &str = "storage.versatus.net";
+pub const VERSATUS_STORAGE_ADDRESS: &str = "_storage._tcp.incomplete.io";
 #[derive(Parser, Debug)]
 pub struct PublishOpts {
     /// The path to the WASM object file to package and publish
@@ -30,8 +30,8 @@ pub struct PublishOpts {
     #[clap(short, long, value_parser, value_name = "STORAGE_SERVER")]
     pub storage_server: Option<String>,
 
-    #[clap(short, long, value_parser, value_name = "IS_SRV_RECORD")]
-    pub is_srv: bool,
+    #[clap(short, long, value_name = "IS_SRV_RECORD")]
+    pub is_srv: Option<bool>,
 
     #[clap(short, long, value_parser, value_name = "RECURSIVE_PUBLISH")]
     pub recursive: bool,
@@ -40,15 +40,33 @@ pub struct PublishOpts {
     pub is_local: bool,
 }
 
+impl PublishOpts {
+    pub fn validate(&self) -> Result<()> {
+        if let Some(_) = &self.storage_server {
+            if self.is_srv.is_none() {
+                return Err(anyhow::anyhow!(
+                    "If storage-server is provided, is_srv must also be provided."
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+
 /// Generate a web3-native package from a smart contract and publish it to the network. This is a
 /// stripped-down implementation of what's in the web3-pkg example that's supposed to be pretty
 /// trivial for publishing a smart contract.
 pub async fn run(opts: &PublishOpts) -> Result<()> {
+    let is_srv = if let Some(value) = opts.is_srv {
+        value
+    } else {
+        false
+    };
     let store = if let Some(address) = opts.storage_server.as_ref() {
-        if let Ok(ip) = address.parse::<IpAddr>() {
+        if let Ok(ip) = address.parse::<Multiaddr>() {
             Web3Store::from_multiaddr(ip.to_string().as_str())?;
         } else if address.to_socket_addrs().is_ok() {
-            Web3Store::from_hostname(address, opts.is_srv)?;
+            Web3Store::from_hostname(address, is_srv)?;
         } else {
             return Err(anyhow::Error::msg(
                 "Address is neither hostname nor IP address",
@@ -58,7 +76,7 @@ pub async fn run(opts: &PublishOpts) -> Result<()> {
     } else if opts.is_local {
         Web3Store::local()?
     } else {
-        Web3Store::from_hostname(VERSATUS_STORAGE_ADDRESS, opts.is_srv)?
+        Web3Store::from_hostname(VERSATUS_STORAGE_ADDRESS, is_srv)?
     };
 
     let mut objects: Vec<Web3PackageObject> = vec![];
