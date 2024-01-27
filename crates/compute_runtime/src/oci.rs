@@ -10,7 +10,7 @@ use oci_spec::runtime::{
 use std::collections::HashMap;
 use std::fs::File;
 use std::fs::{create_dir, remove_file};
-use std::io::Read;
+use std::io::{Read, Write};
 use std::os::unix::io::FromRawFd;
 use std::os::unix::net::UnixListener;
 use std::process::Command;
@@ -305,7 +305,7 @@ impl OciManager {
     }
 
     /// Executes a prepped OCI-compliant container
-    pub fn execute(&mut self) -> Result<String> {
+    pub fn execute(&mut self, inputs: &str) -> Result<String> {
         // First, write out our configuration file over the default one generated earlier.
         self.stats.0.start("exec".to_string())?;
         match &self.oci_config {
@@ -315,6 +315,13 @@ impl OciManager {
                     .context("Write container spec")?;
             }
         }
+
+        // Write input data in a standard location. This will need to change and become more
+        // flexible/dynamic once we start to support non-contract use cases.
+        let ifilename = format!("{}/input.json", &self.rootfs());
+        info!("Writing contract input data to {}", ifilename);
+        let mut ifile = File::create(ifilename)?;
+        ifile.write_all(inputs.as_bytes())?;
 
         // We name a unix domain socket, and in a thread, create it, listen on it and read special
         // magic messages that will contain a Linux/Solaris kernel file descriptor that is open and

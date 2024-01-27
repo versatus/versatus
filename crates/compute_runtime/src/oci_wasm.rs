@@ -23,7 +23,7 @@ impl ComputeRuntime for OciWasmRuntime {
         RUNTIME_DOMAINNAME
     }
 
-    fn execute(&self, job_set: &JobSet, runtime_path: &str) -> Result<String> {
+    fn execute(&self, job_set: &JobSet, runtime_path: &str, inputs: &str) -> Result<String> {
         // The path to the retrieved contract payload
         let payload_source = format!("{}/{}/contract", &runtime_path, &job_set.payload_id);
         // The path within the container to the contract binary. We copy this below once we have an
@@ -87,12 +87,12 @@ impl ComputeRuntime for OciWasmRuntime {
         info!("Copying payload {} to {}", payload_source, payload_dest);
         let _ret = copy(payload_source, payload_dest)?;
         // XXX: hack til we have the real JSON passed in
-        let _ret = copy("/tmp/input.json", format!("{}/input.json", oci.rootfs()))?;
+        //let _ret = copy("/tmp/input.json", format!("{}/input.json", oci.rootfs()))?;
 
         info!("Generating container spec file");
         oci.spec().context("OCI spec")?;
         info!("Executing job {}", job_set.job_id);
-        let output = oci.execute().context("OCI execute")?;
+        let output = oci.execute(inputs).context("OCI execute")?;
         Ok(output.to_string())
     }
 }

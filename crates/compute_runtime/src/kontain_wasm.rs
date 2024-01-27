@@ -23,7 +23,7 @@ impl ComputeRuntime for KontainWasmRuntime {
         RUNTIME_DOMAINNAME
     }
 
-    fn execute(&self, job_set: &JobSet, runtime_path: &str) -> Result<String> {
+    fn execute(&self, job_set: &JobSet, runtime_path: &str, inputs: &str) -> Result<String> {
         // The path to the retrieved contract payload
         let payload_source = format!("{}/{}/contract", &runtime_path, &job_set.payload_id);
         // The path within the container to the contract binary. We copy this below once we have an
@@ -98,7 +98,7 @@ impl ComputeRuntime for KontainWasmRuntime {
         info!("Generating container spec file");
         oci.spec().context("OCI spec")?;
         info!("Executing job {}", job_set.job_id);
-        let output = oci.execute().context("OCI execute")?;
+        let output = oci.execute(inputs).context("OCI execute")?;
         Ok(output.to_string())
     }
 }

@@ -49,7 +49,7 @@ impl ComputeJobRunner {
         job_id: &str,
         package_cid: &str,
         job_type: ComputeJobExecutionType,
-        _inputs: &str,
+        inputs: &str,
         storage: &ServiceConfig,
     ) -> Result<String> {
         // Create a stats object to track how long we take to perform certain phases of execution.
@@ -126,14 +126,16 @@ impl ComputeJobRunner {
         let mut ret = String::new();
         match job_type {
             ComputeJobExecutionType::SmartContract => {
+                // The Kontain unikernel crashes with under certain workloads. Need to work out why
+                // before making it the default again.
                 //let r = KontainWasmRuntime {};
                 let r = OciWasmRuntime {};
-                ret = r.execute(&job_set, runtime_root)?;
+                ret = r.execute(&job_set, runtime_root, inputs)?;
                 debug!("Job ID {} returned {}", job_set.job_id, ret);
             }
             ComputeJobExecutionType::AdHoc => {
                 let r = OpenComputeRuntime {};
-                ret = r.execute(&job_set, runtime_root)?;
+                ret = r.execute(&job_set, runtime_root, inputs)?;
                 debug!("Job ID {} returned {}", job_set.job_id, ret);
             }
             ComputeJobExecutionType::Null => {} //_ => return Err(anyhow!("Unsupported compute job type {:?}", job_type)),
@@ -260,5 +262,5 @@ pub struct JobSet {
 pub trait ComputeRuntime {
     fn capabilities() -> ComputeRuntimeCapabilities;
     fn domainname() -> &'static str;
-    fn execute(&self, job_set: &JobSet, runtime_path: &str) -> Result<String>;
+    fn execute(&self, job_set: &JobSet, runtime_path: &str, inputs: &str) -> Result<String>;
 }

@@ -27,7 +27,7 @@ impl ComputeRuntime for OpenComputeRuntime {
     //  - It executes everything through $PATH/sh (or does it?).
     //  - It leaves the container around and needs to be deleted afterwards
 
-    fn execute(&self, job_set: &JobSet, runtime_path: &str) -> Result<String> {
+    fn execute(&self, job_set: &JobSet, runtime_path: &str, inputs: &str) -> Result<String> {
         let mut annotations: HashMap<String, String> = HashMap::new();
         annotations.insert("payload_type".to_string(), "native+x86_64".to_string());
 
@@ -52,7 +52,7 @@ impl ComputeRuntime for OpenComputeRuntime {
             .context("OCI runtime builder")?;
         oci.prep().context("OCI prep")?;
         oci.spec().context("OCI spec")?;
-        let output = oci.execute().context("OCI spec")?;
+        let output = oci.execute(inputs).context("OCI spec")?;
         Ok(output.to_string())
     }
 }

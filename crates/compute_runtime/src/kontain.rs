@@ -18,7 +18,7 @@ impl ComputeRuntime for KontainRuntime {
         RUNTIME_DOMAINNAME
     }
 
-    fn execute(&self, job_set: &JobSet, runtime_path: &str) -> Result<String> {
+    fn execute(&self, job_set: &JobSet, runtime_path: &str, inputs: &str) -> Result<String> {
         let mut annotations: HashMap<String, String> = HashMap::new();
         annotations.insert("payload_type".to_string(), "unikernel+native".to_string());
 
@@ -43,7 +43,7 @@ impl ComputeRuntime for KontainRuntime {
             .context("OCI runtime builder")?;
         oci.prep().context("OCI prep")?;
         oci.spec().context("OCI spec")?;
-        let output = oci.execute().context("OCI execute")?;
+        let output = oci.execute(inputs).context("OCI execute")?;
         Ok(output.to_string())
     }
 }
