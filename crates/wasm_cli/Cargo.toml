@@ -33,3 +33,4 @@ versatus-rust = { git = "https://github.com/versatus/versatus-rust" }
 
 [dev-dependencies]
 serial_test = { workspace = true }
+multiaddr = "0.18.1"

@@ -28,10 +28,12 @@ fn main() -> Result<()> {
             commands::testcontract::run(opts)?;
         }
         Some(cli::WasmCommands::Publish(opts)) => {
+            opts.validate()?;
             let rt = tokio::runtime::Runtime::new()?;
             rt.block_on(async { commands::publish::run(opts).await })?;
         }
         Some(cli::WasmCommands::PkgInfo(opts)) => {
+            opts.validate()?;
             commands::pkginfo::run(opts)?;
         }
         None => {}
