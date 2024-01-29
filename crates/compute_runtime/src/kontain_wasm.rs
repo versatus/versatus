@@ -34,7 +34,7 @@ impl ComputeRuntime for KontainWasmRuntime {
         // The path to the versatus-wasm runtime executable outside the container.
         let vwasm_source = format!("{}/{}/versatus-wasm", &runtime_path, &job_set.runtime_id);
         // The path to the versatus-wasm runtime executable within the container (bind mounted).
-        let vwasm_dest = format!("/versatus-wasm");
+        let vwasm_dest = "/versatus-wasm".to_string();
         // The path within the container to the kontain monitor binary. The krun binary will
         // actually bind-mount the real binary to this path inside the container root.
         let km_path = "/opt/kontain/bin/km".to_string();
@@ -68,8 +68,8 @@ impl ComputeRuntime for KontainWasmRuntime {
             "ax".to_string(),
         ];*/
 
-        let mut linked_files: Vec<(String, String)> = vec![];
-        linked_files.push((vwasm_source.to_string(), vwasm_dest.to_string()));
+        let linked_files: Vec<(String, String)> =
+            vec![(vwasm_source.to_string(), vwasm_dest.to_string())];
         //linked_files.push(("/bin/busybox".to_string(), "/bin/busybox".to_string()));
 
         let mut annotations: HashMap<String, String> = HashMap::new();

@@ -1,5 +1,5 @@
 //! This module defines the ComputeRuntime trait adhered to by Versatus compute runtimes.
-use crate::{oci_wasm::OciWasmRuntime, oci_runc::OpenComputeRuntime};
+use crate::{oci_runc::OpenComputeRuntime, oci_wasm::OciWasmRuntime};
 use anyhow::{Context, Result};
 use bitmask_enum::bitmask;
 use flate2::write::GzEncoder;
@@ -11,6 +11,7 @@ use mktemp::Temp;
 use serde_derive::{Deserialize, Serialize};
 use service_config::ServiceConfig;
 use std::collections::HashMap;
+use std::env;
 use std::fs::{create_dir, hard_link, metadata, set_permissions, File};
 use std::io::{BufReader, Write};
 use std::os::unix::fs::PermissionsExt;
@@ -78,14 +79,13 @@ impl ComputeJobRunner {
         // At a point in the future, this data will likely be written to and retrieved from the
         // blockchain, giving us a network-wide standard version for each package, whilst still
         // allowing it to be overridden locally when testing/developing new runtime stacks.
-        //
-        // TODO: hard-coded and shouldn't be.
-        let manifest_file = concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../tools/sample-configs/manifest.json"
-        );
+
+        let manifest_file: String = match env::var("COMPUTE_MANIFEST") {
+            Ok(var) => var,
+            Err(_) => "/opt/versatus/etc/manifest.json".to_string(),
+        };
         info!("Reading CID manifest from {}", manifest_file);
-        let manifest: CidManifest = CidManifest::from_file(manifest_file)?;
+        let manifest: CidManifest = CidManifest::from_file(&manifest_file)?;
         //dbg!(manifest);
         if manifest.entries.contains_key(&job_type) {
             info!(
@@ -230,7 +230,7 @@ impl ComputeJobRunner {
         let enc = GzEncoder::new(file, Compression::default());
         let mut archive = Builder::new(enc);
 
-        let _ret = archive.append_dir_all(".", runtime_root)?;
+        archive.append_dir_all(".", runtime_root)?;
 
         info!("Created diagnostics bundle of files in {}", tarball_path);
         Ok(())

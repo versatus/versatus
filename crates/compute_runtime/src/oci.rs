@@ -264,14 +264,14 @@ impl OciManager {
 
         // Map in-container root to the uid/gid of the user we're running as.
         let uid_map = LinuxIdMappingBuilder::default()
-            .container_id(0 as u32)
+            .container_id(0_u32)
             .host_id(get_current_uid())
-            .size(1 as u32)
+            .size(1_u32)
             .build()?;
         let gid_map = LinuxIdMappingBuilder::default()
-            .container_id(0 as u32)
+            .container_id(0_u32)
             .host_id(get_current_gid())
-            .size(1 as u32)
+            .size(1_u32)
             .build()?;
 
         let linux = LinuxBuilder::default()
