@@ -26,3 +26,4 @@ web3_pkg = { workspace = true }
 serde = { workspace = true }
 serde_derive = { workspace = true }
 serde_json = { workspace = true }
+multiaddr = "0.18.1"

@@ -1,8 +1,8 @@
-use std::fmt;
-use std::fmt::Display;
 use clap::clap_derive::ArgEnum;
 use derive_builder::Builder;
 use serde_derive::{Deserialize, Serialize};
+use std::fmt;
+use std::fmt::Display;
 
 /// An enum representing different flavours of package payload. In some cases, a package might
 /// contain a smart contract (or potentially multiple smart contracts), in other cases it could be
@@ -108,8 +108,16 @@ pub struct Web3Package {
 
 impl Display for Web3Package {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "Name: {}       Author: {}", self.pkg_name, self.pkg_author)?;
-        writeln!(f, "Type: {:?}                 Package Version: {}", self.pkg_type, self.pkg_version)?;
+        writeln!(
+            f,
+            "Name: {}       Author: {}",
+            self.pkg_name, self.pkg_author
+        )?;
+        writeln!(
+            f,
+            "Type: {:?}                 Package Version: {}",
+            self.pkg_type, self.pkg_version
+        )?;
         writeln!(f, "Objects:")?;
         for obj in &self.pkg_objects {
             writeln!(f, "     {}", obj.object_cid)?;
