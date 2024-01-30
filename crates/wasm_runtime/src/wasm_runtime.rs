@@ -146,12 +146,13 @@ impl WasmRuntime {
 
         wasi_fn_env.initialize(store, instance.clone())?;
         let start = instance.exports.get_function("_start")?;
-        start.call(store, &[])?;
+        let exec_result = start.call(store, &[]);
 
         telemetry::info!(
             "MeteringPoints::{:?}",
             get_remaining_points(store, &instance)
         );
+        exec_result?;
 
         wasi_fn_env.cleanup(store, None);
         Ok(())
