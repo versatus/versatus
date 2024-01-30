@@ -15,12 +15,12 @@ use super::{
     limiting_tunables::{LimitingTunables, DEFAULT_PAGE_LIMIT},
     metering::MeteringConfig,
 };
-use telemetry::debug;
+use telemetry::{debug, info, warn};
 use wasmer::{
     wasmparser::Operator, BaseTunables, CompilerConfig, Engine, Instance, Module, NativeEngineExt,
     Store, Target,
 };
-use wasmer_middlewares::metering::get_remaining_points;
+use wasmer_middlewares::metering::{get_remaining_points, MeteringPoints};
 use wasmer_wasix::{Pipe, WasiEnv};
 
 /// This is the first command line argument, traditionally reserved for the
@@ -148,12 +148,16 @@ impl WasmRuntime {
         let start = instance.exports.get_function("_start")?;
         let exec_result = start.call(store, &[]);
 
-        telemetry::info!(
-            "MeteringPoints::{:?}",
-            get_remaining_points(store, &instance)
-        );
-        exec_result?;
+        match get_remaining_points(store, &instance) {
+            MeteringPoints::Remaining(points) => {
+                info!("Remaining metering points: {points}");
+            }
+            MeteringPoints::Exhausted => {
+                warn!("Metering points were exhausted. If unreachable code was reached, try increasing the meter limit.");
+            }
+        }
 
+        exec_result?;
         wasi_fn_env.cleanup(store, None);
         Ok(())
     }
