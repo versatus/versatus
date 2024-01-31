@@ -20,8 +20,7 @@ fn main() -> Result<()> {
         }
         Some(cli::WasmCommands::Publish(opts)) => {
             opts.validate()?;
-            let rt = tokio::runtime::Runtime::new()?;
-            rt.block_on(async { commands::publish::run(opts).await })?;
+            commands::publish::run(opts)?;
         }
         Some(cli::WasmCommands::PkgInfo(opts)) => {
             opts.validate()?;
