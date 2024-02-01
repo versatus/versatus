@@ -2,7 +2,6 @@ use anyhow::Result;
 use clap::Parser;
 use multiaddr::Multiaddr;
 use std::ffi::OsStr;
-use std::net::ToSocketAddrs;
 use std::path::Path;
 use std::path::PathBuf;
 use web3_pkg::web3_pkg::{
@@ -77,42 +76,59 @@ pub fn run(opts: &PublishOpts) -> Result<()> {
     let mut objects: Vec<Web3PackageObject> = vec![];
     let rt = tokio::runtime::Runtime::new()?;
     rt.block_on(async {
-        let cid = store
-            .write_object(std::fs::read(&opts.wasm).unwrap())
-            .await
-            .unwrap();
+        let result: Result<()> = (async {
+            let cid =
+                store
+                    .write_object(std::fs::read(&opts.wasm).map_err(|e| {
+                        anyhow::Error::msg(format!("Error reading Wasm file: {}", e))
+                    })?)
+                    .await
+                    .map_err(|e| anyhow::Error::msg(format!("Error writing object: {}", e)))?;
 
-        // Keep the filename portion of the path as a user-readable label
-        let path = Path::new(&opts.wasm)
-            .file_name()
-            .unwrap_or(OsStr::new("unknown"))
-            .to_str()
-            .unwrap_or_default();
+            let path = Path::new(&opts.wasm)
+                .file_name()
+                .unwrap_or(OsStr::new("unknown"))
+                .to_str()
+                .unwrap_or_default();
 
-        let obj = Web3PackageObjectBuilder::default()
-            .object_arch(Web3PackageArchitecture::Wasm32Wasi)
-            .object_path(path.to_string().to_owned())
-            .object_cid(Web3ContentId { cid })
-            .object_type(Web3ObjectType::Executable)
-            .build()
-            .unwrap();
+            let obj = Web3PackageObjectBuilder::default()
+                .object_arch(Web3PackageArchitecture::Wasm32Wasi)
+                .object_path(path.to_string().to_owned())
+                .object_cid(Web3ContentId { cid })
+                .object_type(Web3ObjectType::Executable)
+                .build()
+                .map_err(|e| {
+                    anyhow::Error::msg(format!("Error occurred while building the package :{}", e))
+                })?;
 
-        objects.push(obj);
+            objects.push(obj);
 
-        let pkg_meta = Web3PackageBuilder::default()
-            .pkg_version(opts.version)
-            .pkg_name(opts.name.to_owned())
-            .pkg_author(opts.author.to_owned())
-            .pkg_type(Web3PackageType::SmartContract)
-            .pkg_objects(objects)
-            .pkg_replaces(vec![])
-            .build()
-            .unwrap();
-        let json = serde_json::to_string(&pkg_meta).unwrap();
+            let pkg_meta = Web3PackageBuilder::default()
+                .pkg_version(opts.version)
+                .pkg_name(opts.name.to_owned())
+                .pkg_author(opts.author.to_owned())
+                .pkg_type(Web3PackageType::SmartContract)
+                .pkg_objects(objects)
+                .pkg_replaces(vec![])
+                .build()
+                .map_err(|e| anyhow::Error::msg(format!("Error building package: {}", e)))?;
 
-        let cid = store.write_dag(json.into()).await.unwrap();
+            let json = serde_json::to_string(&pkg_meta).map_err(|e| {
+                anyhow::Error::msg(format!("Error serializing package metadata to JSON: {}", e))
+            })?;
 
-        println!("Content ID for Web3 Package is {}", cid);
+            let cid = store
+                .write_dag(json.into())
+                .await
+                .map_err(|e| anyhow::Error::msg(format!("Error writing DAG: {}", e)))?;
+
+            println!("Content ID for Web3 Package is {}", cid);
+            Ok(())
+        })
+        .await;
+        if let Err(e) = result {
+            eprintln!("Error: {}", e);
+        }
     });
 
     Ok(())
