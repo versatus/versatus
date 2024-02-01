@@ -13,7 +13,6 @@ use log::info;
 use platform::services::*;
 use service_config::ServiceConfig;
 use std::{fmt::Debug, net::SocketAddr};
-use web3_pkg::web3_pkg::Web3Package;
 use web3_pkg::web3_store::Web3Store;
 
 pub const MAX_RESPONSE_SIZE: u32 = 125_829_120;
