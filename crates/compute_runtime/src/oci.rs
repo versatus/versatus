@@ -2,23 +2,46 @@
 
 use anyhow::{anyhow, Context, Result};
 use derive_builder::Builder;
-use oci_spec::runtime::{Process, ProcessBuilder, Root, RootBuilder, Spec};
+use log::{debug, info};
+use oci_spec::runtime::{
+    LinuxBuilder, LinuxIdMappingBuilder, LinuxNamespace, LinuxNamespaceBuilder, LinuxNamespaceType,
+    Mount, MountBuilder, ProcessBuilder, RootBuilder, Spec, SpecBuilder,
+};
 use std::collections::HashMap;
 use std::fs::File;
-use std::fs::{copy, create_dir};
-use std::io::Read;
+use std::fs::{create_dir, remove_file};
+use std::io::{Read, Write};
 use std::os::unix::io::FromRawFd;
 use std::os::unix::net::UnixListener;
 use std::process::Command;
 use std::str;
 use std::thread;
-use telemetry::log::{debug, info};
+use telemetry::request_stats::RequestStats;
 use uds::{UnixListenerExt, UnixSocketAddr, UnixStreamExt};
+use users::{get_current_gid, get_current_uid};
 
 /// The directory under the temporary tree where we build the container's root filesystem.
 /// Interestingly, it seems as though regardless of what we set this to in the config.json spec
 /// file, some OCI runtimes always insist that it be the string 'rootfs'...
 const CONTAINER_ROOT: &str = "rootfs";
+
+/// Wrap RequestStats and provide a default to satisfy derive_builder used below.
+struct OciStats(RequestStats);
+impl Default for OciStats {
+    fn default() -> Self {
+        OciStats::new()
+    }
+}
+
+impl OciStats {
+    pub fn new() -> Self {
+        info!("Building new stats collector");
+        OciStats(
+            RequestStats::new("OciManager".to_string(), "oci-exec".to_string())
+                .expect("Failed to create stats collector"),
+        )
+    }
+}
 
 /// OciManager provides functionality for building and managing container execution using an
 /// OCI-compliant runtime.
@@ -42,9 +65,14 @@ pub struct OciManager {
     /// A map of key/value strings representing some additional optional annotations for the
     /// container.
     annotations: HashMap<String, String>,
+    /// An optional set of binaries to bind-mount into the container.
+    linked_files: Option<Vec<(String, String)>>,
     /// The internal representation of the container configuration.
     #[builder(setter(skip = true))]
     oci_config: Option<Spec>,
+    /// object for tracing timing of phases of execution
+    #[builder(setter(skip = true))]
+    stats: OciStats,
 }
 
 impl OciManager {
@@ -53,8 +81,9 @@ impl OciManager {
         format!("{}/{}", self.runtime_path, CONTAINER_ROOT)
     }
     /// Prep the container manager temporary directory by creating directories, etc.
-    pub fn prep(&self) -> Result<()> {
+    pub fn prep(&mut self) -> Result<()> {
         // First, create all of the sub directories we'll need to build and run an OCI container.
+        self.stats.0.start("setup".to_string())?;
         debug!(
             "Creating container rootfs under: {}/{}",
             &self.runtime_path, CONTAINER_ROOT
@@ -66,18 +95,7 @@ impl OciManager {
             create_dir(&path).context("subdir")?;
         }
 
-        // TODO: once the package stuff exists and the caller passes in the details, we'll replace
-        // these placeholders.
-        let _ret = copy(
-            "/usr/bin/busybox",
-            format!("{}/{}/bin/sh", self.runtime_path, CONTAINER_ROOT),
-        )
-        .context("shell")?;
-        let _ret = copy(
-            "/usr/bin/busybox",
-            format!("{}/{}/bin/busybox", self.runtime_path, CONTAINER_ROOT),
-        )
-        .context("busybox")?;
+        self.stats.0.stop("setup".to_string())?;
         Ok(())
     }
 
@@ -85,56 +103,15 @@ impl OciManager {
     /// customisations.
     pub fn spec(&mut self) -> Result<()> {
         // run container runtime with `spec` option and parse spec
-        let cmd = Command::new(&self.oci_runtime)
-            .arg("spec")
-            .arg("--rootless") // not all runtimes seem to support rootless
-            .arg("--bundle")
-            .arg(&self.runtime_path)
-            .current_dir(&self.runtime_path)
-            .output()
-            .context(self.oci_runtime.to_string())?;
+        self.stats.0.start("spec".to_string())?;
 
-        debug!(
-            "Spec generation errors: {}",
-            str::from_utf8(&cmd.stderr).context("Retreving stderr")?
-        );
-        debug!(
-            "Spec generation output: {}",
-            str::from_utf8(&cmd.stdout).context("Retreving stdout")?
-        );
-
-        // Read generated config/spec file
-        let spec_path = format!("{}/config.json", &self.runtime_path);
-
-        // Modify generated config/spec to caller's taste
-        let mut oci_config = Spec::load(spec_path.clone()).context("spec file")?;
-        oci_config
-            .set_hostname(Some(self.hostname.clone()))
-            .set_annotations(Some(self.annotations.clone()))
-            .set_domainname(Some(self.domainname.clone()));
-
-        // Modify the Process object, responsible for (including others) the command line arguments
-        // to be passed to exec*().
-        let mut proc: Process;
-        match oci_config.process() {
-            None => proc = ProcessBuilder::default().build()?,
-            Some(genproc) => proc = genproc.to_owned(),
-        }
-        proc.set_args(Some(self.container_payload.to_owned()));
-        let guest_env: Vec<String> = vec!["PATH=/bin".to_string(), "LOCATION=sfo".to_string()];
-        proc.set_env(Some(guest_env.to_owned()));
-        oci_config.set_process(Some(proc));
-
-        // Modify the Root object, which gives the detail about the root file system
-        let mut rootfs: Root;
-        match oci_config.root() {
-            None => rootfs = RootBuilder::default().build()?,
-            Some(genroot) => rootfs = genroot.to_owned(),
-        }
+        // Build a root object to add
+        let mut rootfs = RootBuilder::default().build()?;
         rootfs.set_path(std::path::PathBuf::from(format!(
             "{}/{}",
             self.runtime_path, CONTAINER_ROOT
         )));
+
         // We currently don't mark the root filesystem read-only, but want to. In the short term,
         // we're only running WASM modules in production, which (due to our WASI constraints) means
         // that the guest workload can't read/write the root filesystem anyway. We currently use
@@ -142,21 +119,195 @@ impl OciManager {
         // better is allocating a small (32MB) tmpfs (zramfs?) volume for such things and making that the
         // only writable volume.
         rootfs.set_readonly(Some(false));
-        oci_config.set_root(Some(rootfs));
 
-        // We can manipulate other container runtime parameters here in the future. I suspect that
-        // the default resource limits and namespaces, may not be optimal out of the box. Also, in
-        // order to support rootless containers/VMs, we'll likely need to adjust quite a bit.
+        // Build a process object containing the command and args to run, and any environment
+        // variables.
+        let mut proc = ProcessBuilder::default().build()?;
+        proc.set_args(Some(self.container_payload.to_owned()));
+        let guest_env: Vec<String> = vec!["PATH=/bin".to_string(), "LOCATION=sfo".to_string()];
+        proc.set_env(Some(guest_env.to_owned()));
+        proc.set_cwd(std::path::PathBuf::from("/diag".to_string()));
 
-        // Stash our modified config object ready to be written out before we build and execute.
+        // Generate the mount definitions. If we keep all of this, it's probably worth moving these
+        // into another function or a function each to reduce the size of this method.
+        let mut mounts: Vec<Mount> = vec![];
+        // /proc
+        let proc_mount = MountBuilder::default()
+            .destination("/proc")
+            .source("proc")
+            .typ("proc")
+            .build()?;
+        mounts.push(proc_mount);
+
+        // /dev
+        let dev_opts: Vec<String> = vec![
+            "nosuid".to_string(),
+            "strictatime".to_string(),
+            "mode=0755".to_string(),
+            "size=4096k".to_string(),
+        ];
+        let dev_mount = MountBuilder::default()
+            .destination("/dev")
+            .typ("tmpfs")
+            .source("tmpfs")
+            .options(dev_opts)
+            .build()?;
+        mounts.push(dev_mount);
+
+        // /dev/pts
+        let devpts_opts: Vec<String> = vec![
+            "nosuid".to_string(),
+            "noexec".to_string(),
+            "newinstance".to_string(),
+            "ptmxmode=0666".to_string(),
+            "mode=0620".to_string(),
+        ];
+        let devpts_mount = MountBuilder::default()
+            .destination("/dev/pts")
+            .typ("devpts")
+            .source("devpts")
+            .options(devpts_opts)
+            .build()?;
+        mounts.push(devpts_mount);
+
+        // /dev/shm
+        let devshm_opts: Vec<String> = vec![
+            "nosuid".to_string(),
+            "noexec".to_string(),
+            "nodev".to_string(),
+            "mode=1777".to_string(),
+            "size=65535k".to_string(),
+        ];
+        let devshm_mount = MountBuilder::default()
+            .destination("/dev/shm")
+            .typ("tmpfs")
+            .source("shm")
+            .options(devshm_opts)
+            .build()?;
+        mounts.push(devshm_mount);
+
+        // /dev/mqueue
+        let devmq_opts: Vec<String> = vec![
+            "nosuid".to_string(),
+            "noexec".to_string(),
+            "nodev".to_string(),
+        ];
+        let devmq_mount = MountBuilder::default()
+            .destination("/dev/mqueue")
+            .typ("mqueue")
+            .source("mqueue")
+            .options(devmq_opts)
+            .build()?;
+        mounts.push(devmq_mount);
+
+        // /sys
+        let sysfs_opts: Vec<String> = vec![
+            "nosuid".to_string(),
+            "noexec".to_string(),
+            "nodev".to_string(),
+            "ro".to_string(),
+        ];
+        let sysfs_mount = MountBuilder::default()
+            .destination("/sys")
+            .typ("sysfs")
+            .source("sysfs")
+            .options(sysfs_opts)
+            .build()?;
+        mounts.push(sysfs_mount);
+
+        // /sys/fs/cgroup
+        let cgroupfs_opts: Vec<String> = vec![
+            "nosuid".to_string(),
+            "noexec".to_string(),
+            "nodev".to_string(),
+            "relatime".to_string(),
+            "ro".to_string(),
+        ];
+        let cgroupfs_mount = MountBuilder::default()
+            .destination("/sys/fs/cgroup")
+            .typ("cgroup")
+            .source("cgroup")
+            .options(cgroupfs_opts)
+            .build()?;
+        mounts.push(cgroupfs_mount);
+
+        // Include any bind mounts provided by the caller
+        if let Some(bind_mounts) = &self.linked_files {
+            // Create a mount object and push it
+            for bm in bind_mounts.iter() {
+                let bmount = MountBuilder::default()
+                    .destination(bm.1.clone())
+                    .source(bm.0.clone())
+                    .typ("none")
+                    .options(vec!["bind".to_string()])
+                    .build()?;
+                mounts.push(bmount);
+            }
+        }
+
+        // Build Linux object
+        // Create list of namespaces we want this container to unshare.
+        let ns_list = [
+            LinuxNamespaceType::Mount,
+            LinuxNamespaceType::Cgroup,
+            LinuxNamespaceType::Uts,
+            LinuxNamespaceType::Ipc,
+            LinuxNamespaceType::User,
+            LinuxNamespaceType::Pid,
+            LinuxNamespaceType::Network,
+        ];
+        let mut namespaces: Vec<LinuxNamespace> = vec![];
+        for ns in ns_list.iter() {
+            let newns = LinuxNamespaceBuilder::default().typ(*ns).build()?;
+            namespaces.push(newns.to_owned());
+        }
+
+        // Map in-container root to the uid/gid of the user we're running as.
+        let uid_map = LinuxIdMappingBuilder::default()
+            .container_id(0_u32)
+            .host_id(get_current_uid())
+            .size(1_u32)
+            .build()?;
+        let gid_map = LinuxIdMappingBuilder::default()
+            .container_id(0_u32)
+            .host_id(get_current_gid())
+            .size(1_u32)
+            .build()?;
+
+        let linux = LinuxBuilder::default()
+            .devices(vec![])
+            .uid_mappings(vec![uid_map])
+            .gid_mappings(vec![gid_map])
+            .namespaces(namespaces)
+            .build()?;
+
+        // build and assemble the top-level container runtime object
+        let mut oci_config = SpecBuilder::default()
+            .version("v1.0.2")
+            .root(rootfs.clone())
+            .process(proc.clone())
+            .mounts(mounts.clone())
+            .linux(linux.clone())
+            .build()?;
+
+        // Set top-level attributes
+        oci_config
+            .set_hostname(Some(self.hostname.clone()))
+            .set_annotations(Some(self.annotations.clone()))
+            .set_domainname(Some(self.domainname.clone()));
+
+        // Stash our generated config object ready to be written out before we build and execute.
+        dbg!(&oci_config);
         self.oci_config = Some(oci_config.to_owned());
-        debug!("Parsed OCI config: {:?}", &self.oci_config);
+        debug!("Generated OCI config: {:?}", &self.oci_config);
+        self.stats.0.stop("spec".to_string())?;
         Ok(())
     }
 
     /// Executes a prepped OCI-compliant container
-    pub fn execute(&self) -> Result<()> {
+    pub fn execute(&mut self, inputs: &str) -> Result<String> {
         // First, write out our configuration file over the default one generated earlier.
+        self.stats.0.start("exec".to_string())?;
         match &self.oci_config {
             None => return Err(anyhow!("Attempted to run empty container spec")),
             Some(spec) => {
@@ -164,6 +315,13 @@ impl OciManager {
                     .context("Write container spec")?;
             }
         }
+
+        // Write input data in a standard location. This will need to change and become more
+        // flexible/dynamic once we start to support non-contract use cases.
+        let ifilename = format!("{}/input.json", &self.rootfs());
+        info!("Writing contract input data to {}", ifilename);
+        let mut ifile = File::create(ifilename)?;
+        ifile.write_all(inputs.as_bytes())?;
 
         // We name a unix domain socket, and in a thread, create it, listen on it and read special
         // magic messages that will contain a Linux/Solaris kernel file descriptor that is open and
@@ -176,12 +334,11 @@ impl OciManager {
         let sock = console_socket.clone();
         let con_thread = thread::spawn(move || runtime_output(sock));
 
-        // XXX: Note that because we have access to /dev/kvm (and some other magic?) we're able to
-        // run both Kontain and OCI runc without being root.
+        dbg!(&self.runtime_path);
+
+        // Execute the container runtime job
         let job = Command::new(&self.oci_runtime)
             .arg("run")
-            //.arg("--detach") // TODO: not all runtimes will want or need this and it leaves the
-            //container around afterwards
             .arg("--bundle")
             .arg(&self.runtime_path)
             .arg("--console-socket")
@@ -192,6 +349,13 @@ impl OciManager {
         // If the container runtime fails to start, these will contain details of that. Once the
         // container runtime starts, its guest stdio comes over the file descriptors shared over
         // the socket and collected in the parallel thread.
+        dbg!(&job);
+        dbg!(&self.runtime_path);
+
+        // The socket file is no longer needed and messes with us trying to tar up the container
+        // runtime tree.
+        remove_file(&console_socket)?;
+
         match job.status.code() {
             Some(0) => {}
             _ => {
@@ -204,15 +368,21 @@ impl OciManager {
                     "Stderr: {}",
                     str::from_utf8(&job.stderr).context("Retreving stderr")?
                 );
+
                 return Err(anyhow!("Container runtime exec failed"));
             }
         }
 
-        let tret = con_thread.join().expect("Thread panic");
-        // TODO: When the caller exists, pass this back up to them.
-        info!("Thread output: {}", tret);
+        let mut ret = str::from_utf8(&job.stdout).context("Retrieving output")?;
 
-        Ok(())
+        let tret = con_thread.join().expect("Thread panic");
+        debug!("Thread output: {}", tret);
+        if ret.is_empty() && !tret.is_empty() {
+            ret = &tret;
+        }
+
+        self.stats.0.stop("exec".to_string())?;
+        Ok(ret.to_string())
     }
 }
 
@@ -233,6 +403,12 @@ fn runtime_output(console_socket: String) -> String {
         "Received {} file descriptors ({:?}) over socket {}",
         num_fds, fds, console_socket
     );
+
+    if num_fds == 0 {
+        // This particular runtime isn't using the socket for I/O. We have to assume that stdout
+        // and stderr will be captured by the usual means.
+        return "".to_string();
+    }
 
     // Create Rust file handles from the raw Linux descriptor(s) passed back over the socket. We
     // only ever get one file descriptor back from the container runtime. This file handle

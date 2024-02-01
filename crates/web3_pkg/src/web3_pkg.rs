@@ -1,6 +1,7 @@
 use clap::clap_derive::ArgEnum;
 use derive_builder::Builder;
 use serde_derive::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Display;
 
@@ -18,6 +19,8 @@ pub enum Web3PackageType {
     SmartContractRuntime,
     /// A package containing a smart contract
     SmartContract,
+    /// A package containing a native-binary container runtime.
+    NativeContainerRuntime,
 }
 
 /// An enum representing different architectures/platforms a compute workload could be targetted
@@ -51,7 +54,7 @@ pub struct Web3ContentId {
 
 /// An enum representing the type of object within the package. This is only as accurate as the
 /// package publisher makes it.
-#[derive(Debug, Default, Serialize, Deserialize, Clone, ArgEnum)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone, ArgEnum, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum Web3ObjectType {
     #[default]
@@ -79,6 +82,8 @@ pub struct Web3PackageObject {
     pub object_type: Web3ObjectType,
     /// The content ID of the object within IPFS
     pub object_cid: Web3ContentId,
+    // User-defined annotations as key-value pairs
+    pub object_annotations: HashMap<String, String>,
 }
 
 /// A structure representing the metadata of a compute package. A compute package may contain one
@@ -104,6 +109,8 @@ pub struct Web3Package {
     /// A vector of packages that this replaces. XXX: This could be problematic when exporting a
     /// DAG when there's a long history.
     pub pkg_replaces: Vec<Web3ContentId>,
+    /// User-defined annotations as key-value pairs
+    pub pkg_annotations: HashMap<String, String>,
 }
 
 impl Display for Web3Package {
@@ -143,6 +150,7 @@ impl Display for Web3PackageType {
             Web3PackageType::None => "None",
             Web3PackageType::SmartContractRuntime => "Smart Contract Runtime",
             Web3PackageType::SmartContract => "Smart Contract",
+            Web3PackageType::NativeContainerRuntime => "Native-Architecture Container Runtime",
         };
         write!(f, "{}", display_name)
     }

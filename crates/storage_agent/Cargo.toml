@@ -9,12 +9,13 @@ license.workspace = true
 version.workspace = true
 
 [[bin]]
-name = "versa-storage"
+name = "versatus-storage"
 path = "src/main.rs"
 
 [dependencies]
 anyhow = { workspace = true }
 clap = { workspace = true }
+env_logger = { workspace = true }
 hyper = { workspace = true }
 internal_rpc = { workspace = true }
 lazy_static = { workspace = true }

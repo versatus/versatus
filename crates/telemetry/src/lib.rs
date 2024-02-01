@@ -3,7 +3,7 @@
 /// everywhere along with this crate
 pub mod custom_subscriber;
 mod metrics;
-mod request_stats;
+pub mod request_stats;
 #[cfg(test)]
 mod tests;
 pub use metrics::*;

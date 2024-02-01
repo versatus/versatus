@@ -1,6 +1,7 @@
 use anyhow::Result;
 use clap::Parser;
 use multiaddr::Multiaddr;
+use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::path::Path;
 use std::path::PathBuf;
@@ -41,7 +42,7 @@ pub struct PublishOpts {
 
 impl PublishOpts {
     pub fn validate(&self) -> Result<()> {
-        if let Some(_) = &self.storage_server {
+        if self.storage_server.is_some() {
             if self.is_srv.is_none() {
                 return Err(anyhow::anyhow!(
                     "If storage-server is provided, is_srv must also be provided."
@@ -73,6 +74,12 @@ pub fn run(opts: &PublishOpts) -> Result<()> {
         Web3Store::from_hostname(VERSATUS_STORAGE_ADDRESS, is_srv)?
     };
 
+    // Define some package and object annotations to include.
+    let mut o_ann = HashMap::<String, String>::new();
+    o_ann.insert("role".to_string(), "contract".to_string());
+    let mut p_ann = HashMap::<String, String>::new();
+    p_ann.insert("status".to_string(), "test".to_string());
+
     let mut objects: Vec<Web3PackageObject> = vec![];
     let rt = tokio::runtime::Runtime::new()?;
     rt.block_on(async {
@@ -95,6 +102,7 @@ pub fn run(opts: &PublishOpts) -> Result<()> {
                 .object_arch(Web3PackageArchitecture::Wasm32Wasi)
                 .object_path(path.to_string().to_owned())
                 .object_cid(Web3ContentId { cid })
+                .object_annotations(o_ann)
                 .object_type(Web3ObjectType::Executable)
                 .build()
                 .map_err(|e| {
@@ -109,6 +117,7 @@ pub fn run(opts: &PublishOpts) -> Result<()> {
                 .pkg_author(opts.author.to_owned())
                 .pkg_type(Web3PackageType::SmartContract)
                 .pkg_objects(objects)
+                .pkg_annotations(p_ann)
                 .pkg_replaces(vec![])
                 .build()
                 .map_err(|e| anyhow::Error::msg(format!("Error building package: {}", e)))?;

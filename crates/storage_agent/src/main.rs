@@ -11,6 +11,7 @@ static THIS_SERVICE_TYPE: &str = "storage";
 #[tokio::main]
 async fn main() -> Result<()> {
     let mut cli = cli::StorageCli::parse();
+    env_logger::init();
 
     let service: String = match cli.service_type {
         Some(svc) => svc,

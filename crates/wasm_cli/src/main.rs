@@ -7,6 +7,8 @@ use clap::Parser;
 fn main() -> Result<()> {
     let cli = cli::WasmCli::parse();
 
+    env_logger::init();
+
     // Process subcommand
     match &cli.cmd {
         Some(cli::WasmCommands::Describe(opts)) => {
