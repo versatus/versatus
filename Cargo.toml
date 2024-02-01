@@ -43,7 +43,7 @@ members = [
   "crates/wasm_loader",
   "crates/wasm_runtime",
   "crates/web3_pkg",
-  "crates/storage_agent"
+  "crates/storage_agent",
 ]
 exclude = ["benches"]
 resolver = "2"

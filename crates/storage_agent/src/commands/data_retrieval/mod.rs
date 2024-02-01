@@ -32,21 +32,19 @@ pub async fn run(opts: &DataRetrievalOpts, config: &ServiceConfig) -> Result<()>
         error!("Path does not exist.");
         return Err(anyhow::anyhow!("Path does not exist.".to_string()));
     }
-    let blob = client
-        .0
-        .get_data(&opts.cid, opts.data_type)
-        .await?;
-
+    let blob = client.0.get_data(&opts.cid, opts.data_type).await?;
     if !blob.is_empty() {
-        let file_path = std::path::Path::new(&opts.blob_path).join(&opts.cid);
-        let mut file = std::fs::File::create(&file_path)
-            .with_context(|| format!("Failed to create/open file at {:?}", &file_path))?;
-        file.write_all(&blob)
-            .with_context(|| format!("Failed to write data to file at {:?}", &file_path))?;
+        for (cid, blob) in blob.iter() {
+            let file_path = std::path::Path::new(&opts.blob_path).join(cid);
+            let mut file = std::fs::File::create(&file_path)
+                .with_context(|| format!("Failed to create/open file at {:?}", &file_path))?;
+            file.write_all(blob)
+                .with_context(|| format!("Failed to write data to file at {:?}", &file_path))?;
 
-        file.sync_all()
-            .with_context(|| format!("Failed to sync data to disk at {:?}", &file_path))?;
-        };
+            file.sync_all()
+                .with_context(|| format!("Failed to sync data to disk at {:?}", &file_path))?;
+        }
+    };
 
     Ok(())
 }

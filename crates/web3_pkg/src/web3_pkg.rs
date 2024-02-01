@@ -3,6 +3,7 @@ use derive_builder::Builder;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
+use std::fmt::Display;
 
 /// An enum representing different flavours of package payload. In some cases, a package might
 /// contain a smart contract (or potentially multiple smart contracts), in other cases it could be
@@ -154,4 +155,60 @@ pub struct Web3Package {
     pub pkg_replaces: Vec<Web3ContentId>,
     /// User-defined annotations as key-value pairs
     pub pkg_annotations: HashMap<String, String>,
+}
+
+impl Display for Web3Package {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(
+            f,
+            "Name: {}       Author: {}",
+            self.pkg_name, self.pkg_author
+        )?;
+        writeln!(
+            f,
+            "Type: {:?}                 Package Version: {}",
+            self.pkg_type, self.pkg_version
+        )?;
+        writeln!(f, "Objects:")?;
+        for obj in &self.pkg_objects {
+            writeln!(f, "     {}", obj.object_cid)?;
+            writeln!(f, "     Architecture: {}", obj.object_arch)?;
+            writeln!(f, "     Type: {:?}", obj.object_type)?;
+            writeln!(f, "     Name: {}", obj.object_path)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl Display for Web3ContentId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Cid: {} ", self.cid)?;
+        Ok(())
+    }
+}
+
+impl Display for Web3PackageType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let display_name = match self {
+            Web3PackageType::None => "None",
+            Web3PackageType::SmartContractRuntime => "Smart Contract Runtime",
+            Web3PackageType::SmartContract => "Smart Contract",
+        };
+        write!(f, "{}", display_name)
+    }
+}
+
+impl Display for Web3PackageArchitecture {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let display_name = match self {
+            Web3PackageArchitecture::None => "None",
+            Web3PackageArchitecture::Amd64Linux => "x64_64-unknown-linux-gnu",
+            Web3PackageArchitecture::Amd64Musl => "x64_64-unknown-linux-musl",
+            Web3PackageArchitecture::Aarch64Linux => "aarch64-unknown-linux-gnu",
+            Web3PackageArchitecture::Aarch64Musl => "aarch64-unknown-linux-musl",
+            Web3PackageArchitecture::Wasm32Wasi => "wasm32-wasi",
+        };
+        write!(f, "{}", display_name)
+    }
 }

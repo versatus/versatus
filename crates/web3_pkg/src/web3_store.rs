@@ -1,12 +1,15 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use futures::TryStreamExt;
+use http::uri::Scheme;
 use ipfs_api::{IpfsApi, IpfsClient, TryFromUri};
 use serde_derive::{Deserialize, Serialize};
 use std::io::Cursor;
+use std::net::{IpAddr, SocketAddr};
+use trust_dns_resolver::proto::rr::RecordType;
+use trust_dns_resolver::Resolver;
 
 /// A structure representing a content-addressable Web3 store. Currently closely tied to IPFS
 /// specifically, but could be expanded to others, such as Iroh.
-
 pub struct Web3Store {
     client: IpfsClient,
 }
@@ -64,6 +67,108 @@ impl Web3Store {
         Ok(Web3Store {
             client: IpfsClient::default(),
         })
+    }
+
+    /// A constructor that takes domain host name  or SRV record and resolves it to ipv4/ipv6 addresses
+    /// and then use the address for RPC service on an IPFS instance
+    pub fn from_hostname(addr: &str, is_srv: bool) -> Result<Self> {
+        let addresses = Self::resolve_dns(addr, is_srv)?;
+        let address = addresses.get(0).unwrap();
+        let ip = address.ip();
+        let port = address.port();
+        Ok(Web3Store {
+            client: IpfsClient::from_host_and_port(Scheme::HTTP, ip.to_string().as_str(), port)?,
+        })
+    }
+
+    /// Resolves DNS records and retrieves a list of IP addresses.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - A string representing the domain or host name to resolve.
+    /// * `is_srv` - A boolean indicating whether to perform an SRV record lookup.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing a vector of `IpAddr` representing the resolved IP addresses.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the resolution fails or if no addresses are found.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use crate::web3_pkg::web3_store::Web3Store;
+    ///
+    /// let result = Web3Store::resolve_dns("example.com", false);
+    /// match result {
+    ///     Ok(addresses) => {
+    ///         for addr in addresses {
+    ///             println!("Resolved IP Address: {}", addr);
+    ///         }
+    ///     }
+    ///     Err(err) => {
+    ///         eprintln!("Error: {}", err);
+    ///     }
+    /// }
+    /// ```
+    pub fn resolve_dns(name: &str, is_srv: bool) -> Result<Vec<SocketAddr>> {
+        let resolver = Resolver::from_system_conf()?;
+        let mut addresses = Vec::new();
+        if is_srv {
+            let lookup = resolver.lookup(name, RecordType::SRV)?;
+            for record in lookup.records() {
+                if let Some(srv_data) = record.data().and_then(|data| data.as_srv()) {
+                    let target = srv_data.target();
+                    let address_list =
+                        Self::resolve_ip_addresses(&resolver, target.to_string().as_str())?;
+                    for addr in address_list {
+                        addresses.push(SocketAddr::new(addr, srv_data.port()));
+                    }
+                }
+            }
+        } else {
+            let address_list = Self::resolve_ip_addresses(&resolver, name)?;
+            for addr in address_list {
+                addresses.push(SocketAddr::new(addr, 5001));
+            }
+        }
+        if addresses.is_empty() {
+            return Err(anyhow::Error::msg("No addresses found"));
+        }
+        Ok(addresses)
+    }
+
+    fn resolve_ip_addresses(resolver: &Resolver, target: &str) -> Result<Vec<IpAddr>> {
+        let mut addresses = Vec::new();
+        let ip_address = resolver
+            .lookup_ip(target)
+            .context("Failed to resolve DNS to IP address")?;
+        for addr in ip_address.iter() {
+            addresses.push(addr)
+        }
+        if addresses.is_empty() {
+            let ip4_address = resolver
+                .lookup(target, RecordType::A)
+                .context("Failed to resolve DNS to IPv4 address")?;
+            let ip6_address = resolver
+                .lookup(target, RecordType::AAAA)
+                .context("Failed to resolve DNS to IPv6 address")?;
+            let ip4_records = ip4_address.records();
+            for record in ip4_records {
+                if let Some(ip4_data) = record.data().and_then(|data| data.as_a()) {
+                    addresses.push(IpAddr::V4(ip4_data.0));
+                }
+            }
+            let ip6_records = ip6_address.records();
+            for record in ip6_records {
+                if let Some(ip6_data) = record.data().and_then(|data| data.as_aaaa()) {
+                    addresses.push(IpAddr::V6(ip6_data.0));
+                }
+            }
+        }
+        Ok(addresses)
     }
 
     /// A constructor that takes a multiaddr string (eg, "/ip4/127.0.0.1/tcp/5001") to connect to

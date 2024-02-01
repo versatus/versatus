@@ -13,6 +13,7 @@ use log::info;
 use platform::services::*;
 use service_config::ServiceConfig;
 use std::{fmt::Debug, net::SocketAddr};
+use web3_pkg::web3_pkg::Web3Package;
 use web3_pkg::web3_store::Web3Store;
 
 pub const MAX_RESPONSE_SIZE: u32 = 125_829_120;
@@ -147,6 +148,8 @@ impl<T: ServiceTransmitter<J> + 'static, J: ServiceJobApi + Debug + 'static> Int
     }
 
     async fn get_data(&self, cid: &str, data_type: IPFSDataType) -> RpcResult<Vec<u8>> {
+        data_type: IPFSDataType,
+    ) -> RpcResult<Vec<(String, Vec<u8>)>> {
         return match data_type {
             IPFSDataType::Object => self.retrieve_object(cid).await,
             IPFSDataType::Dag => self.retrieve_dag(cid).await,
