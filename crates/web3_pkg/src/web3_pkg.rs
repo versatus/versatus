@@ -23,25 +23,6 @@ pub enum Web3PackageType {
     NativeContainerRuntime,
 }
 
-impl fmt::Display for Web3PackageType {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self {
-            Self::SmartContract => {
-                write!(f, "Smart Contract")
-            }
-            Self::SmartContractRuntime => {
-                write!(f, "Smart Contract Runtime")
-            }
-            Self::NativeContainerRuntime => {
-                write!(f, "Native Container Runtime")
-            }
-            Self::None => {
-                write!(f, "Unknown")
-            }
-        }
-    }
-}
-
 /// An enum representing different architectures/platforms a compute workload could be targetted
 /// to.
 #[derive(Debug, Default, Serialize, Deserialize, Clone, ArgEnum)]
@@ -60,31 +41,6 @@ pub enum Web3PackageArchitecture {
     Aarch64Musl,
     /// wasm32-wasi target architecture
     Wasm32Wasi,
-}
-
-impl fmt::Display for Web3PackageArchitecture {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self {
-            Self::None => {
-                write!(f, "Arch independent")
-            }
-            Self::Amd64Musl => {
-                write!(f, "x86_64 with MUSL libc")
-            }
-            Self::Amd64Linux => {
-                write!(f, "x86_64 with glibc")
-            }
-            Self::Aarch64Musl => {
-                write!(f, "ARM64 with MUSL libc")
-            }
-            Self::Aarch64Linux => {
-                write!(f, "ARM64 with glibc")
-            }
-            Self::Wasm32Wasi => {
-                write!(f, "WASM32 with WASI")
-            }
-        }
-    }
 }
 
 /// A struct representing a content ID. Currently somewhat specific to IPFS CIDs and IPLD's
@@ -194,6 +150,7 @@ impl Display for Web3PackageType {
             Web3PackageType::None => "None",
             Web3PackageType::SmartContractRuntime => "Smart Contract Runtime",
             Web3PackageType::SmartContract => "Smart Contract",
+            Web3PackageType::NativeContainerRuntime => "Native-Architecture Container Runtime",
         };
         write!(f, "{}", display_name)
     }

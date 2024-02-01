@@ -147,11 +147,7 @@ impl<T: ServiceTransmitter<J> + 'static, J: ServiceJobApi + Debug + 'static> Int
         Ok(self.tx.job_status(uuid))
     }
 
-    async fn get_data(
-        &self,
-        cid: &str,
-        data_type: IPFSDataType,
-    ) -> RpcResult<Vec<(String, Vec<u8>)>> {
+    async fn get_data(&self, cid: &str, data_type: IPFSDataType) -> RpcResult<Vec<u8>> {
         return match data_type {
             IPFSDataType::Object => self.retrieve_object(cid).await,
             IPFSDataType::Dag => self.retrieve_dag(cid).await,
