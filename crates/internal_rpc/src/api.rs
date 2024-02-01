@@ -1,9 +1,9 @@
+use crate::job_queue::job::{ServiceJobStatusResponse, ServiceJobType};
 use jsonrpsee::proc_macros::rpc;
 use platform::services::ServiceStatusResponse;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::str::FromStr;
-use crate::job_queue::job::{ServiceJobStatusResponse, ServiceJobType};
 
 pub(crate) type RpcResult<T> = Result<T, jsonrpsee::core::Error>;
 

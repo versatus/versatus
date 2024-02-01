@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Parser;
-use std::collections::HashMap;
 use multiaddr::Multiaddr;
+use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::path::Path;
 use std::path::PathBuf;

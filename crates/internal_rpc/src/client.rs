@@ -1,8 +1,8 @@
 use crate::api::RpcResult;
+use crate::server::MAX_RESPONSE_SIZE;
 use jsonrpsee::core::client::Client;
 use jsonrpsee::ws_client::WsClientBuilder;
 use std::net::SocketAddr;
-use crate::server::MAX_RESPONSE_SIZE;
 
 /// The websocket internal RPC client used for
 /// requesting services and obtaining responses
