@@ -31,12 +31,10 @@ pub struct FetchMetadataOpts {
 
 impl FetchMetadataOpts {
     pub fn validate(&self) -> Result<()> {
-        if self.storage_server.is_some() {
-            if self.is_srv.is_none() {
-                return Err(anyhow::anyhow!(
-                    "If storage-server is provided, is_srv must also be provided."
-                ));
-            }
+        if self.storage_server.is_some() && self.is_srv.is_none() {
+            return Err(anyhow::anyhow!(
+                "If storage-server is provided, is_srv must also be provided."
+            ));
         }
         Ok(())
     }

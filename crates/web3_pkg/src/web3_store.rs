@@ -3,6 +3,7 @@ use futures::TryStreamExt;
 use http::uri::Scheme;
 use ipfs_api::{IpfsApi, IpfsClient, TryFromUri};
 use serde_derive::{Deserialize, Serialize};
+use std::fmt::Debug;
 use std::io::Cursor;
 use std::net::{IpAddr, SocketAddr};
 use trust_dns_resolver::proto::rr::RecordType;
@@ -73,7 +74,7 @@ impl Web3Store {
     /// and then use the address for RPC service on an IPFS instance
     pub fn from_hostname(addr: &str, is_srv: bool) -> Result<Self> {
         let addresses = Self::resolve_dns(addr, is_srv)?;
-        let address = addresses.get(0).unwrap();
+        let address = addresses.first().unwrap();
         let ip = address.ip();
         let port = address.port();
         Ok(Web3Store {
