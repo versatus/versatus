@@ -71,7 +71,7 @@ pub fn run(opts: &PublishOpts) -> Result<()> {
     } else if opts.is_local {
         Web3Store::local()?
     } else {
-        Web3Store::from_hostname(VERSATUS_STORAGE_ADDRESS, is_srv)?
+        Web3Store::from_hostname(VERSATUS_STORAGE_ADDRESS, true)?
     };
 
     // Define some package and object annotations to include.

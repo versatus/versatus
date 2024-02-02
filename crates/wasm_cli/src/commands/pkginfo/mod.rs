@@ -57,7 +57,7 @@ pub fn run(opts: &FetchMetadataOpts) -> Result<()> {
     } else if opts.is_local {
         Web3Store::local()?
     } else {
-        Web3Store::from_hostname(VERSATUS_STORAGE_ADDRESS, is_srv)?
+        Web3Store::from_hostname(VERSATUS_STORAGE_ADDRESS, true)?
     };
     let rt = tokio::runtime::Runtime::new()?;
     rt.block_on(async {
