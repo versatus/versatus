@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use futures::TryStreamExt;
 use http::uri::Scheme;
 use ipfs_api::{IpfsApi, IpfsClient, TryFromUri};
@@ -228,11 +228,14 @@ impl Web3Store {
     }
 
     /// Checks if object is pinned
-    pub async fn is_pinned(&self, cid: &str) -> Result<bool> {
+    pub async fn is_pinned(&self, cid: &str) -> Result<()> {
         let res = self.client.pin_ls(Some(cid), None).await?;
-        Ok(!res.keys.is_empty())
-    }
 
+        if res.keys.is_empty() {
+            return Err(anyhow!("The CID {} is not pinned.", cid));
+        }
+        Ok(())
+    }
     /// A method to retrieve stats from the IPFS service and return them
     pub async fn stats(&self) -> Result<Web3StoreStats> {
         let repo = self.client.stats_repo().await?;

@@ -57,5 +57,5 @@ pub trait InternalRpcApi {
     async fn pin_object(&self, cid: &str, recursive: bool) -> RpcResult<Vec<String>>;
 
     #[method(name = "is_pinned")]
-    async fn is_pinned(&self, cid: &str) -> RpcResult<bool>;
+    async fn is_pinned(&self, cid: &str) -> RpcResult<()>;
 }

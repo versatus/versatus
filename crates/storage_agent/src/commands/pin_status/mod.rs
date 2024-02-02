@@ -14,22 +14,20 @@ pub async fn run(opts: &PinStatusOpts, config: &ServiceConfig) -> Result<()> {
     // XXX: This where we would make the pin object  RPC call to the named service (global option) from
     // the service config file (global option) and show the result.
     let client = InternalRpcClient::new(config.rpc_socket_addr()?).await?;
-    let pin_status: Result<bool> = client
+    let pin_status: Result<()> = client
         .0
         .is_pinned(&opts.cid)
         .await
         .map_err(|err| err.into());
-    if let Ok(pin_status) = pin_status {
         match pin_status {
-            true => println!(
+            Ok(()) => println!(
                 "The content associated with CID '{}' is pinned in IPFS.",
                 &opts.cid
             ),
-            false => println!(
-                "The content associated with CID '{}' is not pinned in IPFS.",
-                &opts.cid
+            Err(e) => println!(
+                "The content associated with CID '{}' is not pinned in IPFS. Details {}",
+                &opts.cid,e
             ),
         }
-    }
     Ok(())
 }

@@ -114,14 +114,13 @@ impl<T: ServiceTransmitter<J>, J: ServiceJobApi + Debug> InternalRpc<T, J> {
         Ok(obj)
     }
 
-    async fn is_pinned_obj(&self, cid: &str) -> RpcResult<bool> {
+    async fn is_pinned_obj(&self, cid: &str) -> RpcResult<()> {
         info!(
             "Checking whether object '{}' is pinned to local IPFS instance.",
             &cid
         );
         let store = Web3Store::local()?;
-        let is_pinned = store.is_pinned(cid).await?;
-        Ok(is_pinned)
+        store.is_pinned(cid).await.map_err(|err| err.into())
     }
 }
 
@@ -156,7 +155,7 @@ impl<T: ServiceTransmitter<J> + 'static, J: ServiceJobApi + Debug + 'static> Int
     async fn pin_object(&self, cid: &str, recursive: bool) -> RpcResult<Vec<String>> {
         self.pin_object_ipfs(cid, recursive).await
     }
-    async fn is_pinned(&self, cid: &str) -> RpcResult<bool> {
+    async fn is_pinned(&self, cid: &str) -> RpcResult<()> {
         self.is_pinned_obj(cid).await
     }
 }
