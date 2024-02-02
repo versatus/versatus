@@ -79,7 +79,9 @@ pub fn run(opts: &ExecuteOpts) -> Result<()> {
     // Temporary output for user -- will eventually be more structured and both
     // human and machine readable.
     println!("{}", &wasm.stdout());
-    eprintln!("Contract errors: {}", &wasm.stderr());
+    if !&wasm.stderr().is_empty() {
+        eprintln!("Contract errors: {}", &wasm.stderr());
+    }
 
     Ok(())
 }
