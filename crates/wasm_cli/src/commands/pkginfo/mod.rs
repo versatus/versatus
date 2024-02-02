@@ -31,12 +31,10 @@ pub struct FetchMetadataOpts {
 
 impl FetchMetadataOpts {
     pub fn validate(&self) -> Result<()> {
-        if self.storage_server.is_some() {
-            if self.is_srv.is_none() {
-                return Err(anyhow::anyhow!(
-                    "If storage-server is provided, is_srv must also be provided."
-                ));
-            }
+        if self.storage_server.is_some() && self.is_srv.is_none() {
+            return Err(anyhow::anyhow!(
+                "If storage-server is provided, is_srv must also be provided."
+            ));
         }
         Ok(())
     }
@@ -57,7 +55,7 @@ pub fn run(opts: &FetchMetadataOpts) -> Result<()> {
     } else if opts.is_local {
         Web3Store::local()?
     } else {
-        Web3Store::from_hostname(VERSATUS_STORAGE_ADDRESS, is_srv)?
+        Web3Store::from_hostname(VERSATUS_STORAGE_ADDRESS, true)?
     };
     let rt = tokio::runtime::Runtime::new()?;
     rt.block_on(async {

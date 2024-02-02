@@ -1,8 +1,9 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use futures::TryStreamExt;
 use http::uri::Scheme;
 use ipfs_api::{IpfsApi, IpfsClient, TryFromUri};
 use serde_derive::{Deserialize, Serialize};
+use std::fmt::Debug;
 use std::io::Cursor;
 use std::net::{IpAddr, SocketAddr};
 use trust_dns_resolver::proto::rr::RecordType;
@@ -73,7 +74,7 @@ impl Web3Store {
     /// and then use the address for RPC service on an IPFS instance
     pub fn from_hostname(addr: &str, is_srv: bool) -> Result<Self> {
         let addresses = Self::resolve_dns(addr, is_srv)?;
-        let address = addresses.get(0).unwrap();
+        let address = addresses.first().unwrap();
         let ip = address.ip();
         let port = address.port();
         Ok(Web3Store {
@@ -227,11 +228,14 @@ impl Web3Store {
     }
 
     /// Checks if object is pinned
-    pub async fn is_pinned(&self, cid: &str) -> Result<bool> {
+    pub async fn is_pinned(&self, cid: &str) -> Result<()> {
         let res = self.client.pin_ls(Some(cid), None).await?;
-        Ok(!res.keys.is_empty())
-    }
 
+        if res.keys.is_empty() {
+            return Err(anyhow!("The CID {} is not pinned.", cid));
+        }
+        Ok(())
+    }
     /// A method to retrieve stats from the IPFS service and return them
     pub async fn stats(&self) -> Result<Web3StoreStats> {
         let repo = self.client.stats_repo().await?;
