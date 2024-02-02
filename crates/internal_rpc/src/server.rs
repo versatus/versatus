@@ -155,7 +155,7 @@ impl<T: ServiceTransmitter<J> + 'static, J: ServiceJobApi + Debug + 'static> Int
     async fn pin_object(&self, cid: &str, recursive: bool) -> RpcResult<Vec<String>> {
         self.pin_object_ipfs(cid, recursive).await
     }
-    async fn is_pinned(&self, cid: &str) -> RpcResult<()> {
+    async fn pinned_status(&self, cid: &str) -> RpcResult<()> {
         self.is_pinned_obj(cid).await
     }
 }

@@ -16,7 +16,7 @@ pub async fn run(opts: &PinStatusOpts, config: &ServiceConfig) -> Result<()> {
     let client = InternalRpcClient::new(config.rpc_socket_addr()?).await?;
     let pin_status: Result<()> = client
         .0
-        .is_pinned(&opts.cid)
+        .pinned_status(&opts.cid)
         .await
         .map_err(|err| err.into());
         match pin_status {
