@@ -32,7 +32,7 @@ pub struct ServiceJob {
     uuid: uuid::Uuid,
     kind: ServiceJobType,
     /// Stringified JSON inputs to a job.
-    inputs: String,
+    compute_inputs: String,
     inst: Instant,
 }
 impl ServiceJobApi for ServiceJob {
@@ -41,7 +41,7 @@ impl ServiceJobApi for ServiceJob {
             cid: cid.into(),
             uuid,
             kind,
-            inputs,
+            compute_inputs: inputs,
             inst: Instant::now(),
         }
     }
@@ -55,7 +55,7 @@ impl ServiceJobApi for ServiceJob {
         self.kind.clone()
     }
     fn inputs(&self) -> &str {
-        &self.inputs
+        &self.compute_inputs
     }
     fn inst(&self) -> std::time::Instant {
         self.inst
