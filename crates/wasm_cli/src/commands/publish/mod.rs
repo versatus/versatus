@@ -3,6 +3,8 @@ use clap::Parser;
 use multiaddr::Multiaddr;
 use std::collections::HashMap;
 use std::ffi::OsStr;
+use std::net::AddrParseError;
+use std::net::SocketAddr;
 use std::path::Path;
 use std::path::PathBuf;
 use web3_pkg::web3_pkg::{
@@ -69,7 +71,24 @@ pub fn run(opts: &PublishOpts) -> Result<()> {
     } else if opts.is_local {
         Web3Store::local()?
     } else {
-        Web3Store::from_hostname(VERSATUS_STORAGE_ADDRESS, true)?
+        if let Ok(addr) = std::env::var("VIPFS_ADDRESS") {
+            let socket_addr: Result<SocketAddr, AddrParseError>  = addr.parse();
+            if let Ok(qualified_addr) = socket_addr {
+                let (ip_protocol, ip) = match qualified_addr.ip() {
+                    std::net::IpAddr::V4(ip) => ("ip4".to_string(), ip.to_string()),
+                    std::net::IpAddr::V6(ip) => ("ip6".to_string(), ip.to_string()),
+                };
+                let port = qualified_addr.port().to_string();
+                
+                let multiaddr_string = format!("/{ip_protocol}/{ip}/tcp/{port}");
+
+                Web3Store::from_multiaddr(&multiaddr_string)?
+            } else {
+                Web3Store::from_hostname(&addr, true)?
+            }
+        } else {
+            Web3Store::from_hostname(VERSATUS_STORAGE_ADDRESS, true)?
+        }
     };
 
     // Define some package and object annotations to include.
