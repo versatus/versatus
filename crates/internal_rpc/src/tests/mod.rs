@@ -89,8 +89,8 @@ async fn test_is_object_pinned_from_server() {
     .await
     .unwrap();
     let client = InternalRpcClient::new(socket).await.unwrap();
-    let res = client.0.is_pinned(sample_cid).await;
-    assert_eq!(res.unwrap(), true);
+    let res = client.0.pinned_status(sample_cid).await;
+    assert_eq!(res.unwrap(), ());
     handle.stop().unwrap();
     let _ = handle;
 }
