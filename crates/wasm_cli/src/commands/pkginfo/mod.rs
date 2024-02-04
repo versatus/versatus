@@ -2,6 +2,7 @@ use crate::commands::publish::VERSATUS_STORAGE_ADDRESS;
 use anyhow::Result;
 use clap::Parser;
 use multiaddr::Multiaddr;
+use std::net::{SocketAddr, AddrParseError};
 use std::str::from_utf8;
 use web3_pkg::web3_pkg::Web3Package;
 use web3_pkg::web3_store::Web3Store;
@@ -55,7 +56,24 @@ pub fn run(opts: &FetchMetadataOpts) -> Result<()> {
     } else if opts.is_local {
         Web3Store::local()?
     } else {
-        Web3Store::from_hostname(VERSATUS_STORAGE_ADDRESS, true)?
+        if let Ok(addr) = std::env::var("VIPFS_ADDRESS") {
+            let socket_addr: Result<SocketAddr, AddrParseError>  = addr.parse();
+            if let Ok(qualified_addr) = socket_addr {
+                let (ip_protocol, ip) = match qualified_addr.ip() {
+                    std::net::IpAddr::V4(ip) => ("ip4".to_string(), ip.to_string()),
+                    std::net::IpAddr::V6(ip) => ("ip6".to_string(), ip.to_string()),
+                };
+                let port = qualified_addr.port().to_string();
+                
+                let multiaddr_string = format!("/{ip_protocol}/{ip}/tcp/{port}");
+
+                Web3Store::from_multiaddr(&multiaddr_string)?
+            } else {
+                Web3Store::from_hostname(&addr, true)?
+            }
+        } else {
+            Web3Store::from_hostname(VERSATUS_STORAGE_ADDRESS, true)?
+        }
     };
     let rt = tokio::runtime::Runtime::new()?;
     rt.block_on(async {
