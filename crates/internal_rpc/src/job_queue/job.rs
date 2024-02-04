@@ -157,9 +157,9 @@ pub enum ServiceJobState {
     /// Job has started
     InProgress,
     /// Job is completed
-    Complete,
+    Complete(String),
     /// Job failed to complete
-    Failed,
+    Failed(String),
 }
 
 /// The reponse sent from the server when requested by a client
@@ -168,4 +168,10 @@ pub enum ServiceJobState {
 pub struct ServiceJobStatusResponse {
     pub(crate) status: ServiceJobState,
     pub(crate) uptime: u64,
+}
+
+impl ServiceJobStatusResponse {
+    pub fn status(&self) -> &ServiceJobState {
+        &self.status
+    }
 }
