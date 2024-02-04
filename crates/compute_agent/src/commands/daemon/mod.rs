@@ -38,18 +38,23 @@ pub async fn run(_opts: &DaemonOpts, config: &ServiceConfig) -> Result<()> {
             Some(job) => {
                 if let ServiceJobType::Compute(job_type) = job.kind() {
                     job_queue_rx.update_state(&Some(job.clone()), ServiceJobState::InProgress);
-                    if let Err(err) = compute_runtime::runtime::ComputeJobRunner::run(
+                    match compute_runtime::runtime::ComputeJobRunner::run(
                         &job.uuid().to_string(),
                         &job.cid(),
                         job_type,
                         job.inputs(),
                         &storage,
                     ) {
-                        error!("failed to execute compute job {:?}: {:?}", job, err);
-                        job_queue_rx.update_state(&Some(job), ServiceJobState::Failed);
-                    } else {
-                        info!("compute job {:?} was successfully completed", job);
-                        job_queue_rx.update_state(&Some(job), ServiceJobState::Complete);
+                        Ok(output) => {
+                            info!("compute job {:?} was successfully completed", job);
+                            job_queue_rx
+                                .update_state(&Some(job), ServiceJobState::Complete(output));
+                        }
+                        Err(err) => {
+                            error!("failed to execute compute job {:?}: {:?}", job, err);
+                            job_queue_rx
+                                .update_state(&Some(job), ServiceJobState::Failed(err.to_string()));
+                        }
                     }
                 } else {
                     error!("expected a compute job, found: {:?}", job.kind());
