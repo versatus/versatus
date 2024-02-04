@@ -19,15 +19,15 @@ pub async fn run(opts: &PinStatusOpts, config: &ServiceConfig) -> Result<()> {
         .pinned_status(&opts.cid)
         .await
         .map_err(|err| err.into());
-        match pin_status {
-            Ok(()) => println!(
-                "The content associated with CID '{}' is pinned in IPFS.",
-                &opts.cid
-            ),
-            Err(e) => println!(
-                "The content associated with CID '{}' is not pinned in IPFS. Details {}",
-                &opts.cid,e
-            ),
-        }
+    match pin_status {
+        Ok(()) => println!(
+            "The content associated with CID '{}' is pinned in IPFS.",
+            &opts.cid
+        ),
+        Err(e) => println!(
+            "The content associated with CID '{}' is not pinned in IPFS. Details {}",
+            &opts.cid, e
+        ),
+    }
     Ok(())
 }
