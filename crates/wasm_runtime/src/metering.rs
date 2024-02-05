@@ -13,7 +13,7 @@ pub fn cost_function(_operator: &Operator) -> u64 {
     //     _ => 0,
     // }
 
-    1 /* for now we just return 1 regardless of the instruction */
+    0 /* for now we just return 1 regardless of the instruction */
 }
 
 /// A convenience wrapper for creating a new `wasmer_middlewares::Metering`.
