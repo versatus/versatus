@@ -1,6 +1,6 @@
 //! This module defines the ComputeRuntime trait adhered to by Versatus compute runtimes.
 use crate::{oci_runc::OpenComputeRuntime, oci_wasm::OciWasmRuntime};
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use bitmask_enum::bitmask;
 use flate2::write::GzEncoder;
 use flate2::Compression;
@@ -36,7 +36,8 @@ impl CidManifest {
     pub fn from_file(path: &str) -> Result<CidManifest> {
         let file = File::open(path)?;
         let reader = BufReader::new(file);
-        Ok(serde_json::from_reader(reader)?)
+        Ok(serde_json::from_reader(reader)
+            .map_err(|e| anyhow!("failed to parse CidManifest from manifest file: {e:?}"))?)
     }
 }
 
