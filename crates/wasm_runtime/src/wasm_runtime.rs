@@ -67,7 +67,8 @@ impl WasmRuntime {
         debug!("Compiling {} bytes of WASM", wasm_bytes.len());
 
         // Compile module into in-memory store
-        let module = Module::new(&store, wasm_bytes)?;
+        let module = Module::new(&store, wasm_bytes)
+            .map_err(|e| WasmRuntimeError::ModuleBuildError(format!("{e:?}")))?;
         Ok(Self {
             store,
             module,
