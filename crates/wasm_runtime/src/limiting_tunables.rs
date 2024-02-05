@@ -4,10 +4,8 @@ use wasmer::{
     MemoryError, MemoryType, Pages, TableType, Tunables,
 };
 
-// Default max is 48 * 64Kb pages, or 3MB. This ought to be enough for most
-// smart contract use cases, but will likley need to be adjusted for other
-// WASM use cases in the future.
-pub(crate) const DEFAULT_PAGE_LIMIT: Pages = Pages(48);
+/// Each page is 64KB. The default is 1GB.
+pub(crate) const DEFAULT_PAGE_LIMIT: Pages = Pages(15_625);
 
 /// A custom tunables that allows you to set a memory limit.
 ///
