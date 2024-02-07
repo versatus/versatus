@@ -15,12 +15,12 @@ use super::{
     limiting_tunables::{LimitingTunables, DEFAULT_PAGE_LIMIT},
     metering::MeteringConfig,
 };
-use telemetry::debug;
+use telemetry::{debug, info, warn};
 use wasmer::{
     wasmparser::Operator, BaseTunables, CompilerConfig, Engine, Instance, Module, NativeEngineExt,
     Store, Target,
 };
-use wasmer_middlewares::metering::get_remaining_points;
+use wasmer_middlewares::metering::{get_remaining_points, MeteringPoints};
 use wasmer_wasix::{Pipe, WasiEnv};
 
 /// This is the first command line argument, traditionally reserved for the
@@ -67,7 +67,9 @@ impl WasmRuntime {
         debug!("Compiling {} bytes of WASM", wasm_bytes.len());
 
         // Compile module into in-memory store
-        let module = Module::new(&store, wasm_bytes)?;
+        let module = Module::new(&store, wasm_bytes)
+            .map_err(|e| WasmRuntimeError::ModuleBuildError(format!("{e:?}")))?;
+        dbg!(&module);
         Ok(Self {
             store,
             module,
@@ -146,13 +148,18 @@ impl WasmRuntime {
 
         wasi_fn_env.initialize(store, instance.clone())?;
         let start = instance.exports.get_function("_start")?;
-        start.call(store, &[])?;
+        let exec_result = start.call(store, &[]);
 
-        telemetry::info!(
-            "MeteringPoints::{:?}",
-            get_remaining_points(store, &instance)
-        );
+        match get_remaining_points(store, &instance) {
+            MeteringPoints::Remaining(points) => {
+                info!("Remaining metering points: {points}");
+            }
+            MeteringPoints::Exhausted => {
+                warn!("Metering points were exhausted. If unreachable code was reached, try increasing the meter limit.");
+            }
+        }
 
+        exec_result?;
         wasi_fn_env.cleanup(store, None);
         Ok(())
     }

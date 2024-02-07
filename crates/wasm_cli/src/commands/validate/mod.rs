@@ -23,9 +23,12 @@ pub fn run(opts: &ValidateOpts) -> Result<()> {
     let filename = opts.wasm.to_str().expect("Need path name");
     println!("Performing validation over {}", filename);
     let w = WasmLoaderBuilder::default()
-        .wasm_bytes(std::fs::read(filename).unwrap())
+        .wasm_bytes(
+            std::fs::read(filename)
+                .map_err(|e| anyhow::Error::msg(format!("Error reading Wasm file: {}", e)))?,
+        )
         .parse()
-        .unwrap()
+        .map_err(|e| anyhow::Error::msg(format!("Error parsing Wasm file: {}", e)))?
         .build()?;
 
     if !w.is_wasi && !w.is_wasix {

@@ -18,8 +18,7 @@ pub struct DataRetrievalOpts {
 
 /// Make a data retrieval RPC query against a running agent.
 pub async fn run(opts: &DataRetrievalOpts, config: &ServiceConfig) -> Result<()> {
-    // XXX: This where we would make the get data  RPC call to the named service (global option) from
-    // the service config file (global option) and show the result.
+    // Make a series of RPC calls to retrieve an object by CID.
     let client = InternalRpcClient::new(config.rpc_socket_addr()?).await?;
     if let Ok(metadata) = std::fs::metadata(&opts.blob_path) {
         if !metadata.is_dir() {
@@ -34,16 +33,14 @@ pub async fn run(opts: &DataRetrievalOpts, config: &ServiceConfig) -> Result<()>
     }
     let blob = client.0.get_data(&opts.cid, opts.data_type).await?;
     if !blob.is_empty() {
-        for (cid, blob) in blob.iter() {
-            let file_path = std::path::Path::new(&opts.blob_path).join(cid);
-            let mut file = std::fs::File::create(&file_path)
-                .with_context(|| format!("Failed to create/open file at {:?}", &file_path))?;
-            file.write_all(blob)
-                .with_context(|| format!("Failed to write data to file at {:?}", &file_path))?;
+        let file_path = std::path::Path::new(&opts.blob_path).join(&opts.cid);
+        let mut file = std::fs::File::create(&file_path)
+            .with_context(|| format!("Failed to create/open file at {:?}", &file_path))?;
+        file.write_all(&blob)
+            .with_context(|| format!("Failed to write data to file at {:?}", &file_path))?;
 
-            file.sync_all()
-                .with_context(|| format!("Failed to sync data to disk at {:?}", &file_path))?;
-        }
+        file.sync_all()
+            .with_context(|| format!("Failed to sync data to disk at {:?}", &file_path))?;
     };
 
     Ok(())

@@ -9,7 +9,7 @@ license.workspace = true
 version.workspace = true
 
 [[bin]]
-name = "versa-wasm"
+name = "versatus-wasm"
 path = "src/main.rs"
 
 [dependencies]
@@ -19,6 +19,7 @@ clap = { workspace = true }
 ethnum = "1.5"
 multiaddr = "0.18.1"
 primitives = { workspace = true }
+env_logger = { workspace = true }
 telemetry = { workspace = true }
 tokio = { workspace = true }
 wasm_loader = { workspace = true }

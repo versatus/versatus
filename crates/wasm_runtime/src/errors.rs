@@ -56,6 +56,9 @@ origin: {:?}",
 
     #[error(transparent)]
     ExportError(#[from] ExportError),
+
+    #[error("failed to build wasm runtime module: {0}")]
+    ModuleBuildError(String),
 }
 
 impl WasmRuntimeError {

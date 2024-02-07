@@ -1,8 +1,10 @@
 use anyhow::Result;
 use clap::Parser;
 use multiaddr::Multiaddr;
+use std::collections::HashMap;
 use std::ffi::OsStr;
-use std::net::ToSocketAddrs;
+use std::net::AddrParseError;
+use std::net::SocketAddr;
 use std::path::Path;
 use std::path::PathBuf;
 use web3_pkg::web3_pkg::{
@@ -42,12 +44,10 @@ pub struct PublishOpts {
 
 impl PublishOpts {
     pub fn validate(&self) -> Result<()> {
-        if let Some(_) = &self.storage_server {
-            if self.is_srv.is_none() {
-                return Err(anyhow::anyhow!(
-                    "If storage-server is provided, is_srv must also be provided."
-                ));
-            }
+        if self.storage_server.is_some() && self.is_srv.is_none() {
+            return Err(anyhow::anyhow!(
+                "If storage-server is provided, is_srv must also be provided."
+            ));
         }
         Ok(())
     }
@@ -56,7 +56,7 @@ impl PublishOpts {
 /// Generate a web3-native package from a smart contract and publish it to the network. This is a
 /// stripped-down implementation of what's in the web3-pkg example that's supposed to be pretty
 /// trivial for publishing a smart contract.
-pub async fn run(opts: &PublishOpts) -> Result<()> {
+pub fn run(opts: &PublishOpts) -> Result<()> {
     let is_srv = if let Some(value) = opts.is_srv {
         value
     } else {
@@ -64,54 +64,98 @@ pub async fn run(opts: &PublishOpts) -> Result<()> {
     };
     let store = if let Some(address) = opts.storage_server.as_ref() {
         if let Ok(ip) = address.parse::<Multiaddr>() {
-            Web3Store::from_multiaddr(ip.to_string().as_str())?;
-        } else if address.to_socket_addrs().is_ok() {
-            Web3Store::from_hostname(address, is_srv)?;
+            Web3Store::from_multiaddr(ip.to_string().as_str())?
         } else {
-            return Err(anyhow::Error::msg(
-                "Address is neither hostname nor IP address",
-            ));
+            Web3Store::from_hostname(address, is_srv)?
         }
-        Web3Store::local()?
     } else if opts.is_local {
         Web3Store::local()?
     } else {
-        Web3Store::from_hostname(VERSATUS_STORAGE_ADDRESS, is_srv)?
+        if let Ok(addr) = std::env::var("VIPFS_ADDRESS") {
+            let socket_addr: Result<SocketAddr, AddrParseError>  = addr.parse();
+            if let Ok(qualified_addr) = socket_addr {
+                let (ip_protocol, ip) = match qualified_addr.ip() {
+                    std::net::IpAddr::V4(ip) => ("ip4".to_string(), ip.to_string()),
+                    std::net::IpAddr::V6(ip) => ("ip6".to_string(), ip.to_string()),
+                };
+                let port = qualified_addr.port().to_string();
+                
+                let multiaddr_string = format!("/{ip_protocol}/{ip}/tcp/{port}");
+
+                Web3Store::from_multiaddr(&multiaddr_string)?
+            } else {
+                Web3Store::from_hostname(&addr, true)?
+            }
+        } else {
+            Web3Store::from_hostname(VERSATUS_STORAGE_ADDRESS, true)?
+        }
     };
 
+    // Define some package and object annotations to include.
+    let mut o_ann = HashMap::<String, String>::new();
+    o_ann.insert("role".to_string(), "contract".to_string());
+    let mut p_ann = HashMap::<String, String>::new();
+    p_ann.insert("status".to_string(), "test".to_string());
+
     let mut objects: Vec<Web3PackageObject> = vec![];
+    let rt = tokio::runtime::Runtime::new()?;
+    rt.block_on(async {
+        let result: Result<()> = (async {
+            let cid =
+                store
+                    .write_object(std::fs::read(&opts.wasm).map_err(|e| {
+                        anyhow::Error::msg(format!("Error reading Wasm file: {}", e))
+                    })?)
+                    .await
+                    .map_err(|e| anyhow::Error::msg(format!("Error writing object: {}", e)))?;
 
-    let cid = store.write_object(std::fs::read(&opts.wasm)?).await?;
+            let path = Path::new(&opts.wasm)
+                .file_name()
+                .unwrap_or(OsStr::new("unknown"))
+                .to_str()
+                .unwrap_or_default();
 
-    // Keep the filename portion of the path as a user-readable label
-    let path = Path::new(&opts.wasm)
-        .file_name()
-        .unwrap_or(OsStr::new("unknown"))
-        .to_str()
-        .unwrap_or_default();
+            let obj = Web3PackageObjectBuilder::default()
+                .object_arch(Web3PackageArchitecture::Wasm32Wasi)
+                .object_path(path.to_string().to_owned())
+                .object_cid(Web3ContentId { cid })
+                .object_annotations(o_ann)
+                .object_type(Web3ObjectType::Executable)
+                .build()
+                .map_err(|e| {
+                    anyhow::Error::msg(format!("Error occurred while building the package :{}", e))
+                })?;
 
-    let obj = Web3PackageObjectBuilder::default()
-        .object_arch(Web3PackageArchitecture::Wasm32Wasi)
-        .object_path(path.to_string().to_owned())
-        .object_cid(Web3ContentId { cid })
-        .object_type(Web3ObjectType::Executable)
-        .build()?;
+            objects.push(obj);
 
-    objects.push(obj);
+            let pkg_meta = Web3PackageBuilder::default()
+                .pkg_version(opts.version)
+                .pkg_name(opts.name.to_owned())
+                .pkg_author(opts.author.to_owned())
+                .pkg_type(Web3PackageType::SmartContract)
+                .pkg_objects(objects)
+                .pkg_annotations(p_ann)
+                .pkg_replaces(vec![])
+                .build()
+                .map_err(|e| anyhow::Error::msg(format!("Error building package: {}", e)))?;
 
-    let pkg_meta = Web3PackageBuilder::default()
-        .pkg_version(opts.version)
-        .pkg_name(opts.name.to_owned())
-        .pkg_author(opts.author.to_owned())
-        .pkg_type(Web3PackageType::SmartContract)
-        .pkg_objects(objects)
-        .pkg_replaces(vec![])
-        .build()?;
-    let json = serde_json::to_string(&pkg_meta)?;
+            let json = serde_json::to_string(&pkg_meta).map_err(|e| {
+                anyhow::Error::msg(format!("Error serializing package metadata to JSON: {}", e))
+            })?;
 
-    let cid = store.write_dag(json.into()).await?;
+            let cid = store
+                .write_dag(json.into())
+                .await
+                .map_err(|e| anyhow::Error::msg(format!("Error writing DAG: {}", e)))?;
 
-    println!("Content ID for Web3 Package is {}", cid);
+            println!("Content ID for Web3 Package is {}", cid);
+            Ok(())
+        })
+        .await;
+        if let Err(e) = result {
+            eprintln!("Error: {}", e);
+        }
+    });
 
     Ok(())
 }

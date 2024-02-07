@@ -1,8 +1,9 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use futures::TryStreamExt;
 use http::uri::Scheme;
 use ipfs_api::{IpfsApi, IpfsClient, TryFromUri};
 use serde_derive::{Deserialize, Serialize};
+use std::fmt::Debug;
 use std::io::Cursor;
 use std::net::{IpAddr, SocketAddr};
 use trust_dns_resolver::proto::rr::RecordType;
@@ -72,10 +73,15 @@ impl Web3Store {
     /// A constructor that takes domain host name  or SRV record and resolves it to ipv4/ipv6 addresses
     /// and then use the address for RPC service on an IPFS instance
     pub fn from_hostname(addr: &str, is_srv: bool) -> Result<Self> {
+        println!("attempting to resolve dns for address: {}", &addr);
         let addresses = Self::resolve_dns(addr, is_srv)?;
-        let address = addresses.get(0).unwrap();
+        println!("resolved dns, using address: {:?} to attempt to connect to IPFS", &addresses);
+        let address = addresses.first().unwrap();
+        println!("unwrapped dns record into address: {:?} to attempt to connect to IPFS", &address);
         let ip = address.ip();
+        println!("unwrapped dns record using ip: {:?} to attempt to connect to IPFS", &ip);
         let port = address.port();
+        println!("unwrapped dns record using port: {:?} to attempt to connect to IPFS", &port);
         Ok(Web3Store {
             client: IpfsClient::from_host_and_port(Scheme::HTTP, ip.to_string().as_str(), port)?,
         })
@@ -117,12 +123,16 @@ impl Web3Store {
         let resolver = Resolver::from_system_conf()?;
         let mut addresses = Vec::new();
         if is_srv {
+            println!("attempting to resolve dns for {}", &name);
             let lookup = resolver.lookup(name, RecordType::SRV)?;
+            println!("found name {:?}", &lookup);
             for record in lookup.records() {
                 if let Some(srv_data) = record.data().and_then(|data| data.as_srv()) {
                     let target = srv_data.target();
+                    println!("attempting to resolve ip address for {:?}", &record);
                     let address_list =
                         Self::resolve_ip_addresses(&resolver, target.to_string().as_str())?;
+                    println!("received address list for {:?}, adding {:?} to addresses", record, address_list);
                     for addr in address_list {
                         addresses.push(SocketAddr::new(addr, srv_data.port()));
                     }
@@ -227,11 +237,14 @@ impl Web3Store {
     }
 
     /// Checks if object is pinned
-    pub async fn is_pinned(&self, cid: &str) -> Result<bool> {
+    pub async fn is_pinned(&self, cid: &str) -> Result<()> {
         let res = self.client.pin_ls(Some(cid), None).await?;
-        Ok(!res.keys.is_empty())
-    }
 
+        if res.keys.is_empty() {
+            return Err(anyhow!("The CID {} is not pinned.", cid));
+        }
+        Ok(())
+    }
     /// A method to retrieve stats from the IPFS service and return them
     pub async fn stats(&self) -> Result<Web3StoreStats> {
         let repo = self.client.stats_repo().await?;

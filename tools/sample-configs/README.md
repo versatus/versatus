@@ -8,3 +8,7 @@ This configuration file is used by the storage agent, the compute agent and (per
 
 The default file is suitable for deployments where all three (compute, protocol and storage) services are running on the same machine. All that is required is to change each of the pre-shared keys to a random string each.
 
+## manifest.json
+
+This configuration is used by the compute agent to determine which compute runtime packages are able to serve which compute job execution types. This is not intended to be managed by operators in general, but rather a common set of defaults, which can be overridden if needed for bug fixes etc without having to recompile and re-release the code.
+

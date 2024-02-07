@@ -1,7 +1,7 @@
 //! This is a module that tracks basic stats for servicing parts of complex requests. It's supposed
 //! to be a little more granular than just the total time taken to service a request, but not as
 //! granular as full-on execution profiling and without the special tools or overhead.
-use crate::info;
+use log::info;
 use std::time::{SystemTime, SystemTimeError, UNIX_EPOCH};
 use thiserror::Error;
 
@@ -23,6 +23,7 @@ pub enum StopWatchError {
 }
 
 /// Simple struct to track start/end times
+#[derive(Debug)]
 struct StopWatch {
     /// Start time for this specific stat.
     start_ms: Option<u128>,
@@ -70,6 +71,7 @@ impl StopWatch {
     }
 }
 
+#[derive(Debug)]
 pub struct RequestStats {
     /// A label to identify this whole collection of stats. This is added to the default output,
     /// but has no special meaning. A good example might be to make this the module name.
@@ -128,7 +130,6 @@ impl Drop for RequestStats {
             if let Ok(val) = &self.values[i].duration() {
                 output += &format!("; {}={} ", &stat, &val.to_string());
             }
-            //output += &format!("{}={}", &stat, &self.values[i].duration()?.to_string());
         }
         info!("RequestStat: {}", output);
     }
