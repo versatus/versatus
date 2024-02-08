@@ -10,9 +10,9 @@ version.workspace = true
 [dependencies]
 anyhow = { workspace = true }
 derive_builder = { workspace = true }
-telemetry = { workspace = true }
+log = { workspace = true }
 wasmer = { workspace = true }
-wasmparser = "0.107"
+wasmparser = "0.121"
 
 [dev-dependencies]
 test-log = "0.2"

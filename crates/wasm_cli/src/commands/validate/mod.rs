@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 use clap::Parser;
 use wasm_loader::wasm_loader::WasmLoaderBuilder;
+use wasm_runtime::limiting_tunables::DEFAULT_PAGE_LIMIT;
 
 #[derive(Parser, Debug)]
 pub struct ValidateOpts {
@@ -31,6 +32,20 @@ pub fn run(opts: &ValidateOpts) -> Result<()> {
         .map_err(|e| anyhow::Error::msg(format!("Error parsing Wasm file: {}", e)))?
         .build()?;
 
+    if w.wasm_version != 1 {
+        println!("WASM Version {} not yet supported.", w.wasm_version);
+        expected_to_run = false;
+    }
+
+    let limit: u64 = DEFAULT_PAGE_LIMIT.0.into();
+    if w.wasm_memory > limit {
+        println!(
+            "WASM module needs {} pages of memory. Current limit for contracts is {}.",
+            w.wasm_memory, limit
+        );
+        expected_to_run = false;
+    }
+
     if !w.is_wasi && !w.is_wasix {
         println!("WASM module isn't built for use with WASI/WASIX");
         expected_to_run = false;
@@ -41,9 +56,14 @@ pub fn run(opts: &ValidateOpts) -> Result<()> {
         expected_to_run = false;
     }
 
-    if !w.has_vrrb {
+    if !w.has_versatus {
         // This, unlike the other checks, is not fatal
-        println!("WASM module doesn't make use of any VRRB extensions (not fatal)");
+        println!("WASM module doesn't make use of any Versatus extensions (not fatal)");
+    }
+
+    if w.needs_javy {
+        println!("WASM module is dynamically linked against Javy runtime. Should be static");
+        expected_to_run = false;
     }
 
     let mut extra_namespaces = vec![];
@@ -61,9 +81,9 @@ pub fn run(opts: &ValidateOpts) -> Result<()> {
     }
 
     if expected_to_run {
-        println!("WASM module is expected to run under the VRRB runtime");
+        println!("WASM module is expected to run under the Versatus runtime");
     } else {
-        println!("WASM module is not expected to run under the VRRB runtime");
+        println!("WASM module is not expected to run under the Versatus runtime");
     }
 
     Ok(())

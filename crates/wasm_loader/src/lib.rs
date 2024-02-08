@@ -3,7 +3,7 @@ pub mod wasm_loader;
 
 #[cfg(test)]
 mod loader_tests {
-    use telemetry::log::debug;
+    use log::debug;
     use test_log::test;
 
     use crate::wasm_loader::WasmLoaderBuilder;
