@@ -29,7 +29,7 @@ const TEST_VERSION: i32 = 5432;
 const TEST_TX_ID: &str = "81b067ac-8693-483a-8354-d7de15ab6f2c";
 const TEST_LAST_BLOCK_TIME: i64 = 1689897402;
 const TEST_RETURN_FAIL: &str = "RETURN_FAIL";
-const VRRB_CONTRACT_NAME: &str = "vrrb-contract"; //argv[0] for smart contracts
+const VRRB_CONTRACT_NAME: &str = "versatus"; //argv[0] for smart contracts
 const TEST_SPENDING_LIMIT: u64 = 10000000;
 
 fn create_test_wasm_runtime(
