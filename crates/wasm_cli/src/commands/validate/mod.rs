@@ -22,7 +22,7 @@ const SUPPORTED_NAMESPACES: &[&str] = &[ENV, WASI_SNAPSHOT_PREVIEW1];
 pub fn run(opts: &ValidateOpts) -> Result<()> {
     let mut expected_to_run = true;
     let filename = opts.wasm.to_str().expect("Need path name");
-    println!("Running describe for {}", filename);
+    println!("Running validation for {}", filename);
     let w = WasmLoaderBuilder::default()
         .wasm_bytes(
             std::fs::read(filename)
