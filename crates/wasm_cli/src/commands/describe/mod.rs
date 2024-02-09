@@ -23,12 +23,14 @@ pub fn run(opts: &DescribeOpts) -> Result<()> {
     println!("Running describe for {}", filename);
     let wasm_loader = WasmLoaderBuilder::from_filename(filename)?;
 
-    println!("WASM?  {}", wasm_loader.from_wat);
-    println!("WASI?  {}", wasm_loader.is_wasi);
-    println!("WASIX? {}", wasm_loader.is_wasix);
-    println!("Javy?  {}", wasm_loader.needs_javy);
-    println!("Start? {}", wasm_loader.has_start);
-    println!("VRRB?  {}", wasm_loader.has_vrrb);
+    println!("WASM?      {}", wasm_loader.from_wat);
+    println!("Version    {}", wasm_loader.wasm_version);
+    println!("Memory     {} pages", wasm_loader.wasm_memory);
+    println!("WASI?      {}", wasm_loader.is_wasi);
+    println!("WASIX?     {}", wasm_loader.is_wasix);
+    println!("Javy?      {}", wasm_loader.needs_javy);
+    println!("Start?     {}", wasm_loader.has_start);
+    println!("Versatus?  {}", wasm_loader.has_versatus);
     println!("Namespaces: {:?}", wasm_loader.imports.keys());
 
     Ok(())

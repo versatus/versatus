@@ -4,8 +4,8 @@ use wasmer::{
     MemoryError, MemoryType, Pages, TableType, Tunables,
 };
 
-/// Each page is 64KB. The default is 1GB.
-pub(crate) const DEFAULT_PAGE_LIMIT: Pages = Pages(15_625);
+/// Each page is 64KB. The default is 4MB
+pub const DEFAULT_PAGE_LIMIT: Pages = Pages(64);
 
 /// A custom tunables that allows you to set a memory limit.
 ///

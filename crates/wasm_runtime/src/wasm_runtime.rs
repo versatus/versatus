@@ -1,6 +1,6 @@
 //! Web Assembly runtime execution
 //!
-//! This is the WASM runtime for the VRRB compute stack. It allows WASI/WASIX
+//! This is the WASM runtime for the Verstatus compute stack. It allows WASI/WASIX
 //! function calls and assumes that the WASM payload has a _start entry point,
 //! reads from STDIN and writes to STDOUT. It wraps around the Wasmer WASM
 //! runtime.
@@ -25,7 +25,7 @@ use wasmer_wasix::{Pipe, WasiEnv};
 
 /// This is the first command line argument, traditionally reserved for the
 /// program name (argv[0] in C and others).
-const MODULE_ARGV0: &str = "vrrb-contract";
+const MODULE_ARGV0: &str = "versatus";
 
 use crate::errors::WasmRuntimeError;
 pub type RuntimeResult<T> = Result<T, WasmRuntimeError>;
