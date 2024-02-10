@@ -121,7 +121,7 @@ mod tests {
             let pvtx: Vertex<Block, String> = pblock.into();
             if let Ok(mut guard) = dag.write() {
                 let edge = (&gvtx, &pvtx);
-                guard.add_edge(edge);
+                guard.add_edge(&edge);
             }
 
             let convergence = miner.try_mine();
@@ -129,7 +129,7 @@ mod tests {
                 let cvtx: Vertex<Block, String> = cblock.into();
                 if let Ok(mut guard) = dag.write() {
                     let edge = (&pvtx, &cvtx);
-                    guard.add_edge(edge);
+                    guard.add_edge(&edge);
                 }
             }
 
@@ -192,8 +192,8 @@ mod tests {
             if let Ok(mut guard) = dag.write() {
                 let edge1 = (&gvtx, &pvtx1);
                 let edge2 = (&gvtx, &pvtx2);
-                guard.add_edge(edge1);
-                guard.add_edge(edge2);
+                guard.add_edge(&edge1);
+                guard.add_edge(&edge2);
             }
 
             let convergence = miner.try_mine();
@@ -202,8 +202,8 @@ mod tests {
                 if let Ok(mut guard) = dag.write() {
                     let edge1 = (&pvtx1, &cvtx);
                     let edge2 = (&pvtx2, &cvtx);
-                    guard.add_edge(edge1);
-                    guard.add_edge(edge2);
+                    guard.add_edge(&edge1);
+                    guard.add_edge(&edge2);
                 }
             }
 
@@ -242,8 +242,8 @@ mod tests {
             if let Ok(mut guard) = dag.write() {
                 let edge1 = (&gvtx, &pvtx1);
                 let edge2 = (&gvtx, &pvtx2);
-                guard.add_edge(edge1);
-                guard.add_edge(edge2);
+                guard.add_edge(&edge1);
+                guard.add_edge(&edge2);
             }
 
             let convergence = miner.try_mine();
@@ -255,8 +255,8 @@ mod tests {
                 if let Ok(mut guard) = dag.write() {
                     let edge1 = (&pvtx1, &cvtx);
                     let edge2 = (&pvtx2, &cvtx);
-                    guard.add_edge(edge1);
-                    guard.add_edge(edge2);
+                    guard.add_edge(&edge1);
+                    guard.add_edge(&edge2);
                 }
 
                 match cblock {
@@ -295,7 +295,7 @@ mod tests {
             let pvtx1: Vertex<Block, String> = pblock1.into();
             if let Ok(mut guard) = dag.write() {
                 let edge1 = (&gvtx, &pvtx1);
-                guard.add_edge(edge1);
+                guard.add_edge(&edge1);
             }
 
             let convergence = miner.try_mine();
@@ -307,7 +307,7 @@ mod tests {
                 .into();
                 if let Ok(mut guard) = dag.write() {
                     let edge1 = (&pvtx1, &cvtx1);
-                    guard.add_edge(edge1);
+                    guard.add_edge(&edge1);
                 }
             };
 
@@ -320,7 +320,7 @@ mod tests {
 
             if let Ok(mut guard) = dag.write() {
                 let edge2 = (&gvtx, &pvtx2);
-                guard.add_edge(edge2);
+                guard.add_edge(&edge2);
             }
 
             let convergence = miner.try_mine();
@@ -332,7 +332,7 @@ mod tests {
                 .into();
                 if let Ok(mut guard) = dag.write() {
                     let edge2 = (&pvtx2, &cvtx2);
-                    guard.add_edge(edge2);
+                    guard.add_edge(&edge2);
                 }
 
                 match convergence {
@@ -371,7 +371,7 @@ mod tests {
             let pvtx1: Vertex<Block, String> = pblock1.into();
             if let Ok(mut guard) = dag.write() {
                 let edge1 = (&gvtx, &pvtx1);
-                guard.add_edge(edge1);
+                guard.add_edge(&edge1);
             }
 
             let convergence = miner.try_mine();
@@ -386,7 +386,7 @@ mod tests {
                 .into();
                 if let Ok(mut guard) = dag.write() {
                     let edge1 = (&pvtx1, &cvtx1);
-                    guard.add_edge(edge1);
+                    guard.add_edge(&edge1);
                 }
             };
 
@@ -419,7 +419,7 @@ mod tests {
             let pvtx1: Vertex<Block, String> = pblock1.into();
             if let Ok(mut guard) = dag.write() {
                 let edge1 = (&gvtx, &pvtx1);
-                guard.add_edge(edge1);
+                guard.add_edge(&edge1);
             }
 
             miner.set_next_epoch_adjustment(30_000_000_i128);
@@ -436,7 +436,7 @@ mod tests {
                 .into();
                 if let Ok(mut guard) = dag.write() {
                     let edge1 = (&pvtx1, &cvtx1);
-                    guard.add_edge(edge1);
+                    guard.add_edge(&edge1);
                 }
             };
 

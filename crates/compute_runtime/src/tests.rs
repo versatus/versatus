@@ -39,9 +39,8 @@ fn check_oci_runc_caps() {
     );
 }
 
-// This test requires external services to be running, so belongs more in the e2e test
-// infrastructure that we're yet to build.
 #[test]
+#[ignore = "Requires external services to be running, belongs in e2e test infrastructure."]
 fn compute_job_runner() {
     let _ = env_logger::builder().is_test(true).try_init();
     let r = ComputeJobRunner::run(

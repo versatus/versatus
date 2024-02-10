@@ -4,7 +4,6 @@ use std::{
     time::Duration,
 };
 
-pub use miner::test_helpers::{create_address, create_claim, create_miner};
 use primitives::{KademliaPeerId, NodeType};
 
 use uuid::Uuid;

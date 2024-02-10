@@ -113,6 +113,28 @@ jobs:
           command: test
           args: -p compute_cli
 
+  test-compute-runtime:
+    name: test compute_runtime
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dev-dependencies
+        run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: Checkout sources
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -p compute_runtime
+
   test-consensus:
     name: test consensus
     runs-on: ubuntu-latest
@@ -505,6 +527,27 @@ jobs:
           command: test
           args: -p wasm_runtime
 
+  test-wasm-loader:
+    name: test wasm_loader
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dev-dependencies
+        run: sudo apt-get install -y libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: Checkout sources
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - name: cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -p wasm_loader
 
   test-wallet:
     name: test wallet

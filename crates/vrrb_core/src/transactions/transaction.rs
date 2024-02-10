@@ -160,7 +160,7 @@ impl Display for TransactionDigest {
 impl From<ByteVec> for TransactionDigest {
     fn from(byte_vec: ByteVec) -> Self {
         let digest_string = hex::encode(byte_vec.as_slice());
-        let inner = byte_vec.try_into().unwrap_or_default();
+        let inner = byte_vec.into();
 
         Self {
             inner,
@@ -171,7 +171,7 @@ impl From<ByteVec> for TransactionDigest {
 
 impl<'a> From<ByteSlice<'a>> for TransactionDigest {
     fn from(byte_slice: ByteSlice) -> Self {
-        let inner = byte_slice.try_into().unwrap_or_default();
+        let inner = byte_slice.into();
 
         let digest_string = gen_hex_encoded_string(byte_slice);
 

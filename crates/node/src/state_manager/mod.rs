@@ -128,7 +128,7 @@ mod tests {
         if let Ok(mut guard) = dag.write() {
             edges
                 .iter()
-                .for_each(|(source, reference)| guard.add_edge((source, reference)));
+                .for_each(|(source, reference)| guard.add_edge(&(source, reference)));
         }
 
         let block_hash = produce_convergence_block(dag).unwrap();

@@ -36,7 +36,7 @@ impl BackPressure {
         if data.len() > 2 {
             let mut minimum_backpressure = 0.0;
             let mut max_backpressure = 0.0;
-            if let Some(min) = data.get(0) {
+            if let Some(min) = data.first() {
                 minimum_backpressure = min.back_pressure;
             }
             if let Some(max) = data.last() {

@@ -75,13 +75,25 @@ impl Web3Store {
     pub fn from_hostname(addr: &str, is_srv: bool) -> Result<Self> {
         println!("attempting to resolve dns for address: {}", &addr);
         let addresses = Self::resolve_dns(addr, is_srv)?;
-        println!("resolved dns, using address: {:?} to attempt to connect to IPFS", &addresses);
+        println!(
+            "resolved dns, using address: {:?} to attempt to connect to IPFS",
+            &addresses
+        );
         let address = addresses.first().unwrap();
-        println!("unwrapped dns record into address: {:?} to attempt to connect to IPFS", &address);
+        println!(
+            "unwrapped dns record into address: {:?} to attempt to connect to IPFS",
+            &address
+        );
         let ip = address.ip();
-        println!("unwrapped dns record using ip: {:?} to attempt to connect to IPFS", &ip);
+        println!(
+            "unwrapped dns record using ip: {:?} to attempt to connect to IPFS",
+            &ip
+        );
         let port = address.port();
-        println!("unwrapped dns record using port: {:?} to attempt to connect to IPFS", &port);
+        println!(
+            "unwrapped dns record using port: {:?} to attempt to connect to IPFS",
+            &port
+        );
         Ok(Web3Store {
             client: IpfsClient::from_host_and_port(Scheme::HTTP, ip.to_string().as_str(), port)?,
         })
@@ -132,7 +144,10 @@ impl Web3Store {
                     println!("attempting to resolve ip address for {:?}", &record);
                     let address_list =
                         Self::resolve_ip_addresses(&resolver, target.to_string().as_str())?;
-                    println!("received address list for {:?}, adding {:?} to addresses", record, address_list);
+                    println!(
+                        "received address list for {:?}, adding {:?} to addresses",
+                        record, address_list
+                    );
                     for addr in address_list {
                         addresses.push(SocketAddr::new(addr, srv_data.port()));
                     }

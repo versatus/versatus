@@ -97,7 +97,7 @@ mod loader_tests {
         assert!(w.is_ok());
         if let Ok(wasm) = w {
             debug!("w: {:02x?}", wasm);
-            assert!(wasm.has_vrrb, "Didn't find VRRB symbols");
+            assert!(wasm.has_versatus, "Didn't find VRRB symbols");
         }
     }
 
