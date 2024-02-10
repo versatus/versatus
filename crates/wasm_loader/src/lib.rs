@@ -11,6 +11,8 @@ mod loader_tests {
     // constants to some precompiled WASM modules to aid in some basic testing.
     // A module containing some WASI symbols and some VRRB symbols
     const SIMPLE_WASI_TEST_MODULE: &str = "test_data/simple.wasi";
+    // A simple module with some versatus-specific (unused) symbols.
+    const VERSATUS_WASI_TEST_MODULE: &str = "test_data/simple-versatus.wasm";
     // A module with a Javy dependency
     const SIMPLE_JAVY_TEST_MODULE: &str = "test_data/simple-javy.wasm";
     // A WASM module represented as Web Assembly Text (WAT) to be assembled/compiled
@@ -88,16 +90,16 @@ mod loader_tests {
     }
 
     #[test]
-    fn builder_check_vrrb_symbols() {
+    fn builder_check_versatus_symbols() {
         let w = WasmLoaderBuilder::default()
-            .wasm_bytes(std::fs::read(SIMPLE_WASI_TEST_MODULE).unwrap())
+            .wasm_bytes(std::fs::read(VERSATUS_WASI_TEST_MODULE).unwrap())
             .parse()
             .unwrap()
             .build();
         assert!(w.is_ok());
         if let Ok(wasm) = w {
             debug!("w: {:02x?}", wasm);
-            assert!(wasm.has_vrrb, "Didn't find VRRB symbols");
+            assert!(wasm.has_versatus, "Didn't find Versatus symbols");
         }
     }
 
