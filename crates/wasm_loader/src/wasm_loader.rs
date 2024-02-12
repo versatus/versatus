@@ -1,7 +1,7 @@
 //! Web Assembly loader and validator
 //!
 //! Provides some basic functionality to load Web Assembly bytes (or WAT
-//! strings) from files or other locations and perform some basic VRRB sanity
+//! strings) from files or other locations and perform some basic Versatus sanity
 //! checking or inspection of the loaded module(s).
 
 use std::collections::HashMap;
@@ -13,7 +13,7 @@ use derive_builder::Builder;
 //   * info for information that is useful to a compute developer or operator, but not fatal
 //   * debug for information useful to maintainers in being able to remotely troubleshoot
 //     issues
-use telemetry::log::{debug, error};
+use log::{debug, error};
 use wasmer::wat2wasm;
 use wasmparser::{Parser, Payload};
 
@@ -30,6 +30,14 @@ pub struct WasmLoader {
     #[builder(default = "0")]
     #[builder(private)]
     pub wasm_size: usize,
+    /// The amount of memory requested by the WASM module.
+    #[builder(default = "0")]
+    #[builder(private)]
+    pub wasm_memory: u64,
+    /// The version of WASM (usually 1) of the WASM module
+    #[builder(default = "0")]
+    #[builder(private)]
+    pub wasm_version: u16,
     // XXX: look at a cleaner interface for all of these booleans as we get a better handle on
     // what that interface should be able to expose or how it's most likely to end up being used.
     /// True if this module uses WASI interfaces. True for
@@ -59,10 +67,10 @@ pub struct WasmLoader {
     #[builder(default = "false")]
     #[builder(private)]
     pub has_start: bool,
-    /// True if this WASM module exports any of the VRRB magic symbols
+    /// True if this WASM module exports any of the Versatus magic symbols
     #[builder(default = "false")]
     #[builder(private)]
-    pub has_vrrb: bool,
+    pub has_versatus: bool,
     /// A HashMap where the key is a string representing the namespace, and
     /// the value is a set of strings representing symbols this
     /// module expects to be present. Used in determining
@@ -134,8 +142,23 @@ impl WasmLoaderBuilder {
                 match payload {
                     Ok(p) => {
                         match p {
-                            Payload::Version { .. } => {
-                                debug!("WASM Version Section");
+                            Payload::Version { num, .. } => {
+                                debug!("WASM Version Section: {:?}", p);
+                                new.wasm_version = Some(num);
+                            }
+                            Payload::MemorySection(m) => {
+                                // Memory
+                                for memory in m {
+                                    let memory = memory?;
+                                    // The initial memory size is enough for now, given that we're
+                                    // not dealing with shared memory. As a result, we're currently
+                                    // ignoring whether it's 64bit, shared and the optional
+                                    // maximum. We can deal with those as those standards are
+                                    // ratified and we start to see compiler support for them. In
+                                    // the meantime, the initial memory size is a good indicator of
+                                    // what a contract will need in order to run.
+                                    new.wasm_memory = Some(memory.initial);
+                                }
                             }
                             Payload::ExportSection(s) => {
                                 for export in s {
@@ -148,11 +171,11 @@ impl WasmLoaderBuilder {
                                         new.has_start = Some(true);
                                     }
 
-                                    if export.name == constants::VRRB_WASM_MAGIC
-                                        || export.name == constants::VRRB_WASM_VERSION
+                                    if export.name == constants::VERSATUS_WASM_MAGIC
+                                        || export.name == constants::VERSATUS_WASM_VERSION
                                     {
-                                        debug!("Has VRRB symbol: {}", export.name);
-                                        new.has_vrrb = Some(true);
+                                        debug!("Has Versatus symbols: {}", export.name);
+                                        new.has_versatus = Some(true);
                                     }
 
                                     // XXX: in the future, keep the exports list

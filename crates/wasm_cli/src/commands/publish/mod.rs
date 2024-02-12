@@ -72,14 +72,14 @@ pub fn run(opts: &PublishOpts) -> Result<()> {
         Web3Store::local()?
     } else {
         if let Ok(addr) = std::env::var("VIPFS_ADDRESS") {
-            let socket_addr: Result<SocketAddr, AddrParseError>  = addr.parse();
+            let socket_addr: Result<SocketAddr, AddrParseError> = addr.parse();
             if let Ok(qualified_addr) = socket_addr {
                 let (ip_protocol, ip) = match qualified_addr.ip() {
                     std::net::IpAddr::V4(ip) => ("ip4".to_string(), ip.to_string()),
                     std::net::IpAddr::V6(ip) => ("ip6".to_string(), ip.to_string()),
                 };
                 let port = qualified_addr.port().to_string();
-                
+
                 let multiaddr_string = format!("/{ip_protocol}/{ip}/tcp/{port}");
 
                 Web3Store::from_multiaddr(&multiaddr_string)?
