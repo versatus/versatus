@@ -164,28 +164,26 @@ impl<T> Task<T> {
     /// Block the current worker until the task completes or a timeout is
     pub fn join_deadline(self, deadline: Instant) -> Option<Result<T, Self>> {
         if let Ok(mut status) = self.status.clone().lock() {
-            match {
-                if let Some(result) = status.result.take() {
-                    Some(result)
-                } else {
-                    status.waker = Some(crate::waker::unpark_current_thread());
-                    drop(status);
-                    Some(loop {
-                        if let Some(timeout) = deadline.checked_duration_since(Instant::now()) {
-                            thread::park_timeout(timeout);
-                            if let Ok(mut status) = self.status.as_ref().lock() {
-                                status.is_timeout = true;
-                            }
-                        } else {
-                            return Some(Err(self));
-                        }
+            match if let Some(result) = status.result.take() {
+                Some(result)
+            } else {
+                status.waker = Some(crate::waker::unpark_current_thread());
+                drop(status);
+                Some(loop {
+                    if let Some(timeout) = deadline.checked_duration_since(Instant::now()) {
+                        thread::park_timeout(timeout);
                         if let Ok(mut status) = self.status.as_ref().lock() {
-                            if let Some(result) = status.result.take() {
-                                break result;
-                            }
+                            status.is_timeout = true;
                         }
-                    })
-                }
+                    } else {
+                        return Some(Err(self));
+                    }
+                    if let Ok(mut status) = self.status.as_ref().lock() {
+                        if let Some(result) = status.result.take() {
+                            break result;
+                        }
+                    }
+                })
             } {
                 Some(Ok(value)) => return Some(Ok(value)),
                 Some(Err(e)) => resume_unwind(e),
