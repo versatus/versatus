@@ -771,6 +771,7 @@ dependencies = [
 [[package]]
 name = "bulldag"
 version = "0.1.0"
+source = "git+https://github.com/versatus/bulldag#a61f90b3512a7ee6f32d37028b9228eb27756792"
 dependencies = [
  "petgraph",
  "serde",
