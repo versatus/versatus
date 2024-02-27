@@ -62,7 +62,7 @@ mod tests {
         });
 
         state_module
-            .handle_new_txn_created(TransactionKind::default())
+            .insert_txn_to_mempool(TransactionKind::default())
             .unwrap();
     }
 
@@ -80,14 +80,14 @@ mod tests {
 
         let keypair = KeyPair::random();
         let sig_engine = SignerEngine::new(
-            keypair.get_miner_public_key().clone(),
-            keypair.get_miner_secret_key().clone(),
+            *keypair.get_miner_public_key(),
+            *keypair.get_miner_secret_key(),
         );
-        let pk = keypair.get_miner_public_key().clone();
+        let pk = *keypair.get_miner_public_key();
         let addr = create_address(&pk);
         let ip_address = SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 0);
         let signature = Claim::signature_for_valid_claim(
-            pk.clone(),
+            pk,
             ip_address,
             keypair.get_miner_secret_key().secret_bytes().to_vec(),
         )

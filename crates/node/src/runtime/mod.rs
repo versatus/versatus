@@ -147,9 +147,7 @@ mod tests {
         let whitelisted_nodes = setup_whitelisted_nodes(&farmers, &harvesters, &miners);
 
         let miner_ids = miners
-            .clone()
-            .into_iter()
-            .map(|(key, _)| key)
+            .clone().into_keys()
             .collect::<Vec<NodeId>>();
 
         let miner_id = miner_ids.first().unwrap();
@@ -201,7 +199,7 @@ mod tests {
         let (mut node_0, mut farmers, _harvesters, _miners) = setup_network(8).await;
 
         let (_, sender_public_key) = generate_account_keypair();
-        let sender_account = Account::new(sender_public_key.clone().into());
+        let sender_account = Account::new(sender_public_key.into());
         let sender_address = node_0.create_account(sender_public_key).unwrap();
 
         let (_, receiver_public_key) = generate_account_keypair();
@@ -253,9 +251,7 @@ mod tests {
         }
 
         let miner_ids = miners
-            .clone()
-            .into_iter()
-            .map(|(key, _)| key)
+            .clone().into_keys()
             .collect::<Vec<NodeId>>();
 
         let miner_id = miner_ids.first().unwrap();
@@ -271,7 +267,7 @@ mod tests {
         // TODO: store DAG on disk, separate from ledger
 
         let (_, public_key) = generate_account_keypair();
-        let sender_account = Account::new(public_key.clone().into());
+        let sender_account = Account::new(public_key.into());
         let sender_address = node_0.create_account(public_key).unwrap();
 
         let (_, public_key) = generate_account_keypair();
@@ -339,9 +335,7 @@ mod tests {
         let genesis_rewards = node_0.distribute_genesis_reward(vec![receiver]).unwrap();
 
         let miner_ids = miners
-            .clone()
-            .into_iter()
-            .map(|(key, _)| key)
+            .clone().into_keys()
             .collect::<Vec<NodeId>>();
 
         let miner_id = miner_ids.first().unwrap();
@@ -388,9 +382,7 @@ mod tests {
         let genesis_rewards = node_0.distribute_genesis_reward(vec![receiver]).unwrap();
 
         let miner_ids = miners
-            .clone()
-            .into_iter()
-            .map(|(key, _)| key)
+            .clone().into_keys()
             .collect::<Vec<NodeId>>();
 
         let miner_id = miner_ids.first().unwrap();
@@ -571,13 +563,13 @@ mod tests {
         let mut node_0 = nodes.pop_front().unwrap();
 
         let (_, sender_public_key) = generate_account_keypair();
-        let mut sender_account = Account::new(sender_public_key.clone().into());
+        let mut sender_account = Account::new(sender_public_key.into());
         let update_field = AccountField::Credits(100000);
         let _ = sender_account.update_field(update_field);
         let sender_address = node_0.create_account(sender_public_key).unwrap();
 
         let (_, receiver_public_key) = generate_account_keypair();
-        let receiver_account = Account::new(receiver_public_key.clone().into());
+        let receiver_account = Account::new(receiver_public_key.into());
         let receiver_address = node_0.create_account(receiver_public_key).unwrap();
 
         let sender_account_bytes = bincode::serialize(&sender_account.clone()).unwrap();
@@ -698,13 +690,13 @@ mod tests {
         let mut node_0 = nodes.pop_front().unwrap();
 
         let (_, sender_public_key) = generate_account_keypair();
-        let mut sender_account = Account::new(sender_public_key.clone().into());
+        let mut sender_account = Account::new(sender_public_key.into());
         let update_field = AccountField::Credits(100);
         let _ = sender_account.update_field(update_field);
         let sender_address = node_0.create_account(sender_public_key).unwrap();
 
         let (_, receiver_public_key) = generate_account_keypair();
-        let receiver_account = Account::new(receiver_public_key.clone().into());
+        let receiver_account = Account::new(receiver_public_key.into());
         let receiver_address = node_0.create_account(receiver_public_key).unwrap();
 
         let sender_account_bytes = bincode::serialize(&sender_account.clone()).unwrap();
@@ -819,13 +811,13 @@ mod tests {
         let mut node_0 = nodes.pop_front().unwrap();
 
         let (_, sender_public_key) = generate_account_keypair();
-        let mut sender_account = Account::new(sender_public_key.clone().into());
+        let mut sender_account = Account::new(sender_public_key.into());
         let update_field = AccountField::Credits(100000);
         let _ = sender_account.update_field(update_field);
         let sender_address = node_0.create_account(sender_public_key).unwrap();
 
         let (_, receiver_public_key) = generate_account_keypair();
-        let receiver_account = Account::new(receiver_public_key.clone().into());
+        let receiver_account = Account::new(receiver_public_key.into());
         let receiver_address = node_0.create_account(receiver_public_key).unwrap();
 
         let sender_account_bytes = bincode::serialize(&sender_account.clone()).unwrap();
@@ -940,13 +932,13 @@ mod tests {
         let mut node_0 = nodes.pop_front().unwrap();
 
         let (_, sender_public_key) = generate_account_keypair();
-        let mut sender_account = Account::new(sender_public_key.clone().into());
+        let mut sender_account = Account::new(sender_public_key.into());
         let update_field = AccountField::Credits(100000);
         let _ = sender_account.update_field(update_field);
         let sender_address = node_0.create_account(sender_public_key).unwrap();
 
         let (_, receiver_public_key) = generate_account_keypair();
-        let receiver_account = Account::new(receiver_public_key.clone().into());
+        let receiver_account = Account::new(receiver_public_key.into());
         let receiver_address = node_0.create_account(receiver_public_key).unwrap();
 
         let sender_account_bytes = bincode::serialize(&sender_account.clone()).unwrap();

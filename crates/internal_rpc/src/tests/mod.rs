@@ -90,7 +90,7 @@ async fn test_is_object_pinned_from_server() {
     .unwrap();
     let client = InternalRpcClient::new(socket).await.unwrap();
     let res = client.0.pinned_status(sample_cid).await;
-    assert_eq!(res.unwrap(), ());
+    assert!(res.is_ok());
     handle.stop().unwrap();
     let _ = handle;
 }
@@ -152,11 +152,8 @@ async fn test_queue_job() {
         .await
         .unwrap();
     let client = InternalRpcClient::new(socket).await.unwrap();
-    let job_handle = std::thread::spawn(move || loop {
-        match job_queue_rx.recv() {
-            Some(_compute_job) => {}
-            None => break,
-        }
+    let job_handle = std::thread::spawn(move || {
+        while let Some(_compute_job) = job_queue_rx.recv() { /* execute job */ }
     });
     let uuid = client
         .0

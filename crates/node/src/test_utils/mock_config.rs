@@ -61,15 +61,3 @@ pub fn create_mock_full_node_config() -> NodeConfig {
         .build()
         .unwrap()
 }
-
-#[deprecated]
-pub fn create_mock_full_node_config_with_bootstrap(
-    _bootstrap_node_addresses: Vec<SocketAddr>,
-) -> NodeConfig {
-    create_mock_full_node_config()
-}
-
-#[deprecated]
-pub fn create_mock_bootstrap_node_config() -> NodeConfig {
-    create_mock_full_node_config()
-}

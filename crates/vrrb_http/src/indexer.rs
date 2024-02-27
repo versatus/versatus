@@ -61,7 +61,7 @@ mod tests {
     async fn test_post_tx_success() {
         let mock_server = MockServer::start().await;
 
-        let url = format!("{}{}", "http://", mock_server.address().to_string());
+        let url = format!("{}{}", "http://", mock_server.address());
 
         let config = IndexerClientConfig { base_url: url };
         let client = IndexerClient::new(config).unwrap();
@@ -86,7 +86,7 @@ mod tests {
     async fn test_post_tx_failure() {
         let mock_server = wiremock::MockServer::start().await;
 
-        let url = format!("{}{}", "http://", mock_server.address().to_string());
+        let url = format!("{}{}", "http://", mock_server.address());
 
         let mock = wiremock::Mock::given(wiremock::matchers::method("POST"))
             .and(wiremock::matchers::path("/transactions"))

@@ -28,12 +28,9 @@ pub trait Transaction {
     fn fee(&self) -> u128;
     fn validator_fee_share(&self) -> u128;
     fn proposer_fee_share(&self) -> u128;
-
     fn build_payload(&self) -> String;
-
-    #[deprecated]
+    // TODO: previously deprecated, may need refactor.
     fn digest(&self) -> TransactionDigest;
-
     fn sign(&mut self, sk: &SecretKey);
 }
 

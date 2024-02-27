@@ -92,7 +92,7 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let url = format!("{}{}", "http://", mock_server.address().to_string());
+        let url = format!("{}{}", "http://", mock_server.address());
         let http_client = HttpClientBuilder::new(url)
             .unwrap()
             .default_headers()
@@ -114,7 +114,7 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let url = format!("{}{}", "http://", mock_server.address().to_string());
+        let url = format!("{}{}", "http://", mock_server.address());
         let http_client = HttpClientBuilder::new(url)
             .unwrap()
             .default_headers()

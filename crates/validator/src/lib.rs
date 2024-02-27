@@ -37,13 +37,13 @@ mod tests {
         let sender_kp = KeyPair::random();
         let recv_kp = KeyPair::random();
 
-        let sender_address = Address::new(sender_kp.get_miner_public_key().clone());
-        let recv_address = Address::new(recv_kp.get_miner_public_key().clone());
+        let sender_address = Address::new(*sender_kp.get_miner_public_key());
+        let recv_address = Address::new(*recv_kp.get_miner_public_key());
 
         TransactionKind::Transfer(Transfer::new(NewTransferArgs {
             timestamp: 0,
             sender_address: sender_address.clone(),
-            sender_public_key: sender_kp.get_miner_public_key().clone(),
+            sender_public_key: *sender_kp.get_miner_public_key(),
             receiver_address: recv_address.clone(),
             token: None,
             amount: 0,

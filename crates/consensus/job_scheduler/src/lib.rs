@@ -236,11 +236,10 @@ mod tests {
                 let n = num_done.load(Relaxed);
                 if n >= 300 {
                     let back_pressure_list = job_scheduler.calculate_back_pressure();
-                    assert!(back_pressure_list.1.len() > 0);
-                    let minimum_backpressure = back_pressure_list.1.get(0).unwrap().back_pressure;
+                    assert!(!back_pressure_list.1.is_empty());
+                    let minimum_backpressure = back_pressure_list.1.first().unwrap().back_pressure;
                     let max_backpressure = back_pressure_list
-                        .1
-                        .get(back_pressure_list.1.len() - 1)
+                        .1.last()
                         .unwrap()
                         .back_pressure;
                     assert!(minimum_backpressure >= 0.0 && max_backpressure <= 1.0);

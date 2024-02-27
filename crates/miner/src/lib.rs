@@ -31,16 +31,16 @@ mod tests {
     #[test]
     fn test_create_miner() {
         let kp = Keypair::random();
-        let address = Address::new(kp.miner_kp.1.clone());
+        let address = Address::new(kp.miner_kp.1);
         let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
         let signature = Claim::signature_for_valid_claim(
-            kp.miner_kp.1.clone(),
-            ip_address.clone(),
+            kp.miner_kp.1,
+            ip_address,
             kp.get_miner_secret_key().secret_bytes().to_vec(),
         )
         .unwrap();
         let claim = Claim::new(
-            kp.miner_kp.1.clone(),
+            kp.miner_kp.1,
             address.clone(),
             ip_address,
             signature,
@@ -55,7 +55,7 @@ mod tests {
     #[test]
     fn test_get_miner_address() {
         let kp = Keypair::random();
-        let address = Address::new(kp.miner_kp.1.clone());
+        let address = Address::new(kp.miner_kp.1);
         let miner = create_miner_from_keypair(&kp);
 
         assert_eq!(miner.address(), address);
@@ -81,7 +81,7 @@ mod tests {
     fn test_sign_valid_message() {
         let (msg, kp, sig) = create_and_sign_message();
         let miner = create_miner_from_keypair(&kp);
-        let from_miner = miner.sign_message(msg.clone());
+        let from_miner = miner.sign_message(msg);
 
         assert_eq!(from_miner, sig);
 
@@ -95,8 +95,8 @@ mod tests {
         let keypair = Keypair::random();
         let other_miner = create_miner_from_keypair(&keypair);
         let engine = signer::engine::SignerEngine::new(
-            keypair.get_miner_public_key().clone(),
-            keypair.get_miner_secret_key().clone(),
+            *keypair.get_miner_public_key(),
+            *keypair.get_miner_secret_key(),
         );
 
         let genesis = mine_genesis();
@@ -146,12 +146,12 @@ mod tests {
         let (mut miner, dag) = create_miner_from_keypair_return_dag(&m1kp);
         let mut other_miner = create_miner_from_keypair_and_dag(&m2kp, dag.clone());
         let engine1 = signer::engine::SignerEngine::new(
-            m1kp.get_miner_public_key().clone(),
-            m1kp.get_miner_secret_key().clone(),
+            *m1kp.get_miner_public_key(),
+            *m1kp.get_miner_secret_key(),
         );
         let engine2 = signer::engine::SignerEngine::new(
-            m2kp.get_miner_public_key().clone(),
-            m2kp.get_miner_secret_key().clone(),
+            *m2kp.get_miner_public_key(),
+            *m2kp.get_miner_secret_key(),
         );
 
         let genesis = mine_genesis();
@@ -259,12 +259,9 @@ mod tests {
                     guard.add_edge(&edge2);
                 }
 
-                match cblock {
-                    Block::Convergence { ref block } => {
-                        let total_len: usize = block.txns.iter().map(|(_, v)| v.len()).sum();
-                        assert_eq!(total_len, 15usize);
-                    }
-                    _ => {}
+                if let Block::Convergence { ref block } = cblock {
+                    let total_len: usize = block.txns.iter().map(|(_, v)| v.len()).sum();
+                    assert_eq!(total_len, 15usize);
                 }
             }
 
@@ -335,12 +332,9 @@ mod tests {
                     guard.add_edge(&edge2);
                 }
 
-                match convergence {
-                    Ok(Block::Convergence { ref block }) => {
-                        let total_len: usize = block.txns.iter().map(|(_, v)| v.len()).sum();
-                        assert_eq!(total_len, 5usize);
-                    }
-                    _ => {}
+                if let Ok(Block::Convergence { ref block }) = convergence {
+                    let total_len: usize = block.txns.iter().map(|(_, v)| v.len()).sum();
+                    assert_eq!(total_len, 5usize);
                 }
             }
 

@@ -560,7 +560,7 @@ mod tests {
         );
         assert!(&validator_sk
             .sign_ecdsa(msg)
-            .verify(&msg, &validator_pk)
+            .verify(&msg, validator_pk)
             .is_ok());
         let validator_pbytes = deserialized_key.to_validator_pk_bytes().unwrap();
         let validator_pkey = KeyPair::from_validator_pk_bytes(&validator_pbytes).unwrap();
