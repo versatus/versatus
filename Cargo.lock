@@ -628,7 +628,7 @@ dependencies = [
 
 [[package]]
 name = "block"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "bulldag",
  "chrono",
@@ -1030,7 +1030,7 @@ checksum = "98cc8fbded0c607b7ba9dd60cd98df59af97e84d24e49c8557331cfc26d301ce"
 
 [[package]]
 name = "cli"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -1093,7 +1093,7 @@ dependencies = [
 
 [[package]]
 name = "compute_cli"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "anyhow",
  "clap 3.2.25",
@@ -1115,7 +1115,7 @@ dependencies = [
 
 [[package]]
 name = "compute_runtime"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "anyhow",
  "bitmask-enum",
@@ -1170,7 +1170,7 @@ dependencies = [
 
 [[package]]
 name = "consensus"
-version = "0.1.0"
+version = "0.9.0"
 
 [[package]]
 name = "const_fn"
@@ -2028,7 +2028,7 @@ dependencies = [
 
 [[package]]
 name = "events"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "async-trait",
  "bincode 1.3.3",
@@ -2103,7 +2103,7 @@ checksum = "25cbce373ec4653f1a01a31e8a5e5ec0c622dc27ff9c4e6606eefef5cbbed4a5"
 
 [[package]]
 name = "faucet"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "axum",
  "chrono",
@@ -3027,7 +3027,7 @@ dependencies = [
 
 [[package]]
 name = "internal_rpc"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "anyhow",
  "jsonrpsee",
@@ -3174,7 +3174,7 @@ dependencies = [
 
 [[package]]
 name = "job_pool"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "concurrent-queue",
  "crossbeam-channel",
@@ -3186,7 +3186,7 @@ dependencies = [
 
 [[package]]
 name = "job_scheduler"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "job_pool",
  "num_cpus",
@@ -3692,7 +3692,7 @@ dependencies = [
 
 [[package]]
 name = "mempool"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3728,7 +3728,7 @@ dependencies = [
 
 [[package]]
 name = "metric_exporter"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "hyper",
  "hyper-rustls",
@@ -3761,7 +3761,7 @@ dependencies = [
 
 [[package]]
 name = "miner"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "block",
  "bulldag",
@@ -3952,7 +3952,7 @@ dependencies = [
 
 [[package]]
 name = "node"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4434,7 +4434,7 @@ checksum = "2900ede94e305130c13ddd391e0ab7cbaeb783945ae07a279c268cb05109c6cb"
 
 [[package]]
 name = "platform"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "anyhow",
  "bitmask-enum",
@@ -4611,7 +4611,7 @@ dependencies = [
 
 [[package]]
 name = "primitives"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "hbbft",
  "hex",
@@ -4903,7 +4903,7 @@ dependencies = [
 
 [[package]]
 name = "quorum"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "ethereum-types",
  "hex",
@@ -5406,7 +5406,7 @@ checksum = "4389f1d5789befaf6029ebd9f7dac4af7f7e3d61b69d4f30e2ac02b57e7712b0"
 
 [[package]]
 name = "reward"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "primitives",
  "rand 0.8.5",
@@ -5962,7 +5962,7 @@ dependencies = [
 
 [[package]]
 name = "service_config"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "anyhow",
  "serde",
@@ -6089,7 +6089,7 @@ dependencies = [
 
 [[package]]
 name = "signer"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "hbbft",
  "primitives",
@@ -6278,7 +6278,7 @@ checksum = "213701ba3370744dcd1a12960caa4843b3d68b4d1c0a5d575e0d65b2ee9d16c0"
 
 [[package]]
 name = "storage"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "anyhow",
  "ethereum-types",
@@ -6290,7 +6290,7 @@ dependencies = [
 
 [[package]]
 name = "storage_cli"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "anyhow",
  "clap 3.2.25",
@@ -6310,7 +6310,7 @@ dependencies = [
 
 [[package]]
 name = "storage_utils"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "primitives",
  "serial_test",
@@ -6447,7 +6447,7 @@ checksum = "69758bda2e78f098e4ccb393021a0963bb3442eac05f135c30f61b7370bbafae"
 
 [[package]]
 name = "telemetry"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "log",
  "primitives",
@@ -7308,7 +7308,7 @@ checksum = "711b9620af191e0cdc7468a8d14e709c3dcdb115b36f838e601583af800a370a"
 
 [[package]]
 name = "utils"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "bincode 1.3.3",
  "serde",
@@ -7327,7 +7327,7 @@ dependencies = [
 
 [[package]]
 name = "validator"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "bincode 1.3.3",
  "chrono",
@@ -7426,7 +7426,7 @@ dependencies = [
 
 [[package]]
 name = "vrrb_config"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "derive_builder 0.12.0",
  "hbbft",
@@ -7441,7 +7441,7 @@ dependencies = [
 
 [[package]]
 name = "vrrb_core"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "bincode 1.3.3",
  "bs58 0.4.0",
@@ -7467,7 +7467,7 @@ dependencies = [
 
 [[package]]
 name = "vrrb_http"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "anyhow",
  "mempool",
@@ -7483,7 +7483,7 @@ dependencies = [
 
 [[package]]
 name = "vrrb_rpc"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7512,7 +7512,7 @@ dependencies = [
 
 [[package]]
 name = "vrrb_vrf"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "hex",
  "parity-wordlist",
@@ -7526,7 +7526,7 @@ dependencies = [
 
 [[package]]
 name = "vrrbdb"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "anyhow",
  "bincode 1.3.3",
@@ -7682,7 +7682,7 @@ dependencies = [
 
 [[package]]
 name = "wallet"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "chrono",
  "hex",
@@ -7832,7 +7832,7 @@ dependencies = [
 
 [[package]]
 name = "wasm_cli"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "anyhow",
  "clap 3.2.25",
@@ -7853,7 +7853,7 @@ dependencies = [
 
 [[package]]
 name = "wasm_loader"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "anyhow",
  "derive_builder 0.12.0",
@@ -7865,7 +7865,7 @@ dependencies = [
 
 [[package]]
 name = "wasm_runtime"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "derive_builder 0.12.0",
  "serde",
@@ -8169,7 +8169,7 @@ dependencies = [
 
 [[package]]
 name = "web3_pkg"
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
  "anyhow",
  "clap 3.2.25",
