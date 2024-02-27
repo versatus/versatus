@@ -619,14 +619,7 @@ mod tests {
 
         let amount = StakeUpdate::Add(10_000u128);
 
-        let stake = Stake::new(
-            amount,
-            kp.miner_kp.0,
-            kp.miner_kp.1,
-            address,
-            None,
-        )
-        .unwrap();
+        let stake = Stake::new(amount, kp.miner_kp.0, kp.miner_kp.1, address, None).unwrap();
 
         assert!(claim.update_stake(stake).is_err());
         assert_eq!(claim.get_stake(), 0u128);
@@ -658,14 +651,7 @@ mod tests {
 
         let amount = StakeUpdate::Add(10_000u128);
 
-        let mut stake = Stake::new(
-            amount,
-            kp.miner_kp.0,
-            kp.miner_kp.1,
-            address,
-            None,
-        )
-        .unwrap();
+        let mut stake = Stake::new(amount, kp.miner_kp.0, kp.miner_kp.1, address, None).unwrap();
 
         stake.certify((vec![0; 96], vec![0; 96])).unwrap();
 
@@ -699,14 +685,7 @@ mod tests {
 
         let amount = StakeUpdate::Add(10_000u128);
 
-        let mut stake = Stake::new(
-            amount,
-            kp.miner_kp.0,
-            kp.miner_kp.1,
-            address,
-            None,
-        )
-        .unwrap();
+        let mut stake = Stake::new(amount, kp.miner_kp.0, kp.miner_kp.1, address, None).unwrap();
 
         stake.certify((vec![0; 96], vec![0; 96])).unwrap();
 
@@ -738,14 +717,8 @@ mod tests {
         )
         .unwrap();
         let amount = StakeUpdate::Add(10_000u128);
-        let mut stake = Stake::new(
-            amount,
-            kp.miner_kp.0,
-            kp.miner_kp.1,
-            address.clone(),
-            None,
-        )
-        .unwrap();
+        let mut stake =
+            Stake::new(amount, kp.miner_kp.0, kp.miner_kp.1, address.clone(), None).unwrap();
 
         stake.certify((vec![0; 96], vec![0; 96])).unwrap();
 
@@ -754,14 +727,8 @@ mod tests {
 
         let amount = StakeUpdate::Withdrawal(5_000u128);
 
-        let mut stake = Stake::new(
-            amount,
-            kp.miner_kp.0,
-            kp.miner_kp.1,
-            address.clone(),
-            None,
-        )
-        .unwrap();
+        let mut stake =
+            Stake::new(amount, kp.miner_kp.0, kp.miner_kp.1, address.clone(), None).unwrap();
 
         stake.certify((vec![0; 96], vec![0; 96])).unwrap();
 
@@ -795,14 +762,8 @@ mod tests {
         .unwrap();
 
         let amount = StakeUpdate::Withdrawal(5_000u128);
-        let mut stake = Stake::new(
-            amount,
-            kp.miner_kp.0,
-            kp.miner_kp.1,
-            address.clone(),
-            None,
-        )
-        .unwrap();
+        let mut stake =
+            Stake::new(amount, kp.miner_kp.0, kp.miner_kp.1, address.clone(), None).unwrap();
 
         stake.certify((vec![0; 96], vec![0; 96])).unwrap();
 
@@ -837,14 +798,8 @@ mod tests {
 
         let amount = StakeUpdate::Add(10_000u128);
 
-        let mut stake = Stake::new(
-            amount,
-            kp.miner_kp.0,
-            kp.miner_kp.1,
-            address.clone(),
-            None,
-        )
-        .unwrap();
+        let mut stake =
+            Stake::new(amount, kp.miner_kp.0, kp.miner_kp.1, address.clone(), None).unwrap();
 
         stake.certify((vec![0; 96], vec![0; 96])).unwrap();
 
@@ -853,14 +808,8 @@ mod tests {
 
         let amount = StakeUpdate::Slash(25u8);
 
-        let mut stake = Stake::new(
-            amount,
-            kp.miner_kp.0,
-            kp.miner_kp.1,
-            address.clone(),
-            None,
-        )
-        .unwrap();
+        let mut stake =
+            Stake::new(amount, kp.miner_kp.0, kp.miner_kp.1, address.clone(), None).unwrap();
 
         stake.certify((vec![0; 96], vec![0; 96])).unwrap();
 
@@ -894,14 +843,8 @@ mod tests {
         .unwrap();
 
         let amount = StakeUpdate::Slash(25u8);
-        let mut stake = Stake::new(
-            amount,
-            kp.miner_kp.0,
-            kp.miner_kp.1,
-            address.clone(),
-            None,
-        )
-        .unwrap();
+        let mut stake =
+            Stake::new(amount, kp.miner_kp.0, kp.miner_kp.1, address.clone(), None).unwrap();
 
         stake.certify((vec![0; 96], vec![0; 96])).unwrap();
 
@@ -936,14 +879,8 @@ mod tests {
 
         let amount = StakeUpdate::Add(10_000u128);
 
-        let mut stake = Stake::new(
-            amount,
-            kp.miner_kp.0,
-            kp.miner_kp.1,
-            address.clone(),
-            None,
-        )
-        .unwrap();
+        let mut stake =
+            Stake::new(amount, kp.miner_kp.0, kp.miner_kp.1, address.clone(), None).unwrap();
 
         stake.certify((vec![0; 96], vec![0; 96])).unwrap();
 
@@ -952,14 +889,8 @@ mod tests {
 
         let amount = StakeUpdate::Add(80_000u128);
 
-        let mut stake = Stake::new(
-            amount,
-            kp.miner_kp.0,
-            kp.miner_kp.1,
-            address.clone(),
-            None,
-        )
-        .unwrap();
+        let mut stake =
+            Stake::new(amount, kp.miner_kp.0, kp.miner_kp.1, address.clone(), None).unwrap();
 
         stake.certify((vec![0; 96], vec![0; 96])).unwrap();
 

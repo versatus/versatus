@@ -146,9 +146,7 @@ mod tests {
 
         let whitelisted_nodes = setup_whitelisted_nodes(&farmers, &harvesters, &miners);
 
-        let miner_ids = miners
-            .clone().into_keys()
-            .collect::<Vec<NodeId>>();
+        let miner_ids = miners.clone().into_keys().collect::<Vec<NodeId>>();
 
         let miner_id = miner_ids.first().unwrap();
 
@@ -250,9 +248,7 @@ mod tests {
             miner_node.config_mut().whitelisted_nodes = whitelisted_nodes.clone();
         }
 
-        let miner_ids = miners
-            .clone().into_keys()
-            .collect::<Vec<NodeId>>();
+        let miner_ids = miners.clone().into_keys().collect::<Vec<NodeId>>();
 
         let miner_id = miner_ids.first().unwrap();
 
@@ -334,9 +330,7 @@ mod tests {
         ));
         let genesis_rewards = node_0.distribute_genesis_reward(vec![receiver]).unwrap();
 
-        let miner_ids = miners
-            .clone().into_keys()
-            .collect::<Vec<NodeId>>();
+        let miner_ids = miners.clone().into_keys().collect::<Vec<NodeId>>();
 
         let miner_id = miner_ids.first().unwrap();
 
@@ -381,9 +375,7 @@ mod tests {
         ));
         let genesis_rewards = node_0.distribute_genesis_reward(vec![receiver]).unwrap();
 
-        let miner_ids = miners
-            .clone().into_keys()
-            .collect::<Vec<NodeId>>();
+        let miner_ids = miners.clone().into_keys().collect::<Vec<NodeId>>();
 
         let miner_id = miner_ids.first().unwrap();
 
