@@ -12,22 +12,12 @@
   <img alt="VRRB Logo" src="https://github.com/versatus/brand-assets/blob/33cf3981d13f439a43ddfde5966a8a5fd58ff5ce/logo/versatus_logo_white.png">
 </picture>
 
-Versatus is a fast, scalable Layer 1 blockchain truly designed for mass adoption.
-Versatus is powered by a novel consensus mechanism called Proof-of-Claim, which
-features dual-scalability for record-breaking TPS and fast time to finality.
-Versatus offers a flexible, composable and safe, (programming) language agnostic
-compute platform powered by unikernel containers. The Versatus compute platform
-takes web3 beyond the paradigm of ownership, tokenization and event
-triggered transfers, offering a decentralized general execution environment
-that can deliver on the promise of a decentralized internet and financial
+Versatus is the Universal dApp Engine, unlocking decentralized development beyond smart contracts.
 
-Versatus provides the most flexible developer experience available on any
-smart contract platform, allowing developers to build in any language they
-choose. Beyond language agnosticism, Versatus programs are secure by design,
-allowing developers to spend more time thinking about building core
-business logic and design. This provides developers with shorter roadmaps,
-lower audit costs, leads to fewer bugs, less maintenance, and ultimately,
-will lead to better end user experiences.
+With Versatus, you can create full-stack applications in your preferred programming languages with your favorite development tools. Follow our three-step process to develop, deploy and dynamically scale yoru app on our network.
+
+More devs. More dApps. More Users.
+
 <br>
 
 <hr>
