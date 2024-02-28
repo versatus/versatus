@@ -36,8 +36,8 @@ impl CidManifest {
     pub fn from_file(path: &str) -> Result<CidManifest> {
         let file = File::open(path)?;
         let reader = BufReader::new(file);
-        Ok(serde_json::from_reader(reader)
-            .map_err(|e| anyhow!("failed to parse CidManifest from manifest file: {e:?}"))?)
+        serde_json::from_reader(reader)
+            .map_err(|e| anyhow!("failed to parse CidManifest from manifest file: {e:?}"))
     }
 }
 

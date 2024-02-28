@@ -28,12 +28,9 @@ pub trait Transaction {
     fn fee(&self) -> u128;
     fn validator_fee_share(&self) -> u128;
     fn proposer_fee_share(&self) -> u128;
-
     fn build_payload(&self) -> String;
-
-    #[deprecated]
+    // TODO: previously deprecated, may need refactor.
     fn digest(&self) -> TransactionDigest;
-
     fn sign(&mut self, sk: &SecretKey);
 }
 
@@ -160,7 +157,7 @@ impl Display for TransactionDigest {
 impl From<ByteVec> for TransactionDigest {
     fn from(byte_vec: ByteVec) -> Self {
         let digest_string = hex::encode(byte_vec.as_slice());
-        let inner = byte_vec.try_into().unwrap_or_default();
+        let inner = byte_vec.into();
 
         Self {
             inner,
@@ -171,7 +168,7 @@ impl From<ByteVec> for TransactionDigest {
 
 impl<'a> From<ByteSlice<'a>> for TransactionDigest {
     fn from(byte_slice: ByteSlice) -> Self {
-        let inner = byte_slice.try_into().unwrap_or_default();
+        let inner = byte_slice.into();
 
         let digest_string = gen_hex_encoded_string(byte_slice);
 

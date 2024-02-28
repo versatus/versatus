@@ -124,6 +124,6 @@ mod tests {
         let sk = kp.miner_kp.0.secret_bytes().to_vec();
         let mut vvrf1: VVRF = VVRF::new(message, &sk);
         let rn = vvrf1.generate_u8_in_range(10, 100);
-        assert!(10 <= rn && rn <= 100);
+        assert!((10..=100).contains(&rn));
     }
 }

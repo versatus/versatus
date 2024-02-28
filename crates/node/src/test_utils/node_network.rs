@@ -5,7 +5,6 @@ use std::{
 
 use crate::Node;
 
-pub use miner::test_helpers::{create_address, create_claim, create_miner};
 use primitives::{KademliaPeerId, NodeId, NodeType, QuorumKind};
 
 use vrrb_config::{

@@ -26,10 +26,10 @@ mod tests {
 
         (0..3).for_each(|_| {
             let keypair = KeyPair::random();
-            let public_key = keypair.get_miner_public_key().clone();
+            let public_key = *keypair.get_miner_public_key();
             let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
             let signature = Claim::signature_for_valid_claim(
-                public_key.clone(),
+                public_key,
                 ip_address,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
@@ -73,10 +73,10 @@ mod tests {
 
         (0..3).for_each(|_| {
             let keypair = KeyPair::random();
-            let public_key = keypair.get_miner_public_key().clone();
+            let public_key = *keypair.get_miner_public_key();
             let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
             let signature = Claim::signature_for_valid_claim(
-                public_key.clone(),
+                public_key,
                 ip_address,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
@@ -115,10 +115,10 @@ mod tests {
 
         (0..3).for_each(|_| {
             let keypair = KeyPair::random();
-            let public_key = keypair.get_miner_public_key().clone();
+            let public_key = *keypair.get_miner_public_key();
             let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
             let signature = Claim::signature_for_valid_claim(
-                public_key.clone(),
+                public_key,
                 ip_address,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
@@ -154,10 +154,10 @@ mod tests {
         let mut dummy_claims: Vec<Claim> = Vec::new();
         (0..3).for_each(|_| {
             let keypair = KeyPair::random();
-            let public_key = keypair.get_miner_public_key().clone();
+            let public_key = *keypair.get_miner_public_key();
             let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
             let signature = Claim::signature_for_valid_claim(
-                public_key.clone(),
+                public_key,
                 ip_address,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
@@ -197,10 +197,10 @@ mod tests {
         let mut dummy_claims: Vec<Claim> = Vec::new();
         (0..20).for_each(|_| {
             let keypair = KeyPair::random();
-            let public_key = keypair.get_miner_public_key().clone();
+            let public_key = *keypair.get_miner_public_key();
             let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
             let signature = Claim::signature_for_valid_claim(
-                public_key.clone(),
+                public_key,
                 ip_address,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
@@ -240,10 +240,10 @@ mod tests {
         let mut dummy_claims: Vec<Claim> = Vec::new();
         (0..25).for_each(|_| {
             let keypair = KeyPair::random();
-            let public_key = keypair.get_miner_public_key().clone();
+            let public_key = *keypair.get_miner_public_key();
             let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
             let signature = Claim::signature_for_valid_claim(
-                public_key.clone(),
+                public_key,
                 ip_address,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )
@@ -288,10 +288,10 @@ mod tests {
 
         (0..3).for_each(|_| {
             let keypair = KeyPair::random();
-            let public_key = keypair.get_miner_public_key().clone();
+            let public_key = *keypair.get_miner_public_key();
             let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
             let signature = Claim::signature_for_valid_claim(
-                public_key.clone(),
+                public_key,
                 ip_address,
                 keypair.get_miner_secret_key().secret_bytes().to_vec(),
             )

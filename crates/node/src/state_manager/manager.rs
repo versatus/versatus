@@ -433,12 +433,6 @@ impl StateManager {
         self.mempool.len()
     }
 
-    #[deprecated = "use insert_txn_to_mempool instead"]
-    pub fn handle_new_txn_created(&mut self, txn: TransactionKind) -> Result<TransactionDigest> {
-        info!("Storing transaction in mempool for validation");
-        self.insert_txn_to_mempool(txn)
-    }
-
     pub async fn handle_transaction_validated(&mut self, txn: TransactionKind) -> Result<()> {
         self.mempool
             .remove(&txn.id())

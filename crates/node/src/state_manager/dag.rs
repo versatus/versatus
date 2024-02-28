@@ -266,7 +266,7 @@ impl DagModule {
         edge: (&Vertex<Block, String>, &Vertex<Block, String>),
     ) -> GraphResult<()> {
         if let Ok(mut guard) = self.dag.write() {
-            guard.add_edge(edge);
+            guard.add_edge(&edge);
             return Ok(());
         }
 

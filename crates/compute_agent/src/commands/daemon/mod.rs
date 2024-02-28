@@ -33,34 +33,30 @@ pub async fn run(_opts: &DaemonOpts, config: &ServiceConfig) -> Result<()> {
     >(config, ServiceType::Compute)
     .await?;
     let storage = config.clone(); // copy of config to satisfy the closure
-    std::thread::spawn(move || loop {
-        match job_queue_rx.recv() {
-            Some(job) => {
-                if let ServiceJobType::Compute(job_type) = job.kind() {
-                    job_queue_rx.update_state(&Some(job.clone()), ServiceJobState::InProgress);
-                    match compute_runtime::runtime::ComputeJobRunner::run(
-                        &job.uuid().to_string(),
-                        &job.cid(),
-                        job_type,
-                        job.inputs(),
-                        &storage,
-                    ) {
-                        Ok(output) => {
-                            info!("compute job {:?} was successfully completed", job);
-                            job_queue_rx
-                                .update_state(&Some(job), ServiceJobState::Complete(output));
-                        }
-                        Err(err) => {
-                            error!("failed to execute compute job {:?}: {:?}", job, err);
-                            job_queue_rx
-                                .update_state(&Some(job), ServiceJobState::Failed(err.to_string()));
-                        }
+    std::thread::spawn(move || {
+        while let Some(job) = job_queue_rx.recv() {
+            if let ServiceJobType::Compute(job_type) = job.kind() {
+                job_queue_rx.update_state(&Some(job.clone()), ServiceJobState::InProgress);
+                match compute_runtime::runtime::ComputeJobRunner::run(
+                    &job.uuid().to_string(),
+                    &job.cid(),
+                    job_type,
+                    job.inputs(),
+                    &storage,
+                ) {
+                    Ok(output) => {
+                        info!("compute job {:?} was successfully completed", job);
+                        job_queue_rx.update_state(&Some(job), ServiceJobState::Complete(output));
                     }
-                } else {
-                    error!("expected a compute job, found: {:?}", job.kind());
+                    Err(err) => {
+                        error!("failed to execute compute job {:?}: {:?}", job, err);
+                        job_queue_rx
+                            .update_state(&Some(job), ServiceJobState::Failed(err.to_string()));
+                    }
                 }
+            } else {
+                error!("expected a compute job, found: {:?}", job.kind());
             }
-            None => break,
         }
     });
 

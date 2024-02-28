@@ -10,7 +10,7 @@ use common::{_generate_random_string, _generate_random_valid_transaction};
 #[serial]
 fn transactions_can_be_added() {
     let temp_dir_path = env::temp_dir();
-    let state_backup_path = temp_dir_path.join(format!("{}", _generate_random_string()));
+    let state_backup_path = temp_dir_path.join(_generate_random_string());
 
     let mut db = VrrbDb::new(VrrbDbConfig {
         path: state_backup_path,
