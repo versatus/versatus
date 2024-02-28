@@ -12,9 +12,9 @@
   <img alt="VRRB Logo" src="https://github.com/versatus/brand-assets/blob/33cf3981d13f439a43ddfde5966a8a5fd58ff5ce/logo/versatus_logo_white.png">
 </picture>
 
-Versatus is the Universal dApp Engine. Decentralized development beyond smart contracts.
+Versatus is the Universal dApp Engine, unlocking decentralized development beyond smart contracts.
 
-Create full-stack applications in your preferred programming languages with your favorite development tools. Follow our three-step process to develop, deploy and dynamically scale yoru app on our network.
+With Versatus, you can create full-stack applications in your preferred programming languages with your favorite development tools. Follow our three-step process to develop, deploy and dynamically scale yoru app on our network.
 
 More devs. More dApps. More Users.
 
