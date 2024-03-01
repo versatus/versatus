@@ -122,22 +122,28 @@ fn update_db(storage_connection: &Storage, contract_outputs: &SmartContractOutpu
                 // Update entire DB on Transfer call.
                 // Uses ContractResults to update AccountInfo & updates ProtocolInputs via DB insertion method.
                 Erc20Result::Transfer(transfer) => {
+                    //Opens DB holding bals, requires key to access.
                     let accounts_db =
                         storage_connection.database::<AccountBalance>("account-balance")?;
                     let transfer_amount = transfer.value;
+                    //Establish sender
                     let from_account = AccountAddress {
                         address: transfer.from.0,
                     };
+                    //Establish reciever
                     let to_account = AccountAddress {
                         address: transfer.to.0,
                     };
+                    //Pull balance from DB to assert in tests.
                     let from_balance = get_balance(&from_account, storage_connection)?;
                     let to_balance = get_balance(&to_account, storage_connection)?;
                     if from_balance.contents.value >= transfer_amount {
+                        //Transfer value removed from sender & DB updated.
                         AccountBalance {
                             value: from_balance.contents.value - transfer_amount,
                         }
                         .overwrite_into(&from_account, &accounts_db)?;
+                        //Transfer value added to reciever & DB updated.
                         AccountBalance {
                             value: to_balance.contents.value + transfer_amount,
                         }
