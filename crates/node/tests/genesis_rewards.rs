@@ -26,7 +26,7 @@ async fn genesis_block_contains_rewards() {
     let genesis_block = genesis_miner
         .mine_genesis_block(genesis_rewards.clone())
         .unwrap();
-    assert!(genesis_block.genesis_rewards.0.len() >= 1);
+    assert!(!genesis_block.genesis_rewards.0.is_empty());
 }
 
 /// The rewards within the genesis block should be valid and contain balance allocations to at least one address
@@ -49,7 +49,7 @@ async fn genesis_block_rewards_are_valid() {
         .mine_genesis_block(genesis_rewards.clone())
         .unwrap();
     for (genesis_receiver, reward) in genesis_block.genesis_rewards.0.iter() {
-        assert!(genesis_rewards.0.contains_key(&genesis_receiver));
+        assert!(genesis_rewards.0.contains_key(genesis_receiver));
         assert!(*reward > 0);
     }
 }
@@ -261,7 +261,7 @@ async fn genesis_block_rewards_are_applied_to_state() {
         .iter_mut()
         .map(|node| {
             node.handle_block_received(block::Block::Genesis {
-                block: genesis_block.clone().into(),
+                block: genesis_block.clone(),
             })
             .unwrap()
         })

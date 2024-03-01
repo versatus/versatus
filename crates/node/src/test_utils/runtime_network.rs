@@ -7,7 +7,7 @@ use crate::{
 };
 use events::EventPublisher;
 use metric_exporter::metric_factory::PrometheusFactory;
-pub use miner::test_helpers::{create_address, create_claim, create_miner};
+
 use primitives::{KademliaPeerId, NodeType, QuorumKind};
 use prometheus::labels;
 use std::collections::HashMap;

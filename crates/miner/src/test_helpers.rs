@@ -425,7 +425,7 @@ pub fn add_genesis_to_dag(dag: &mut MinerDag) -> Option<String> {
         prop_vertices.push(pvtx.clone());
         if let Ok(mut guard) = dag.clone().write() {
             let edge = (&gvtx, &pvtx);
-            guard.add_edge(edge);
+            guard.add_edge(&edge);
             return Some(genesis.get_hash());
         }
     }
@@ -457,11 +457,11 @@ pub fn mine_next_convergence_block(dag: MinerDag) -> Option<String> {
             }
 
             if let Ok(mut guard) = dag.write() {
-                let edges = edges
-                    .iter()
-                    .map(|(source, reference)| (source, reference))
-                    .collect();
-                guard.extend_from_edges(edges);
+                let mut ext_edges = Vec::with_capacity(edges.len());
+                for (source, reference) in &edges {
+                    ext_edges.push((source, reference));
+                }
+                guard.extend_from_edges(&ext_edges);
                 return Some(block.get_hash());
             }
         }
@@ -486,14 +486,13 @@ pub fn append_proposal_blocks_to_dag(dag: &mut MinerDag, proposals: Vec<Proposal
             }
         }
     }
-
-    let edges = edges
-        .iter()
-        .map(|(source, reference)| (source, reference))
-        .collect();
+    let mut ext_edges = Vec::with_capacity(edges.len());
+    for (source, reference) in &edges {
+        ext_edges.push((source, reference));
+    }
 
     if let Ok(mut guard) = dag.clone().write() {
-        guard.extend_from_edges(edges);
+        guard.extend_from_edges(&ext_edges);
     }
 }
 
@@ -578,7 +577,7 @@ pub fn add_orphaned_block_to_dag(
                 let pblock = Block::Proposal { block: proposal };
                 let pvtx = pblock.into();
                 let edge = (vtx, &pvtx);
-                wguard.add_edge(edge);
+                wguard.add_edge(&edge);
             }
         }
     }

@@ -71,7 +71,7 @@ pub fn _generate_random_valid_transaction() -> TransactionKind {
 pub fn _generate_random_claim() -> Claim {
     let keypair = Keypair::random();
     let ip_address = "127.0.0.1:8080".parse::<SocketAddr>().unwrap();
-    let public_key = keypair.get_miner_public_key().clone();
+    let public_key = *keypair.get_miner_public_key();
     let signature = Claim::signature_for_valid_claim(
         public_key,
         ip_address,
@@ -81,7 +81,7 @@ pub fn _generate_random_claim() -> Claim {
     Claim::new(
         public_key,
         Address::new(public_key),
-        ip_address.clone(),
+        ip_address,
         signature.clone(),
         signature,
     )

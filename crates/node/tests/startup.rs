@@ -1,4 +1,4 @@
-use node::{test_utils::create_mock_bootstrap_node_config, Node};
+use node::{test_utils::create_mock_full_node_config, Node};
 use primitives::node::NodeType;
 use serial_test::serial;
 use storage::storage_utils::remove_vrrb_data_dir;
@@ -8,7 +8,7 @@ use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 #[serial]
 async fn node_can_start_as_a_bootstrap_node() {
     remove_vrrb_data_dir();
-    let node_config = create_mock_bootstrap_node_config();
+    let node_config = create_mock_full_node_config();
 
     let vrrb_node = Node::start(node_config).await.unwrap();
 
@@ -28,7 +28,7 @@ async fn node_can_start_as_a_bootstrap_node() {
 #[serial]
 async fn bootstrap_node_can_add_newly_joined_peers_to_peer_list() {
     remove_vrrb_data_dir();
-    let node_config = create_mock_bootstrap_node_config();
+    let node_config = create_mock_full_node_config();
 
     let vrrb_node = Node::start(node_config).await.unwrap();
 

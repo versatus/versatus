@@ -4,7 +4,6 @@ use std::{
     time::Duration,
 };
 
-pub use miner::test_helpers::{create_address, create_claim, create_miner};
 use primitives::{KademliaPeerId, NodeType};
 
 use uuid::Uuid;
@@ -61,16 +60,4 @@ pub fn create_mock_full_node_config() -> NodeConfig {
         .prometheus_private_key_path(private_key_path.to_str().unwrap().to_string())
         .build()
         .unwrap()
-}
-
-#[deprecated]
-pub fn create_mock_full_node_config_with_bootstrap(
-    _bootstrap_node_addresses: Vec<SocketAddr>,
-) -> NodeConfig {
-    create_mock_full_node_config()
-}
-
-#[deprecated]
-pub fn create_mock_bootstrap_node_config() -> NodeConfig {
-    create_mock_full_node_config()
 }

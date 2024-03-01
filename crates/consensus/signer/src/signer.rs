@@ -254,8 +254,9 @@ impl Signer for SignatureProvider {
         let result = self.public_key_set();
         //Construction of combining t+1 valid shares to form threshold
         let combine_signature_result = match result {
-            // TODO figure out how to turn strings into IntoFr
             Some(pub_key_set) => {
+                #[allow(clippy::map_identity)]
+                // converts Fr type into T: IntoFr which is expected by combine_signatures
                 let shares = sig_shares.iter().map(|(idx, sig)| (idx, sig));
                 pub_key_set.combine_signatures(shares)
             }

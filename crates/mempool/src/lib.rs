@@ -38,11 +38,11 @@ mod tests {
     use primitives::{Address, Signature};
     use rand::{thread_rng, Rng};
     use secp256k1::ecdsa;
-    use tokio;
+
     use vrrb_core::keypair::KeyPair;
     use vrrb_core::transactions::{Transaction, TransactionKind};
 
-    use crate::mempool::{LeftRightMempool, TxnRecord, TxnStatus};
+    use crate::mempool::{LeftRightMempool, TxnRecord};
 
     fn mock_txn_signature() -> Signature {
         ecdsa::Signature::from_compact(&[
@@ -65,12 +65,12 @@ mod tests {
     async fn add_a_single_txn() {
         let keypair = KeyPair::random();
         let recv_keypair = KeyPair::random();
-        let recv_address = Address::new(recv_keypair.get_miner_public_key().clone());
+        let recv_address = Address::new(*recv_keypair.get_miner_public_key());
 
         let txn = TransactionKind::transfer_builder()
             .timestamp(0)
-            .sender_address(Address::new(keypair.get_miner_public_key().clone()))
-            .sender_public_key(keypair.get_miner_public_key().clone())
+            .sender_address(Address::new(*keypair.get_miner_public_key()))
+            .sender_public_key(*keypair.get_miner_public_key())
             .receiver_address(recv_address)
             .amount(0)
             .validators(HashMap::<String, bool>::new())
@@ -100,9 +100,9 @@ mod tests {
 
         let txn = TransactionKind::transfer_builder()
             .timestamp(0)
-            .sender_address(Address::new(keypair.get_miner_public_key().clone()))
-            .sender_public_key(keypair.get_miner_public_key().clone())
-            .receiver_address(Address::new(recv_keypair.get_miner_public_key().clone()))
+            .sender_address(Address::new(*keypair.get_miner_public_key()))
+            .sender_public_key(*keypair.get_miner_public_key())
+            .receiver_address(Address::new(*recv_keypair.get_miner_public_key()))
             .amount(0)
             .validators(HashMap::<String, bool>::new())
             .nonce(0)
@@ -141,8 +141,8 @@ mod tests {
 
         let transfer_builder = TransactionKind::transfer_builder()
             .timestamp(0)
-            .sender_address(Address::new(keypair.get_miner_public_key().clone()))
-            .sender_public_key(keypair.get_miner_public_key().clone())
+            .sender_address(Address::new(*keypair.get_miner_public_key()))
+            .sender_public_key(*keypair.get_miner_public_key())
             .amount(0)
             .validators(HashMap::<String, bool>::new())
             .nonce(0)
@@ -150,13 +150,13 @@ mod tests {
 
         let txn1 = transfer_builder
             .clone()
-            .receiver_address(Address::new(recv1_keypair.get_miner_public_key().clone()))
+            .receiver_address(Address::new(*recv1_keypair.get_miner_public_key()))
             .build_kind()
             .expect("Failed to build transaction");
 
         let txn2 = transfer_builder
             .clone()
-            .receiver_address(Address::new(recv2_keypair.get_miner_public_key().clone()))
+            .receiver_address(Address::new(*recv2_keypair.get_miner_public_key()))
             .build_kind()
             .expect("Failed to build transaction");
 
@@ -186,8 +186,8 @@ mod tests {
         let keypair = KeyPair::random();
         let recv_keypair = KeyPair::random();
 
-        let sender_address = Address::new(keypair.get_miner_public_key().clone());
-        let receiver_address = Address::new(recv_keypair.get_miner_public_key().clone());
+        let sender_address = Address::new(*keypair.get_miner_public_key());
+        let receiver_address = Address::new(*recv_keypair.get_miner_public_key());
         let txn_amount: u128 = 1010101;
 
         let now = chrono::offset::Utc::now().timestamp();
@@ -195,7 +195,7 @@ mod tests {
         let txn = TransactionKind::transfer_builder()
             .timestamp(now)
             .sender_address(sender_address.clone())
-            .sender_public_key(keypair.get_miner_public_key().clone())
+            .sender_public_key(*keypair.get_miner_public_key())
             .receiver_address(receiver_address.clone())
             .amount(txn_amount)
             .validators(HashMap::<String, bool>::new())
@@ -249,14 +249,14 @@ mod tests {
 
         let mut txns = HashSet::<TransactionKind>::new();
 
-        let sender_address = Address::new(keypair.get_miner_public_key().clone());
-        let receiver_address = Address::new(recv_keypair.get_miner_public_key().clone());
+        let sender_address = Address::new(*keypair.get_miner_public_key());
+        let receiver_address = Address::new(*recv_keypair.get_miner_public_key());
         let txn_amount: u128 = 1010101;
 
         let transfer_builder = TransactionKind::transfer_builder()
             .timestamp(0)
             .sender_address(sender_address.clone())
-            .sender_public_key(keypair.get_miner_public_key().clone())
+            .sender_public_key(*keypair.get_miner_public_key())
             .receiver_address(receiver_address.clone())
             .validators(HashMap::<String, bool>::new())
             .nonce(0)
@@ -310,14 +310,14 @@ mod tests {
         let recv1_keypair = KeyPair::random();
         let recv2_keypair = KeyPair::random();
 
-        let sender_address = Address::new(keypair.get_miner_public_key().clone());
-        let recv1_address = Address::new(recv1_keypair.get_miner_public_key().clone());
-        let recv2_address = Address::new(recv2_keypair.get_miner_public_key().clone());
+        let sender_address = Address::new(*keypair.get_miner_public_key());
+        let recv1_address = Address::new(*recv1_keypair.get_miner_public_key());
+        let recv2_address = Address::new(*recv2_keypair.get_miner_public_key());
 
         let txn1 = TransactionKind::transfer_builder()
             .timestamp(0)
             .sender_address(sender_address.clone())
-            .sender_public_key(keypair.get_miner_public_key().clone())
+            .sender_public_key(*keypair.get_miner_public_key())
             .receiver_address(recv1_address.clone())
             .amount(0)
             .validators(HashMap::<String, bool>::new())
@@ -329,7 +329,7 @@ mod tests {
         let txn2 = TransactionKind::transfer_builder()
             .timestamp(0)
             .sender_address(sender_address.clone())
-            .sender_public_key(keypair.get_miner_public_key().clone())
+            .sender_public_key(*keypair.get_miner_public_key())
             .receiver_address(recv2_address.clone())
             .amount(0)
             .validators(HashMap::<String, bool>::new())
@@ -360,7 +360,7 @@ mod tests {
             }
         };
 
-        match mpooldb.remove_txn_by_id(&txn2_id) {
+        match mpooldb.remove(&txn2_id) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size());
             }
@@ -376,14 +376,14 @@ mod tests {
         let recv1_keypair = KeyPair::random();
         let recv2_keypair = KeyPair::random();
 
-        let sender_address = Address::new(keypair.get_miner_public_key().clone());
-        let recv1_address = Address::new(recv1_keypair.get_miner_public_key().clone());
-        let recv2_address = Address::new(recv2_keypair.get_miner_public_key().clone());
+        let sender_address = Address::new(*keypair.get_miner_public_key());
+        let recv1_address = Address::new(*recv1_keypair.get_miner_public_key());
+        let recv2_address = Address::new(*recv2_keypair.get_miner_public_key());
 
         let txn1 = TransactionKind::transfer_builder()
             .timestamp(0)
             .sender_address(sender_address.clone())
-            .sender_public_key(keypair.get_miner_public_key().clone())
+            .sender_public_key(*keypair.get_miner_public_key())
             .receiver_address(recv1_address.clone())
             .amount(0)
             .validators(HashMap::<String, bool>::new())
@@ -395,7 +395,7 @@ mod tests {
         let txn2 = TransactionKind::transfer_builder()
             .timestamp(0)
             .sender_address(sender_address.clone())
-            .sender_public_key(keypair.get_miner_public_key().clone())
+            .sender_public_key(*keypair.get_miner_public_key())
             .receiver_address(recv2_address.clone())
             .amount(0)
             .validators(HashMap::<String, bool>::new())
@@ -424,7 +424,7 @@ mod tests {
             }
         };
 
-        match mpooldb.remove_txn(&txn1, TxnStatus::Pending) {
+        match mpooldb.remove(&txn1.id()) {
             Ok(_) => {
                 assert_eq!(1, mpooldb.size());
             }
@@ -442,14 +442,14 @@ mod tests {
         let mut txns = HashSet::<TransactionKind>::new();
 
         // let txn_id = String::from("1");
-        let sender_address = Address::new(keypair.get_miner_public_key().clone());
-        let recv_address = Address::new(recv_keypair.get_miner_public_key().clone());
+        let sender_address = Address::new(*keypair.get_miner_public_key());
+        let recv_address = Address::new(*recv_keypair.get_miner_public_key());
         let txn_amount: u128 = 1010101;
 
         let transfer_builder = TransactionKind::transfer_builder()
             .timestamp(0)
             .sender_address(sender_address.clone())
-            .sender_public_key(keypair.get_miner_public_key().clone())
+            .sender_public_key(*keypair.get_miner_public_key())
             .receiver_address(recv_address.clone())
             .validators(HashMap::<String, bool>::new())
             .nonce(0)
@@ -474,7 +474,7 @@ mod tests {
                 panic!("Adding transactions was unsuccesful !");
             }
         };
-        match mpooldb.remove_txn_batch(&txns, TxnStatus::Pending) {
+        match mpooldb.remove_txns(&txns.into_iter().map(|txn| txn.id()).collect()) {
             Ok(_) => {
                 assert_eq!(0, mpooldb.size());
             }
@@ -495,15 +495,15 @@ mod tests {
 
         let transfer_builder = TransactionKind::transfer_builder()
             .timestamp(0)
-            .sender_address(Address::new(keypair.get_miner_public_key().clone()))
-            .sender_public_key(keypair.get_miner_public_key().clone())
+            .sender_address(Address::new(*keypair.get_miner_public_key()))
+            .sender_public_key(*keypair.get_miner_public_key())
             .validators(HashMap::<String, bool>::new())
             .nonce(0)
             .signature(mock_txn_signature());
 
         for n in 1..u128::try_from(txn_id_max).unwrap_or(0) {
             let recv_keypair = KeyPair::random();
-            let recv_address = Address::new(recv_keypair.get_miner_public_key().clone());
+            let recv_address = Address::new(*recv_keypair.get_miner_public_key());
 
             let txn = transfer_builder
                 .clone()
@@ -524,8 +524,7 @@ mod tests {
             }
         };
 
-        [0..txn_id_max]
-            .iter()
+        (0..txn_id_max)
             .map(|_| {
                 let mpool_hdl = lrmpooldb.factory();
 

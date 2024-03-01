@@ -15,7 +15,6 @@ pub use state_store::*;
 pub use transaction_store::*;
 pub use types::*;
 pub use vrrbdb_read_handle::*;
-pub use vrrbdb_serialized_values::*;
 
 pub use crate::vrrbdb::*;
 

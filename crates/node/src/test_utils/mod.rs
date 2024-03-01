@@ -81,9 +81,8 @@ pub fn produce_random_claim(x: usize) -> Claim {
     .unwrap()
 }
 
-fn produce_random_txs(accounts: &Vec<(Address, Option<Account>)>) -> HashSet<TransactionKind> {
+fn produce_random_txs(accounts: &[(Address, Option<Account>)]) -> HashSet<TransactionKind> {
     accounts
-        .clone()
         .iter()
         .enumerate()
         .map(|(idx, (address, account))| {
@@ -95,7 +94,7 @@ fn produce_random_txs(accounts: &Vec<(Address, Option<Account>)>) -> HashSet<Tra
 
             let mut validators: Vec<(String, bool)> = vec![];
 
-            accounts.clone().iter().for_each(|validator| {
+            accounts.iter().for_each(|validator| {
                 if (validator.clone() != receiver)
                     && (validator.clone() != (address.clone(), account.clone()))
                 {
@@ -194,12 +193,12 @@ pub fn produce_convergence_block(dag: Arc<RwLock<BullDag<Block, BlockHash>>>) ->
             }
 
             if let Ok(mut guard) = dag.write() {
-                let edges = edges
-                    .iter()
-                    .map(|(source, reference)| (source, reference))
-                    .collect();
+                let mut ext_edges = Vec::with_capacity(edges.len());
+                for (source, reference) in &edges {
+                    ext_edges.push((source, reference));
+                }
 
-                guard.extend_from_edges(edges);
+                guard.extend_from_edges(&ext_edges);
                 return Some(block.get_hash());
             }
         }
