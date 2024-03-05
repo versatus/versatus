@@ -37,7 +37,7 @@ impl Handler<EventMessage> for StateManager {
         match event.into() {
             Event::Stop => {
                 return Ok(ActorState::Stopped);
-            },
+            }
 
             Event::NewTxnCreated(txn) => {
                 info!("Storing transaction in mempool for validation");
@@ -55,23 +55,7 @@ impl Handler<EventMessage> for StateManager {
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
 
                 info!("Transaction {} sent to mempool", txn_hash);
-
-                // if self.mempool.size_in_kilobytes() >= MEMPOOL_THRESHOLD_SIZE
-                //     && self.cutoff_transaction.is_none()
-                // {
-                //     info!("mempool threshold reached");
-                //     self.cutoff_transaction = Some(txn_hash.clone());
-                //
-                //     let event = Event::MempoolSizeThesholdReached {
-                //         cutoff_transaction: txn_hash,
-                //     };
-                //
-                //     self.events_tx
-                //         .send(event.into())
-                //         .await
-                //         .map_err(|err|
-                // TheaterError::Other(err.to_string()))?; }
-            },
+            }
 
             Event::TxnValidated(txn) => {
                 self.mempool
@@ -81,7 +65,7 @@ impl Handler<EventMessage> for StateManager {
                 self.confirm_txn(txn)
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
-            },
+            }
 
             Event::CreateAccountRequested((address, account_bytes)) => {
                 info!(
@@ -95,7 +79,7 @@ impl Handler<EventMessage> for StateManager {
 
                     info!("account {address} created", address = address.to_string());
                 }
-            },
+            }
             Event::AccountUpdateRequested((_address, _account_bytes)) => {
                 //                if let Ok(account) =
                 // decode_from_binary_byte_slice(&account_bytes) {
@@ -103,37 +87,32 @@ impl Handler<EventMessage> for StateManager {
                 // .map_err(|err| TheaterError::Other(err.to_string()))?;
                 //               }
                 todo!()
-            },
+            }
             Event::UpdateState(block) => {
-                
+
                 //if let Err(err) = self.update_state(block.hash) {
                 //    telemetry::error!("error updating state: {}", err);
                 //}
-            },
-            Event::ClaimCreated(_claim) => {},
+            }
+            Event::ClaimCreated(_claim) => {}
             Event::ClaimReceived(claim) => {
                 info!("Storing claim from: {}", claim.address);
-            },
+            }
             Event::BlockReceived(block) => {
                 self.handle_block_received(&mut block)
                     .await
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
-            },
+            }
             Event::BlockCertificateCreated(certificate) => {
                 self.block_certificate_created(certificate)
                     .map_err(|err| TheaterError::Other(err.to_string()))?;
-            },
+            }
             Event::HarvesterPublicKeyReceived(public_key_set) => {
                 self.dag.set_harvester_pubkeys(public_key_set)
-            },
+            }
 
-            Event::TransactionCertificateCreated { txn, .. } => {
-                // TODO: forward arguments
-                let _ = self.handle_transaction_certificate_created(txn);
-            },
-
-            Event::NoOp => {},
-            _ => {},
+            Event::NoOp => {}
+            _ => {}
         }
 
         Ok(ActorState::Running)
