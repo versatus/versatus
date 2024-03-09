@@ -10,11 +10,15 @@ mod tests {
 
     use std::collections::HashMap;
 
+    use mempool::LeftRightMempool;
     use primitives::{Address, Signature};
     use rand::{rngs::StdRng, Rng};
     use secp256k1::ecdsa;
+    use storage::vrrbdb::{VrrbDb, VrrbDbConfig};
     use vrrb_core::keypair::KeyPair;
     use vrrb_core::transactions::{NewTransferArgs, TransactionKind, Transfer};
+
+    use crate::validator_core_manager::ValidatorCoreManager;
 
     // TODO: Use proper txns when there will be proper txn validation
     // implemented
@@ -33,7 +37,7 @@ mod tests {
         .unwrap()
     }
 
-    fn _random_txn() -> TransactionKind {
+    fn random_txn() -> TransactionKind {
         let sender_kp = KeyPair::random();
         let recv_kp = KeyPair::random();
 
@@ -54,28 +58,36 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "https://github.com/versatus/versatus/issues/472"]
     fn should_validate_a_list_of_invalid_transactions() {
-        // let mut valcore_manager = ValidatorCoreManager::new(8).unwrap();
+        let db_config = VrrbDbConfig::default();
+        let db = VrrbDb::new(db_config);
+        let mempool = LeftRightMempool::default();
 
-        // let mut batch = vec![];
+        let mut valcore_manager = ValidatorCoreManager::new(
+            8,
+            mempool.factory(),
+            db.state_store_factory(),
+            db.claim_store_factory(),
+        )
+        .unwrap();
 
-        // for _ in 0..1000 {
-        //     batch.push(random_txn());
-        // }
+        let mut batch = vec![];
 
-        // let account_state: HashMap<Address, Account> = HashMap::new();
+        for _ in 0..1000 {
+            batch.push(random_txn());
+        }
 
-        // let target = batch
-        //     .iter()
-        //     .cloned()
-        //     .map(|txn| {
-        //         let err = Err(crate::txn_validator::TxnValidatorError::SenderAddressIncorrect);
-        //         (txn, err)
-        //     })
-        //     .collect();
+        let target = batch
+            .iter()
+            .cloned()
+            .map(|txn| {
+                let err = Err(crate::txn_validator::TxnValidatorError::SenderAddressIncorrect);
+                (txn, err)
+            })
+            .collect();
 
-        // let validated = valcore_manager.validate(&account_state, batch);
-        // assert_eq!(validated, target);
+        let validated =
+            valcore_manager.validate(batch, mempool.factory(), db.state_store_factory());
+        assert_eq!(validated, target);
     }
 }
