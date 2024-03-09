@@ -2,8 +2,8 @@ use std::net::SocketAddr;
 
 use block::BlockHash;
 use primitives::{
-    ByteVec, FarmerId, FarmerQuorumThreshold, IsTxnValid, KademliaPeerId, NodeId, NodeIdx,
-    NodeType, PublicKey, QuorumKind, RawSignature, Signature, ValidatorPublicKeyShare,
+    ByteVec, FarmerId, FarmerQuorumThreshold, IsTxnValid, KademliaPeerId, NodeId, NodeType,
+    PublicKey, QuorumKind, RawSignature, Signature, ValidatorPublicKeyShare,
 };
 use serde::{Deserialize, Serialize};
 use vrrb_config::QuorumMember;
@@ -61,18 +61,6 @@ pub struct Vote {
 }
 
 pub type SerializedConvergenceBlock = ByteVec;
-
-#[derive(Debug, Deserialize, Serialize, Hash, Clone, PartialEq, Eq)]
-pub struct BlockVote {
-    pub harvester_id: Vec<u8>,
-    pub harvester_node_id: NodeIdx,
-    pub signature: RawSignature,
-    pub convergence_block: SerializedConvergenceBlock,
-    pub quorum_public_key: Vec<u8>,
-    pub quorum_threshold: usize,
-    // May want to serialize this as a vector of bytes
-    pub execution_result: Option<String>,
-}
 
 // `JobResult` is an enum that represents the possible results of a job that is
 /// executed by a scheduler. It has two variants: `Votes` and `CertifiedTxn`.
