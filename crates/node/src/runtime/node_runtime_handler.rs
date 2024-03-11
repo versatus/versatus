@@ -8,6 +8,7 @@ use primitives::{
 };
 use telemetry::{info, warn};
 use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
+use vrrb_config::QuorumMember;
 use vrrb_core::{ownable, transactions::Transaction};
 
 #[async_trait]
@@ -61,7 +62,7 @@ impl Handler<EventMessage> for NodeRuntime {
                     self.send_event_to_network(Event::QuorumMembershipAssigmentsCreated(
                         assignments,
                     ))
-                    .await?;
+                        .await?;
                 }
             }
 
@@ -87,12 +88,16 @@ impl Handler<EventMessage> for NodeRuntime {
                 // TODO: write test case to ensure that no two miners are allowed to mine a genesis
                 // block
 
-                let is_chosen_miner = self
+                //get the lowest node_id with node_type == NodeType::Miner
+                let first_miner: &QuorumMember = self
                     .config_ref()
                     .whitelisted_nodes
                     .iter()
-                    .map(|quorum_member| (&quorum_member.node_id, &quorum_member.node_type))
-                    .any(|(id, node_type)| id == &own_node_id && node_type == &NodeType::Miner);
+                    .filter(|quorum_member| quorum_member.node_type == NodeType::Miner)
+                    .min_by(|a, b| a.node_id.cmp(&b.node_id))
+                    .expect("No miners found in quorum");
+
+                let is_chosen_miner = own_node_id == first_miner.node_id;
 
                 let can_mine_genblock = quorum_kind == QuorumKind::Miner
                     && self.config.node_type == NodeType::Miner
@@ -129,43 +134,94 @@ impl Handler<EventMessage> for NodeRuntime {
 
                 let block = self.mine_genesis_block(genesis_rewards)?;
 
-                self.send_event_to_network(Event::BlockCreated(Block::Genesis {
-                    block: block.clone(),
-                }))
-                .await?;
+                self.send_event_to_network(Event::GenesisBlockCreated(block.clone()))
+                    .await?;
 
-                self.send_event_to_self(Event::BlockCreated(Block::Genesis { block }))
+                self.send_event_to_self(Event::GenesisBlockCreated(block))
                     .await?;
             }
-            Event::BlockCreated(block) => {
+            // Event::BlockCreated(block) => {
+            //     let node_id = self.config_ref().id.clone();
+            //     telemetry::info!(
+            //         "Node {} received block from network: {}",
+            //         node_id,
+            //         block.hash()
+            //     );
+            //
+            //     let next_event = self.handle_block_received(block)?;
+            //
+            //     self.send_event_to_network(next_event).await?;
+            // }
+            Event::GenesisBlockCreated(block) => {
                 let node_id = self.config_ref().id.clone();
                 telemetry::info!(
-                    "Node {} received block from network: {}",
+                    "Node {} received genesis block from network: {}",
                     node_id,
-                    block.hash()
+                    block.hash
                 );
 
-                let next_event = self.handle_block_received(block)?;
+                let next_event = match self.handle_genesis_block_received(block) {
+                    Ok(event) => event,
+                    Err(err) => {
+                        info!("error handling genesis block: {}", err);
+                        return Ok(ActorState::Running);
+                    }
+                    _ => {
+                        info!("error handling genesis block");
+                        return Ok(ActorState::Running);
+                    }
+                };
+
+                self.send_event_to_self(next_event).await?;
+            }
+            Event::ProposalBlockCreated(block) => {
+                let node_id = self.config_ref().id.clone();
+                telemetry::info!(
+                    "Node {} received proposal block from network: {}",
+                    node_id,
+                    block.hash
+                );
+
+                let next_event = self.handle_proposal_block_received(block)?;
+
+                self.send_event_to_network(next_event).await?;
+            }
+            Event::ConvergenceBlockCreated(block) => {
+                let node_id = self.config_ref().id.clone();
+                telemetry::info!(
+                    "Node {} received convergence block from network: {}",
+                    node_id,
+                    block.hash
+                );
+
+                let next_event = self.handle_convergence_block_received(block)?;
 
                 self.send_event_to_network(next_event).await?;
             }
             /// Triggered once a genesis block or convergence block makes it to state
             // TODO: create a specific handler for this event
             Event::StateUpdated(block) => {
-                dbg!("state updated", block.hash());
-                match block {
-                    Block::Genesis { block } => {
-                        // self.handle_genesis_block_received(block)?;
-                        dbg!("state updated with genesis");
+                if self.is_harvester().is_ok() {
+                    info!(
+                        "StateUpdated Node {} is a harvester, block {}",
+                        self.config_ref().id,
+                        block.hash()
+                    );
+                    match block {
+                        Block::Genesis { block } => {
+                            // send certificate requested to self
+                            let event = Event::GenesisBlockSignatureRequested(block);
+                            self.send_event_to_self(event).await?;
+                        }
+                        Block::Convergence { block } => {
+                            let event = Event::ConvergenceBlockSignatureRequested(block);
+                            self.send_event_to_self(event).await?;
+                        }
+                        _ => {}
                     }
-                    Block::Convergence { block } => {
-                        // self.handle_convergence_block_received(block)?;
-                        dbg!("state updated with convergence block");
-                    }
-                    _ => {}
                 }
-                //
-                // if let Err(err) = self.state_driver.update_state(block.hash.clone()) {
+
+                // if let Err(err) = self.state_driver.update_state(block.hash) {
                 //     telemetry::error!("error updating state: {}", err);
                 // } else {
                 //     self.events_tx
@@ -174,16 +230,16 @@ impl Handler<EventMessage> for NodeRuntime {
                 //         .map_err(|err| TheaterError::Other(err.to_string()))?;
                 // }
             }
-            Event::UpdateState(block) => {
-                if let Err(err) = self.state_driver.update_state(block.hash.clone()) {
-                    telemetry::error!("error updating state: {}", err);
-                } else {
-                    self.events_tx
-                        .send(Event::BuildProposalBlock(block).into())
-                        .await
-                        .map_err(|err| TheaterError::Other(err.to_string()))?;
-                }
-            }
+            // Event::UpdateState(block) => {
+            //     if let Err(err) = self.state_driver.update_state(block.hash.clone()) {
+            //         telemetry::error!("error updating state: {}", err);
+            //     } else {
+            //         self.events_tx
+            //             .send(Event::BuildProposalBlock(block).into())
+            //             .await
+            //             .map_err(|err| TheaterError::Other(err.to_string()))?;
+            //     }
+            // }
             Event::ConvergenceBlockCertificateCreated(certificate) => {
                 self.handle_convergence_block_certificate_created(certificate)?;
             }
@@ -248,7 +304,7 @@ impl Handler<EventMessage> for NodeRuntime {
                     self.config_ref().id.clone(),
                     txn.clone(),
                 ))
-                .await?;
+                    .await?;
 
                 info!("Transaction {} broadcast to network", txn.id().to_string());
 
@@ -335,14 +391,8 @@ impl Handler<EventMessage> for NodeRuntime {
             Event::TxnValidated(txn) => {
                 self.state_driver.handle_transaction_validated(txn).await?;
             }
-            Event::BuildProposalBlock(block) => {
-                let proposal_block = self.handle_build_proposal_block_requested(block).await?;
-
-                let evt = Event::BroadcastProposalBlock(proposal_block);
-
-                if let Err(err) = self.send_event_to_network(evt).await {
-                    telemetry::error!("failed to broadcast proposal block: {}", err);
-                }
+            Event::BuildProposalBlock() => {
+                // let proposal_block = self.handle_build_proposal_block_requested().await?;
             }
             //
             // ==============================================================================================================
@@ -382,11 +432,35 @@ impl Handler<EventMessage> for NodeRuntime {
                     block_header,
                     resolver,
                 )
-                .await?;
+                    .await?;
             }
-            Event::BlockSignatureRequested(block) => {
-                let block_hash = block.hash();
-                let signature = self.handle_sign_block(block)?;
+            Event::GenesisBlockSignatureRequested(block) => {
+                let block_hash = block.hash.clone();
+                let signature = match self.handle_sign_genesis_block(&block) {
+                    Ok(signature) => signature,
+                    Err(err) => {
+                        telemetry::error!("error signing block: {}", err);
+                        return Ok(ActorState::Running);
+                    }
+                };
+
+                info!("Node {} signed block: {}", self.config_ref().id, block_hash);
+
+                let partial_signature = BlockPartialSignature {
+                    node_id: self.config_ref().id.clone(),
+                    signature,
+                    block_hash,
+                };
+
+                let event = Event::GenesisBlockSignatureCreated(partial_signature);
+
+                self.send_event_to_network(event.clone()).await?;
+
+                self.send_event_to_self(event).await?;
+            }
+            Event::ConvergenceBlockSignatureRequested(block) => {
+                let block_hash = block.hash.clone();
+                let signature = self.handle_sign_convergence_block(&block)?;
 
                 telemetry::info!("Node {} signed block: {}", self.config_ref().id, block_hash);
 
@@ -396,22 +470,55 @@ impl Handler<EventMessage> for NodeRuntime {
                     block_hash,
                 };
 
-                self.send_event_to_network(Event::BlockSignatureCreated(partial_signature))
+                self.send_event_to_network(Event::ConvergenceBlockSignatureCreated(
+                    partial_signature,
+                ))
                     .await?;
             }
 
-            Event::BlockSignatureCreated(BlockPartialSignature {
-                block_hash,
-                signature,
-                node_id,
-            }) => {
+            Event::GenesisBlockSignatureCreated(BlockPartialSignature {
+                                                    block_hash,
+                                                    signature,
+                                                    node_id,
+                                                }) => {
+                info!(
+                    "handling GenesisBlockSignatureCreated on {}, a {}, from {}",
+                    self.config_ref().id,
+                    self.config_ref().node_type,
+                    node_id
+                );
                 let certificate = self
                     .handle_harvester_signature_received(block_hash, node_id, signature)
                     .await?;
 
-                self.send_event_to_network(Event::BlockCertificateCreated(certificate))
+                info!("certificate created");
+
+                self.send_event_to_network(Event::GenesisBlockCertificateCreated(certificate))
                     .await?;
             }
+
+            Event::ConvergenceBlockSignatureCreated(BlockPartialSignature {
+                                                        block_hash,
+                                                        signature,
+                                                        node_id,
+                                                    }) => {
+                let certificate = self
+                    .handle_harvester_signature_received(block_hash, node_id, signature)
+                    .await?;
+
+                self.send_event_to_network(Event::ConvergenceBlockCertificateCreated(certificate))
+                    .await?;
+            }
+
+            Event::GenesisBlockCertificateCreated(certificate) => {
+                info!("GenesisBlockCertificateCreated");
+                let confirmed_block = self.handle_genesis_block_certificate_created(certificate)?;
+
+                // TODO: update state after this
+                self.send_event_to_self(Event::UpdateState(confirmed_block))
+                    .await?;
+            }
+
             Event::ConvergenceBlockCertificateCreated(certificate) => {
                 let confirmed_block =
                     self.handle_convergence_block_certificate_created(certificate)?;

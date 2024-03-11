@@ -194,12 +194,12 @@ pub fn produce_convergence_block(dag: Arc<RwLock<BullDag<Block, BlockHash>>>) ->
             }
 
             if let Ok(mut guard) = dag.write() {
-                let edges = edges
+                let edges: Vec<_> = edges
                     .iter()
                     .map(|(source, reference)| (source, reference))
                     .collect();
 
-                guard.extend_from_edges(edges);
+                guard.extend_from_edges(&*edges);
                 return Some(block.get_hash());
             }
         }

@@ -85,9 +85,22 @@ impl Handler<EventMessage> for NetworkModule {
                 info!("Broadcasting certificate to network");
                 self.broadcast_certificate(cert).await?;
             }
-            Event::BlockCreated(block) => {
+            Event::GenesisBlockCreated(block) => {
                 info!("Broadcasting block to network");
-                self.broadcast_block(block).await?;
+                self.broadcast_genesis_block(block).await?;
+            }
+            Event::GenesisBlockSignatureCreated(partial_signature) => {
+                info!("Broadcasting block to network");
+                self.broadcast_genesis_block_partial_signature(partial_signature)
+                    .await?;
+            }
+            Event::ProposalBlockCreated(block) => {
+                info!("Broadcasting block to network");
+                self.broadcast_proposal_block(block).await?;
+            }
+            Event::ConvergenceBlockCreated(block) => {
+                info!("Broadcasting block to network");
+                self.broadcast_convergence_block(block).await?;
             }
             Event::Stop => {
                 // TODO: rely on cancellation token instead of this event

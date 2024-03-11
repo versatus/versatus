@@ -26,6 +26,7 @@ use std::{
 };
 use storage::vrrbdb::{StateStoreReadHandleFactory, VrrbDbConfig, VrrbDbReadHandle};
 use theater::{ActorId, ActorState, TheaterError};
+use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 use utils::payload::digest_data_to_bytes;
 use vrrb_config::{NodeConfig, QuorumMembershipConfig};
@@ -50,6 +51,9 @@ pub struct NodeRuntime {
     pub mining_driver: Miner,
     pub claim: Claim,
     pub pending_quorum: Option<InaugaratedMembers>,
+
+    pub proposal_mining_trigger: Option<Handle>,
+    pub convergence_mining_trigger: Option<Handle>,
 }
 
 impl NodeRuntime {
@@ -142,8 +146,72 @@ impl NodeRuntime {
             mining_driver: miner,
             claim,
             pending_quorum: None,
+            proposal_mining_trigger: None,
+            convergence_mining_trigger: None,
         })
     }
+
+    // pub fn create_proposal_mining_task(
+    //     &mut self,
+    // ) -> std::result::Result<JoinHandle<Result<()>>, anyhow::Error> {
+    //     let handle = tokio::spawn(async move {
+    //         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(10));
+    //         loop {
+    //             interval.tick().await;
+    //             self.build_proposal_block().await;
+    //         }
+    //     });
+    //     Ok(handle)
+    // }
+
+    pub fn is_harvester(&self) -> Result<()> {
+        self.consensus_driver.is_harvester()
+    }
+
+    pub async fn build_proposal_block(&mut self) -> Result<()> {
+        if let Some(last_confirmed_block) = self.state_driver.dag.last_confirmed_block() {
+            let block = self
+                .handle_build_proposal_block_requested(last_confirmed_block)
+                .await;
+            if let Err(err) = block {
+                telemetry::error!("Error mining proposal block: {err}");
+            } else {
+                self.events_tx
+                    .send(EventMessage::new(
+                        Some(RUNTIME_TOPIC_STR.into()),
+                        Event::ProposalBlockCreated(block.unwrap()),
+                    ))
+                    .await?;
+            }
+        } else {
+            telemetry::error!("No last confirmed block found");
+        }
+
+        Ok(())
+    }
+
+    // pub fn create_convergence_mining_task(
+    //     &mut self,
+    // ) -> std::result::Result<JoinHandle<Result<()>>, anyhow::Error> {
+    //     let handle = tokio::spawn(async move {
+    //         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(10));
+    //         loop {
+    //             interval.tick().await;
+    //             let block = self.mining_driver.mine_convergence_block();
+    //             if let Some(block) = block {
+    //                 self.events_tx
+    //                     .send(EventMessage::new(
+    //                         Some(RUNTIME_TOPIC_STR.into()),
+    //                         Event::ConvergenceBlockCreated(block),
+    //                     ))
+    //                     .await?;
+    //             } else {
+    //                 telemetry::error!("Error mining convergence block");
+    //             }
+    //         }
+    //     });
+    //     Ok(handle)
+    // }
 
     pub fn certified_convergence_block_exists_within_dag(&self, block_hash: String) -> bool {
         if let Ok(guard) = self.state_driver.dag.read() {

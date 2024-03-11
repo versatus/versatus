@@ -1,6 +1,8 @@
 use std::net::SocketAddr;
 
-use block::{header::BlockHeader, Block, Certificate, ConvergenceBlock, GenesisBlock};
+use block::{
+    header::BlockHeader, Block, Certificate, ConvergenceBlock, GenesisBlock, ProposalBlock,
+};
 use dyswarm::{
     client::{BroadcastArgs, BroadcastConfig},
     server::ServerConfig,
@@ -11,11 +13,12 @@ use events::{
 use hbbft::sync_key_gen::{Ack, Part};
 use kademlia_dht::{Key, Node as KademliaNode, NodeData};
 use primitives::{
-    ConvergencePartialSig, KademliaPeerId, NodeId, NodeType, PublicKey, RUNTIME_TOPIC_STR,
+    BlockPartialSignature, ConvergencePartialSig, KademliaPeerId, NodeId, NodeType, PublicKey,
+    RUNTIME_TOPIC_STR,
 };
 use telemetry::info;
+use telemetry::tracing::Subscriber;
 use theater::{Actor, ActorId, ActorState, Handler, TheaterError};
-use tracing::Subscriber;
 use utils::payload::digest_data_to_bytes;
 use vrrb_config::{BootstrapQuorumConfig, NodeConfig, QuorumMembershipConfig};
 use vrrb_core::{
@@ -522,8 +525,31 @@ impl NetworkModule {
             .await
     }
 
-    pub(crate) async fn broadcast_block(&mut self, block: Block) -> Result<()> {
-        self.broadcast_event_to_known_peers(NetworkEvent::BlockCreated(block))
+    pub(crate) async fn broadcast_genesis_block(&mut self, block: GenesisBlock) -> Result<()> {
+        self.broadcast_event_to_known_peers(NetworkEvent::GenesisBlockCreated(block))
+            .await
+    }
+
+    pub(crate) async fn broadcast_genesis_block_partial_signature(
+        &mut self,
+        partial_signature: BlockPartialSignature,
+    ) -> Result<()> {
+        self.broadcast_event_to_known_peers(NetworkEvent::GenesisBlockSignatureCreated(
+            partial_signature,
+        ))
+        .await
+    }
+
+    pub(crate) async fn broadcast_proposal_block(&mut self, block: ProposalBlock) -> Result<()> {
+        self.broadcast_event_to_known_peers(NetworkEvent::ProposalBlockCreated(block))
+            .await
+    }
+
+    pub(crate) async fn broadcast_convergence_block(
+        &mut self,
+        block: ConvergenceBlock,
+    ) -> Result<()> {
+        self.broadcast_event_to_known_peers(NetworkEvent::ConvergenceBlockCreated(block))
             .await
     }
 }

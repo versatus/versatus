@@ -1,13 +1,18 @@
 use std::net::SocketAddr;
 
-use block::{header::BlockHeader, Block, Certificate, ConvergenceBlock, GenesisBlock};
+use block::{
+    header::BlockHeader, Block, Certificate, ConvergenceBlock, GenesisBlock, ProposalBlock,
+};
 use events::{AssignedQuorumMembership, Vote};
 use hbbft::{
     crypto::PublicKeySet,
     sync_key_gen::{Ack, Part},
 };
 use mempool::TxnRecord;
-use primitives::{ConvergencePartialSig, KademliaPeerId, NodeId, NodeType, PeerId, PublicKey};
+use primitives::{
+    BlockPartialSignature, ConvergencePartialSig, KademliaPeerId, NodeId, NodeType, PeerId,
+    PublicKey,
+};
 use serde::{Deserialize, Serialize};
 use signer::engine::QuorumData;
 use vrrb_core::{claim::Claim, transactions::TransactionKind};
@@ -53,7 +58,11 @@ pub enum NetworkEvent {
         socket_addr: SocketAddr,
     },
 
-    BlockCreated(Block),
+    // BlockCreated(Block),
+    GenesisBlockCreated(GenesisBlock),
+    GenesisBlockSignatureCreated(BlockPartialSignature),
+    ProposalBlockCreated(ProposalBlock),
+    ConvergenceBlockCreated(ConvergenceBlock),
     NewTxnCreated(TransactionKind),
     NewTxnForwarded(NodeId, TransactionKind),
 

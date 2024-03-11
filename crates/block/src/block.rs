@@ -81,6 +81,14 @@ impl Block {
             Block::Genesis { block } => block.hash.clone(),
         }
     }
+
+    pub fn header(&self) -> Option<BlockHeader> {
+        match self {
+            Block::Convergence { block } => Some(block.header.clone()),
+            Block::Genesis { block } => Some(block.header.clone()),
+            _ => None,
+        }
+    }
 }
 
 impl fmt::Display for ConvergenceBlock {

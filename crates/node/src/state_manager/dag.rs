@@ -2,12 +2,9 @@ use std::{
     collections::HashSet,
     sync::{Arc, RwLock, RwLockReadGuard},
 };
+use std::hash::Hash;
 
-use block::{
-    header::BlockHeader,
-    valid::{BlockValidationData, Valid},
-    Block, Certificate, ConvergenceBlock, GenesisBlock, InnerBlock, ProposalBlock,
-};
+use block::{header::BlockHeader, valid::{BlockValidationData, Valid}, Block, Certificate, ConvergenceBlock, GenesisBlock, InnerBlock, ProposalBlock, BlockHash};
 use bulldag::{
     graph::{BullDag, GraphError},
     vertex::Vertex,
@@ -16,6 +13,7 @@ use indexmap::IndexMap;
 use primitives::{HarvesterQuorumThreshold, NodeId, PublicKey, Signature, SignatureType};
 use signer::engine::{QuorumMembers, SignerEngine};
 use signer::types::{SignerError, SignerResult};
+use tracing::info;
 use vrrb_core::claim::Claim;
 
 use crate::{NodeError, Result};
@@ -51,6 +49,7 @@ pub struct DagModule {
     dag: Arc<RwLock<BullDag<Block, String>>>,
     quorum_members: Option<QuorumMembers>,
     _harvester_quorum_threshold: Option<HarvesterQuorumThreshold>,
+    genesis_block_hash: Option<BlockHash>,
     last_confirmed_block_header: Option<BlockHeader>,
     last_confirmed_block: Option<Block>,
     // String in next 2 fields represent the block hash
@@ -68,6 +67,7 @@ impl DagModule {
             dag,
             quorum_members: None,
             _harvester_quorum_threshold: None,
+            genesis_block_hash: None,
             last_confirmed_block_header: None,
             last_confirmed_block: None,
             pending_convergence_blocks: IndexMap::new(),
@@ -93,6 +93,10 @@ impl DagModule {
 
     pub fn last_confirmed_block_header(&self) -> Option<BlockHeader> {
         self.last_confirmed_block_header.clone()
+    }
+
+    pub fn last_confirmed_block(&self) -> Option<Block> {
+        self.last_confirmed_block.clone()
     }
 
     pub fn set_quorum_members(&mut self, quorum_members: QuorumMembers) {
@@ -163,6 +167,17 @@ impl DagModule {
         //         genesis.hash,
         //     )));
         // }
+
+        if let Some(genesis_block_hash) = &self.genesis_block_hash {
+            if genesis_block_hash != genesis.hash {
+                info!("attempted to write non-matching genesis block");
+                return Err(GraphError::Other(
+                    "attempted to write non-matching genesis block".to_string(),
+                ));
+            }
+            info!("attempted to write matching genesis block an additional time");
+            return Ok(());
+        }
 
         // if valid {
         let block: Block = genesis.clone().into();
@@ -266,7 +281,7 @@ impl DagModule {
         edge: (&Vertex<Block, String>, &Vertex<Block, String>),
     ) -> GraphResult<()> {
         if let Ok(mut guard) = self.dag.write() {
-            guard.add_edge(edge);
+            guard.add_edge(&edge);
             return Ok(());
         }
 
@@ -284,10 +299,20 @@ impl DagModule {
     }
 
     fn write_genesis(&mut self, vertex: &Vertex<Block, String>) -> GraphResult<()> {
-        if let Ok(mut guard) = self.dag.write() {
-            guard.add_vertex(vertex);
+        match vertex.get_data() {
+            Block::Genesis { block } => {
+                self.genesis_block_hash = Some(block.clone());
+                if let Ok(mut guard) = self.dag.write() {
+                    guard.add_vertex(vertex);
 
-            return Ok(());
+                    return Ok(());
+                }
+            }
+            _ => {
+                return Err(GraphError::Other(
+                    "attempted to write non-genesis block as genesis".to_string(),
+                ));
+            }
         }
 
         Err(GraphError::Other("Error getting write guard".to_string()))
@@ -339,13 +364,26 @@ impl DagModule {
             .entry(block_hash.clone())
         {
             indexmap::map::Entry::Occupied(mut entry) => {
+                info!("entry occupied");
                 entry.get_mut().insert((node_id, sig));
             }
 
             indexmap::map::Entry::Vacant(entry) => {
+                info!("entry vacant");
                 let mut set = HashSet::new();
                 set.insert((node_id, sig));
                 entry.insert(set);
+                match self
+                    .partial_certificate_signatures
+                    .entry(block_hash.clone())
+                {
+                    indexmap::map::Entry::Occupied(_) => {
+                        info!("entry occupied after insertion {}", &block_hash);
+                    }
+                    indexmap::map::Entry::Vacant(_) => {
+                        info!("entry vacant after insertion");
+                    }
+                }
             }
         }
         self.check_certificate_threshold_reached(&block_hash, sig_engine)
@@ -364,6 +402,11 @@ impl DagModule {
             )))?;
 
         if set.len() < sig_engine.quorum_members().get_harvester_threshold() {
+            info!(
+                "threshold not reached, needed: {} found: {}",
+                sig_engine.quorum_members().get_harvester_threshold(),
+                set.len()
+            );
             return Err(NodeError::Other("threshold not reached".to_string()));
         }
 

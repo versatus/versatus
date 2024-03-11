@@ -141,13 +141,38 @@ impl dyswarm::server::Handler<NetworkEvent> for DyswarmHandler {
                     telemetry::error!("{}", err);
                 }
             }
-            NetworkEvent::BlockCreated(block) => {
-                let evt = Event::BlockCreated(block);
+            // NetworkEvent::BlockCreated(block) => {
+            //     let evt = Event::BlockCreated(block);
+            //     if let Err(err) = self.send_event_to_runtime(evt).await {
+            //         telemetry::error!("{}", err);
+            //     }
+            // }
+            NetworkEvent::GenesisBlockCreated(block) => {
+                let evt = Event::GenesisBlockCreated(block);
                 if let Err(err) = self.send_event_to_runtime(evt).await {
                     telemetry::error!("{}", err);
                 }
             }
 
+            NetworkEvent::GenesisBlockSignatureCreated(partial_signature) => {
+                let evt = Event::GenesisBlockSignatureCreated(partial_signature);
+                if let Err(err) = self.send_event_to_runtime(evt).await {
+                    telemetry::error!("{}", err);
+                }
+            }
+
+            NetworkEvent::ProposalBlockCreated(block) => {
+                let evt = Event::ProposalBlockCreated(block);
+                if let Err(err) = self.send_event_to_runtime(evt).await {
+                    telemetry::error!("{}", err);
+                }
+            }
+            NetworkEvent::ConvergenceBlockCreated(block) => {
+                let evt = Event::ConvergenceBlockCreated(block);
+                if let Err(err) = self.send_event_to_runtime(evt).await {
+                    telemetry::error!("{}", err);
+                }
+            }
             _ => {}
         }
 

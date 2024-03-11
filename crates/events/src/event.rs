@@ -104,7 +104,7 @@ pub enum Event {
 
     /// `BlockCreated(Block)` is an event that occurs whenever a block of any
     /// kind is created
-    BlockCreated(Block),
+    // BlockCreated(Block),
 
     /// Event emitted by a bootrstrap QuorumModule to signal a node was assigned
     /// to a particular quorum
@@ -164,6 +164,8 @@ pub enum Event {
         genesis_receivers: Vec<GenesisReceiver>,
     },
 
+    GenesisBlockCreated(GenesisBlock),
+
     ProposalBlockCreated(ProposalBlock),
 
     ConvergenceBlockCreated(ConvergenceBlock),
@@ -193,11 +195,14 @@ pub enum Event {
         claim: Claim,
     },
 
-    #[deprecated(note = "Use BlockSignatureRequested instead")]
+    // BlockSignatureRequested(Block),
+    GenesisBlockSignatureRequested(GenesisBlock),
+    // #[deprecated(note = "Use BlockSignatureRequested instead")]
     ConvergenceBlockSignatureRequested(ConvergenceBlock),
 
-    BlockSignatureRequested(Block),
-    BlockSignatureCreated(BlockPartialSignature),
+    // BlockSignatureCreated(BlockPartialSignature),
+    GenesisBlockSignatureCreated(BlockPartialSignature),
+    ConvergenceBlockSignatureCreated(BlockPartialSignature),
 
     /// `ConvergenceBlockPartialSignatureCreated` is an event that is triggered
     /// when a node has partially signed a convergence block. The
@@ -208,12 +213,12 @@ pub enum Event {
     /// it with their own partial signatures to create a complete signature for
     /// the convergence block,also it adds the partial signature to
     /// certificate cache
-    #[deprecated(note = "Use BlockSignatureCreated instead")]
-    ConvergenceBlockPartialSignatureCreated {
-        block_hash: BlockHash,
-        public_key_share: ValidatorPublicKeyShare,
-        partial_signature: Signature,
-    },
+    // #[deprecated(note = "Use BlockSignatureCreated instead")]
+    // ConvergenceBlockPartialSignatureCreated {
+    //     block_hash: BlockHash,
+    //     public_key_share: ValidatorPublicKeyShare,
+    //     partial_signature: Signature,
+    // },
 
     /// `ConvergenceBlockPrecheckRequested` is a function
     /// used to precheck a convergence block before it is signed and added
@@ -227,7 +232,6 @@ pub enum Event {
         convergence_block: ConvergenceBlock,
         block_header: BlockHeader,
     },
-
     BlockPeerSignatureRequested {
         node_id: NodeId,
         block_hash: BlockHash,
@@ -256,8 +260,7 @@ pub enum Event {
     /// `BlockCertificate(Certificate)` is an event that carries a `Certificate`
     /// object representing a proof that a block has been certified by a
     /// quorum. This certificate is then added to convergence block .
-    BlockCertificateCreated(Certificate),
-
+    // BlockCertificateCreated(Certificate),
     GenesisBlockCertificateRequested {
         genesis_block: GenesisBlock,
         block_header: BlockHeader,
@@ -336,7 +339,7 @@ pub enum Event {
     TransactionVoteCreated(Vote),
     TransactionVoteForwarded(Vote),
 
-    BuildProposalBlock(ConvergenceBlock),
+    BuildProposalBlock(),
 
     BroadcastProposalBlock(ProposalBlock),
 }

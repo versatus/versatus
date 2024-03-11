@@ -8,6 +8,7 @@ use primitives::{Address, NodeId, NodeType, PublicKey, QuorumId, QuorumKind, Sig
 use signer::engine::{QuorumData, QuorumMembers as InaugaratedMembers};
 use std::{collections::HashMap, fmt::format};
 use storage::vrrbdb::ApplyBlockResult;
+use tracing::info;
 use vrrb_core::transactions::TransactionDigest;
 
 use crate::{
@@ -18,7 +19,7 @@ use crate::{
 pub const PULL_TXN_BATCH_SIZE: usize = 100;
 
 impl NodeRuntime {
-    fn handle_genesis_block_received(&mut self, block: GenesisBlock) -> Result<Event> {
+    pub fn handle_genesis_block_received(&mut self, block: GenesisBlock) -> Result<Event> {
         let node_id = self.config_ref().id.clone();
         let block_hash = &block.hash;
 
@@ -46,7 +47,7 @@ impl NodeRuntime {
     /// Certifies and stores a convergence block within a node's state if certification succeeds
     // TODO: check if harvester, request a pre check
     // ConvergenceBlockPrecheckRequested
-    fn handle_convergence_block_received(&mut self, block: ConvergenceBlock) -> Result<Event> {
+    pub fn handle_convergence_block_received(&mut self, block: ConvergenceBlock) -> Result<Event> {
         if let Err(e) = self.state_driver.dag.append_convergence(&block) {
             let err_note = format!("Encountered GraphError: {e:?}");
             return Err(NodeError::Other(err_note));
@@ -70,7 +71,7 @@ impl NodeRuntime {
     // check if from valid harvester
     // whoever sent the proposal block must be a valid harvester
     // sig_engine.quorum_members().is_harvester()
-    fn handle_proposal_block_received(&mut self, block: ProposalBlock) -> Result<Event> {
+    pub fn handle_proposal_block_received(&mut self, block: ProposalBlock) -> Result<Event> {
         let sig_engine = self.consensus_driver.sig_engine.clone();
         if let Err(e) = self
             .state_driver
@@ -84,13 +85,13 @@ impl NodeRuntime {
         Ok(Event::BlockAppended(block.hash.clone()))
     }
 
-    pub fn handle_block_received(&mut self, block: Block) -> Result<Event> {
-        match block {
-            Block::Genesis { block } => self.handle_genesis_block_received(block),
-            Block::Proposal { block } => self.handle_proposal_block_received(block),
-            Block::Convergence { block } => self.handle_convergence_block_received(block),
-        }
-    }
+    // pub fn handle_block_received(&mut self, block: Block) -> Result<Event> {
+    //     match block {
+    //         Block::Genesis { block } => self.handle_genesis_block_received(block),
+    //         Block::Proposal { block } => self.handle_proposal_block_received(block),
+    //         Block::Convergence { block } => self.handle_convergence_block_received(block),
+    //     }
+    // }
 
     pub fn handle_state_updated(&mut self) -> Result<()> {
         todo!()
@@ -107,6 +108,8 @@ impl NodeRuntime {
             .verify(&node_id, &sig, &block_hash)
             .map_err(|err| NodeError::Other(err.to_string()))?;
 
+        info!("sig_engine verify");
+
         let set = self
             .state_driver
             .dag
@@ -118,15 +121,20 @@ impl NodeRuntime {
             )
             .map_err(|err| NodeError::Other(err.to_string()))?;
 
+        info!("add signer to block");
+
         let sig_set = set.into_iter().collect();
         let cert = self
             .form_convergence_certificate(block_hash, sig_set)
             .map_err(|err| NodeError::Other(err.to_string()))?;
 
-        self.events_tx
-            .send(Event::BlockCertificateCreated(cert.clone()).into())
-            .await
-            .map_err(|err| NodeError::Other(err.to_string()))?;
+        info!("form convergence certificate");
+
+        // TODO: This is also being sent in the node_runtime_handler, check to see why
+        // self.events_tx
+        //     .send(Event::BlockCertificateCreated(cert.clone()).into())
+        //     .await
+        //     .map_err(|err| NodeError::Other(err.to_string()))?;
 
         Ok(cert)
     }
@@ -281,22 +289,28 @@ impl NodeRuntime {
 
     pub async fn handle_build_proposal_block_requested(
         &mut self,
-        block: ConvergenceBlock,
+        block: Block,
     ) -> Result<ProposalBlock> {
-        let block_hash = block.hash.clone();
-        let block_round = block.header.round + 1;
-        let block_epoch = block.header.epoch;
-        let from = self.claim.clone();
-        let sig_engine = self.consensus_driver.sig_engine.clone();
-        let claims_map = self.consensus_driver.quorum_certified_claims.clone();
-        self.mine_proposal_block(
-            block_hash,
-            claims_map,
-            block_round,
-            block_epoch,
-            from,
-            sig_engine,
-        )
+        let block_hash = block.hash().clone();
+        if let Some(header) = block.header() {
+            let block_round = header.round + 1;
+            let block_epoch = header.epoch;
+            let from = self.claim.clone();
+            let sig_engine = self.consensus_driver.sig_engine.clone();
+            let claims_map = self.consensus_driver.quorum_certified_claims.clone();
+            self.mine_proposal_block(
+                block_hash,
+                claims_map,
+                block_round,
+                block_epoch,
+                from,
+                sig_engine,
+            )
+        } else {
+            Err(NodeError::Other(
+                "unable to get header from block".to_string(),
+            ))
+        }
     }
 
     pub async fn handle_vote_received(&mut self, vote: Vote) -> Result<()> {
@@ -372,7 +386,10 @@ impl NodeRuntime {
         }
     }
 
-    fn handle_sign_convergence_block(&mut self, block: ConvergenceBlock) -> Result<Signature> {
+    pub(crate) fn handle_sign_convergence_block(
+        &mut self,
+        block: &ConvergenceBlock,
+    ) -> Result<Signature> {
         self.consensus_driver.is_harvester()?;
         self.consensus_driver
             .sig_engine
@@ -386,7 +403,7 @@ impl NodeRuntime {
             })
     }
 
-    fn handle_sign_genesis_block(&mut self, block: &GenesisBlock) -> Result<Signature> {
+    pub(crate) fn handle_sign_genesis_block(&mut self, block: &GenesisBlock) -> Result<Signature> {
         self.consensus_driver.is_harvester()?;
         self.consensus_driver
             .sig_engine
@@ -399,16 +416,16 @@ impl NodeRuntime {
             })
     }
 
-    // TODO: Replace uses of signing handlers for blocks with this method
-    pub fn handle_sign_block(&mut self, block: Block) -> Result<Signature> {
-        match block {
-            Block::Convergence { block } => self.handle_sign_convergence_block(block),
-            Block::Genesis { block } => self.handle_sign_genesis_block(&block),
-            _ => Err(NodeError::Other(
-                "signature handler is not implemented for proposal blocks".into(),
-            )),
-        }
-    }
+    // // TODO: Replace uses of signing handlers for blocks with this method
+    // pub fn handle_sign_block(&mut self, block: Block) -> Result<Signature> {
+    //     match block {
+    //         Block::Convergence { block } => self.handle_sign_convergence_block(block),
+    //         Block::Genesis { block } => self.handle_sign_genesis_block(&block),
+    //         _ => Err(NodeError::Other(
+    //             "signature handler is not implemented for proposal blocks".into(),
+    //         )),
+    //     }
+    // }
 
     // TODO: Replace claims HashMap with claim_store_read_handle_factory
     pub fn handle_quorum_election_started(&mut self, header: BlockHeader) -> Result<()> {
