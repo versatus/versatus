@@ -1,6 +1,6 @@
 //! Web Assembly runtime execution
 //!
-//! This is the WASM runtime for the VRRB compute stack. It allows WASI/WASIX
+//! This is the WASM runtime for the Verstatus compute stack. It allows WASI/WASIX
 //! function calls and assumes that the WASM payload has a _start entry point,
 //! reads from STDIN and writes to STDOUT. It wraps around the Wasmer WASM
 //! runtime.
@@ -15,17 +15,17 @@ use super::{
     limiting_tunables::{LimitingTunables, DEFAULT_PAGE_LIMIT},
     metering::MeteringConfig,
 };
-use telemetry::debug;
+use telemetry::{debug, info, warn};
 use wasmer::{
     wasmparser::Operator, BaseTunables, CompilerConfig, Engine, Instance, Module, NativeEngineExt,
     Store, Target,
 };
-use wasmer_middlewares::metering::get_remaining_points;
+use wasmer_middlewares::metering::{get_remaining_points, MeteringPoints};
 use wasmer_wasix::{Pipe, WasiEnv};
 
 /// This is the first command line argument, traditionally reserved for the
 /// program name (argv[0] in C and others).
-const MODULE_ARGV0: &str = "vrrb-contract";
+const MODULE_ARGV0: &str = "versatus";
 
 use crate::errors::WasmRuntimeError;
 pub type RuntimeResult<T> = Result<T, WasmRuntimeError>;
@@ -39,7 +39,6 @@ pub struct WasmRuntime {
     args: Vec<String>,
     env: HashMap<String, String>,
 }
-#[allow(clippy::result_large_err)]
 impl WasmRuntime {
     /// Creates a new WasmRuntime environment to execute the WASM binary passed
     /// in.
@@ -67,7 +66,9 @@ impl WasmRuntime {
         debug!("Compiling {} bytes of WASM", wasm_bytes.len());
 
         // Compile module into in-memory store
-        let module = Module::new(&store, wasm_bytes)?;
+        let module = Module::new(&store, wasm_bytes)
+            .map_err(|e| WasmRuntimeError::ModuleBuildError(format!("{e:?}")))?;
+        dbg!(&module);
         Ok(Self {
             store,
             module,
@@ -146,13 +147,18 @@ impl WasmRuntime {
 
         wasi_fn_env.initialize(store, instance.clone())?;
         let start = instance.exports.get_function("_start")?;
-        start.call(store, &[])?;
+        let exec_result = start.call(store, &[]);
 
-        telemetry::info!(
-            "MeteringPoints::{:?}",
-            get_remaining_points(store, &instance)
-        );
+        match get_remaining_points(store, &instance) {
+            MeteringPoints::Remaining(points) => {
+                info!("Remaining metering points: {points}");
+            }
+            MeteringPoints::Exhausted => {
+                warn!("Metering points were exhausted. If unreachable code was reached, try increasing the meter limit.");
+            }
+        }
 
+        exec_result?;
         wasi_fn_env.cleanup(store, None);
         Ok(())
     }

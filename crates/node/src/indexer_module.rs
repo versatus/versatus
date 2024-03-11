@@ -36,8 +36,6 @@ impl IndexerModule {
     }
 }
 
-impl IndexerModule {}
-
 #[async_trait]
 impl Handler<EventMessage> for IndexerModule {
     fn id(&self) -> ActorId {
@@ -122,8 +120,6 @@ pub fn setup_indexer_module(
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
     use events::DEFAULT_BUFFER;
     use mempool::LeftRightMempool;
     use serial_test::serial;
@@ -133,7 +129,7 @@ mod tests {
 
     // Helper function to create a test instance of IndexerModule
     fn create_test_indexer_module() -> IndexerModule {
-        let mempool = Arc::new(LeftRightMempool::default());
+        let mempool = LeftRightMempool::default();
         let mempool_read_handle_factory = mempool.factory();
         let config = IndexerModuleConfig {
             mempool_read_handle_factory,

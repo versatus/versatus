@@ -12,8 +12,6 @@ use primitives::{
 };
 
 use serde::{Deserialize, Serialize};
-use signer::engine::{QuorumData, QuorumMembers};
-use std::net::SocketAddr;
 use vrrb_core::claim::Claim;
 use vrrb_core::transactions::{TransactionDigest, TransactionKind};
 
@@ -78,10 +76,6 @@ pub enum Event {
     /// `ClaimReceived(Claim)` represents a claim emitted by another node
     ClaimReceived(Claim),
 
-    /// `ClaimAbandoned(String,Vec<u8>)` represents a claim that turned out to
-    /// be invalid.
-    ClaimAbandoned(NodeId, Claim),
-
     /// A peer joined the network, should be added to the node's peer list
     PeerJoined(PeerData),
 
@@ -96,12 +90,6 @@ pub enum Event {
     /// request for Account updation on the chain has been requested.
     AccountUpdateRequested((Address, AccountBytes)),
 
-    /// `PeerSyncFailed(Vec<SocketAddr>)` is an event that is triggered when a
-    /// peer address synchronization attempt fails. The `Vec<SocketAddr>`
-    /// parameter contains a list of socket addresses of the peers
-    /// that failed to synchronize their address.
-    PeerSyncFailed(Vec<SocketAddr>),
-
     /// `BlockCreated(Block)` is an event that occurs whenever a block of any
     /// kind is created
     // BlockCreated(Block),
@@ -113,9 +101,6 @@ pub enum Event {
     /// Event emitted by a bootrstrap QuorumModule to signal a group of nodes were assigned
     /// to a particular quorum
     QuorumMembershipAssigmentsCreated(Vec<AssignedQuorumMembership>),
-
-    /// Signals thaa a node acknowledges belonging to a quorum
-    QuorumMembershipSet(NodeId),
 
     PartCommitmentCreated(NodeId, Part),
 
@@ -134,28 +119,6 @@ pub enum Event {
     /// the network.
     HarvesterPublicKeyReceived(PublicKeySet),
 
-    /// This events triggers the generation of a certificate for a given transaction
-    TransactionCertificateRequested {
-        votes: Vec<Vote>,
-        txn_id: TransactionDigest,
-        quorum_key: PublicKeyShareVec,
-        farmer_id: NodeId,
-        txn: TransactionKind,
-        quorum_threshold: FarmerQuorumThreshold,
-    },
-
-    /// This event is emitted whenever a transaction is certified by a Farmer Quorum
-    TransactionCertificateCreated {
-        votes: Vec<Vote>,
-        signature: Signature,
-        digest: TransactionDigest,
-        /// OUtput of the program executed
-        execution_result: ProgramExecutionOutput,
-        farmer_id: NodeId,
-        txn: Box<TransactionKind>,
-        is_valid: TxnValidationStatus,
-    },
-
     MinerElectionStarted(BlockHeader),
 
     MinerElected((U256, Claim)),
@@ -173,11 +136,6 @@ pub enum Event {
     ConvergenceBlockCertified(ConvergenceBlock),
 
     QuorumElectionStarted(BlockHeader),
-
-    // NOTE: replaces Event::Farm and pushes txns to the scheduler instead of having it pull them
-    TxnsReadyForProcessing(Vec<TransactionKind>),
-
-    TransactionValidated(Vote),
 
     TransactionsValidated {
         vote: Vote,
@@ -311,16 +269,6 @@ pub enum Event {
     /// certificate cache
     ConvergenceBlockPartialSign(JobStatus),
     ConvergenceBlockPartialSignComplete(ConvergencePartialSig),
-
-    /// `CheckConflictResolution` is an event that triggers the checking of a
-    /// proposed conflict resolution.The event is used to initiate the
-    /// conflict resolution process by checking if the proposed conflict
-    /// resolution is valid. This involves verifying that the proposal
-    /// blocks are valid and that they correctly reference the convergence
-    /// block. If the proposed conflict resolution is valid, the event
-    /// triggers the signing of the convergence block and the creation of a
-    /// certificate to prove its validity.
-    CheckConflictResolution((Vec<ProposalBlock>, Round, Seed, ConvergenceBlock)),
 
     /// `SignConvergenceBlock(ConvergenceBlock)` is an event that triggers the
     /// signing of a convergence block by the node. This is done by sending

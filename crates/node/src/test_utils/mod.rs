@@ -81,9 +81,8 @@ pub fn produce_random_claim(x: usize) -> Claim {
     .unwrap()
 }
 
-fn produce_random_txs(accounts: &Vec<(Address, Option<Account>)>) -> HashSet<TransactionKind> {
+fn produce_random_txs(accounts: &[(Address, Option<Account>)]) -> HashSet<TransactionKind> {
     accounts
-        .clone()
         .iter()
         .enumerate()
         .map(|(idx, (address, account))| {
@@ -95,7 +94,7 @@ fn produce_random_txs(accounts: &Vec<(Address, Option<Account>)>) -> HashSet<Tra
 
             let mut validators: Vec<(String, bool)> = vec![];
 
-            accounts.clone().iter().for_each(|validator| {
+            accounts.iter().for_each(|validator| {
                 if (validator.clone() != receiver)
                     && (validator.clone() != (address.clone(), account.clone()))
                 {

@@ -92,36 +92,7 @@ impl Handler<EventMessage> for MiningModule {
             //                 });
             //         }
             //     };
-            // },
-            // Event::CheckConflictResolution((proposal_blocks, round, seed, convergence_block)) =>
-            // {     let tmp_proposal_blocks = proposal_blocks.clone();
-            //     let resolved_proposals_set = self
-            //         .miner
-            //         .resolve(&tmp_proposal_blocks, round, seed)
-            //         .iter()
-            //         .cloned()
-            //         .collect::<HashSet<ProposalBlock>>();
-            //
-            //     let proposal_blocks_set = proposal_blocks
-            //         .iter()
-            //         .cloned()
-            //         .collect::<HashSet<ProposalBlock>>();
-            //
-            //     if proposal_blocks_set == resolved_proposals_set {
-            //         if let Err(err) = self
-            //             .events_tx
-            //             .send(EventMessage::new(
-            //                 None,
-            //                 Event::SignConvergenceBlock(convergence_block),
-            //             ))
-            //             .await
-            //         {
-            //             theater::TheaterError::Other(format!(
-            //                 "failed to send EventMessage for Event::SignConvergenceBlock: {err}"
-            //             ));
-            //         };
-            //     }
-            // },
+            // }
             Event::NoOp => {}
             _ => {}
         }

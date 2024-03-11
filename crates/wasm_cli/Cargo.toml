@@ -9,12 +9,13 @@ license.workspace = true
 version.workspace = true
 
 [[bin]]
-name = "versa-wasm"
+name = "versatus-wasm"
 path = "src/main.rs"
 
 [dependencies]
 anyhow = { workspace = true }
 clap = { workspace = true }
+env_logger = { workspace = true }
 telemetry = { workspace = true }
 tokio = { workspace = true }
 wasm_loader = { workspace = true }
@@ -26,3 +27,4 @@ web3_pkg = { workspace = true }
 serde = { workspace = true }
 serde_derive = { workspace = true }
 serde_json = { workspace = true }
+multiaddr = "0.18.1"

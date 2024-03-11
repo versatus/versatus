@@ -1,4 +1,5 @@
 use crate::api::RpcResult;
+use crate::server::MAX_RESPONSE_SIZE;
 use jsonrpsee::core::client::Client;
 use jsonrpsee::ws_client::WsClientBuilder;
 use std::net::SocketAddr;
@@ -15,6 +16,7 @@ impl InternalRpcClient {
     /// The URL to the server MUST include the port.
     pub async fn new(socket: SocketAddr) -> RpcResult<Self> {
         let client = WsClientBuilder::default()
+            .max_request_body_size(MAX_RESPONSE_SIZE)
             .build(format!("ws://{socket}"))
             .await?;
 

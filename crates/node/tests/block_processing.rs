@@ -1,4 +1,4 @@
-use node::{test_utils::create_mock_bootstrap_node_config, Node};
+use node::{test_utils::create_mock_full_node_config, Node};
 use primitives::{generate_account_keypair, Address};
 use secp256k1::Message;
 use vrrb_core::transactions::TransactionKind;
@@ -7,7 +7,7 @@ use vrrb_rpc::rpc::{api::RpcApiClient, client::create_client};
 #[tokio::test]
 #[ignore = "https://github.com/versatus/versatus/issues/495"]
 async fn process_full_node_event_flow() {
-    let b_node_config = create_mock_bootstrap_node_config();
+    let b_node_config = create_mock_full_node_config();
 
     let bootstrap_node = Node::start(b_node_config).await.unwrap();
 

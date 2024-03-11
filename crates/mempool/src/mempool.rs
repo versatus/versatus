@@ -275,20 +275,7 @@ impl LeftRightMempool {
         Ok(())
     }
 
-    /// Removes a single transaction identified by id, makes sure it exists in
-    /// db. Pushes to the ReadHandle.
-    #[deprecated]
-    pub fn remove_txn_by_id(&mut self, txn_hash: &TransactionDigest) -> Result<()> {
-        self.remove(txn_hash)
-    }
-
-    /// Removes a single transaction identified by itself, makes sure it exists
-    /// in db. Pushes to the ReadHandle.
-    #[deprecated]
-    pub fn remove_txn(&mut self, txn: &TransactionKind, _status: TxnStatus) -> Result<()> {
-        self.remove(&txn.id())
-    }
-
+    /// Removes a single transaction by [`TransactionDigest`].
     pub fn remove(&mut self, id: &TransactionDigest) -> Result<()> {
         self.write
             .append(MempoolOp::Remove(id.to_owned()))
@@ -298,21 +285,6 @@ impl LeftRightMempool {
 
     /// Removes a batch of transactions, makes sure that each is unique in db.
     /// Pushes to ReadHandle after processing of the entire batch.
-    #[deprecated]
-    pub fn remove_txn_batch(
-        &mut self,
-        txn_batch: &HashSet<TransactionKind>,
-        _txns_status: TxnStatus,
-    ) -> Result<()> {
-        txn_batch.iter().for_each(|t| {
-            self.write.append(MempoolOp::Remove(t.id()));
-        });
-
-        self.publish();
-
-        Ok(())
-    }
-
     pub fn remove_txns(&mut self, txn_batch: &HashSet<TransactionDigest>) -> Result<()> {
         txn_batch.iter().for_each(|t| {
             self.write.append(MempoolOp::Remove(t.to_owned()));

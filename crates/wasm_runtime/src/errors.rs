@@ -51,11 +51,16 @@ origin: {:?}",
     #[error(transparent)]
     WasiError(#[from] WasiError),
 
+    /// Inherits the error value propagated when creation of a new
+    /// executable instance of a WASM module fails.
     #[error(transparent)]
-    InstantiationError(#[from] InstantiationError),
+    InstantiationError(Box<InstantiationError>),
 
     #[error(transparent)]
     ExportError(#[from] ExportError),
+
+    #[error("failed to build wasm runtime module: {0}")]
+    ModuleBuildError(String),
 }
 
 impl WasmRuntimeError {
@@ -73,11 +78,12 @@ impl WasmRuntimeError {
         None
     }
     pub fn inst_err(&self) -> Option<String> {
-        if let WasmRuntimeError::InstantiationError(InstantiationError::Link(
-            wasmer::LinkError::Resource(s),
-        )) = self
-        {
-            Some(s.to_owned())
+        if let WasmRuntimeError::InstantiationError(boxed_err) = self {
+            if let InstantiationError::Link(wasmer::LinkError::Resource(s)) = &**boxed_err {
+                Some(s.to_owned())
+            } else {
+                None
+            }
         } else {
             None
         }
@@ -100,5 +106,11 @@ impl From<RuntimeError> for WasmRuntimeError {
                 origin: value.source().map(|err| format!("{err:?}")),
             }
         }
+    }
+}
+
+impl From<InstantiationError> for WasmRuntimeError {
+    fn from(value: InstantiationError) -> Self {
+        Self::InstantiationError(Box::new(value))
     }
 }

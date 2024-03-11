@@ -248,10 +248,10 @@ mod tests {
     #[test]
     fn should_create_new_stake() {
         let keypair = KeyPair::random();
-        let sk = keypair.miner_kp.0.clone();
-        let pk = keypair.miner_kp.1.clone();
+        let sk = keypair.miner_kp.0;
+        let pk = keypair.miner_kp.1;
         let amount = StakeUpdate::Add(10_000u128);
-        let from = Address::new(pk.clone());
+        let from = Address::new(pk);
 
         let stake = Stake::new(amount, sk, pk, from, None);
 
@@ -261,10 +261,10 @@ mod tests {
     #[test]
     fn should_add_certificate_to_stake() {
         let keypair = KeyPair::random();
-        let sk = keypair.miner_kp.0.clone();
-        let pk = keypair.miner_kp.1.clone();
+        let sk = keypair.miner_kp.0;
+        let pk = keypair.miner_kp.1;
         let amount = StakeUpdate::Add(10_000u128);
-        let from = Address::new(pk.clone());
+        let from = Address::new(pk);
 
         let mut stake = Stake::new(amount, sk, pk, from, None).unwrap();
 
@@ -276,10 +276,10 @@ mod tests {
     #[test]
     fn should_verify_signature() {
         let keypair = KeyPair::random();
-        let sk = keypair.miner_kp.0.clone();
-        let pk = keypair.miner_kp.1.clone();
+        let sk = keypair.miner_kp.0;
+        let pk = keypair.miner_kp.1;
         let amount = StakeUpdate::Add(10_000u128);
-        let from = Address::new(pk.clone());
+        let from = Address::new(pk);
 
         let stake = Stake::new(amount, sk, pk, from, None).unwrap();
 
@@ -289,10 +289,10 @@ mod tests {
     #[test]
     fn from_and_to_should_be_the_same() {
         let keypair = KeyPair::random();
-        let sk = keypair.miner_kp.0.clone();
-        let pk = keypair.miner_kp.1.clone();
+        let sk = keypair.miner_kp.0;
+        let pk = keypair.miner_kp.1;
         let amount = StakeUpdate::Add(10_000u128);
-        let from = Address::new(pk.clone());
+        let from = Address::new(pk);
 
         let stake = Stake::new(amount, sk, pk, from, None).unwrap();
 
@@ -302,12 +302,12 @@ mod tests {
     #[test]
     fn from_and_to_should_be_the_different() {
         let receiver_kp = KeyPair::random();
-        let receiver_address = Address::new(receiver_kp.miner_kp.1.clone());
+        let receiver_address = Address::new(receiver_kp.miner_kp.1);
         let keypair = KeyPair::random();
-        let sk = keypair.miner_kp.0.clone();
-        let pk = keypair.miner_kp.1.clone();
+        let sk = keypair.miner_kp.0;
+        let pk = keypair.miner_kp.1;
         let amount = StakeUpdate::Add(10_000u128);
-        let from = Address::new(pk.clone());
+        let from = Address::new(pk);
 
         let stake = Stake::new(amount, sk, pk, from, Some(receiver_address)).unwrap();
 
@@ -317,10 +317,10 @@ mod tests {
     #[test]
     fn should_not_add_certificate_to_stake() {
         let keypair = KeyPair::random();
-        let sk = keypair.miner_kp.0.clone();
-        let pk = keypair.miner_kp.1.clone();
+        let sk = keypair.miner_kp.0;
+        let pk = keypair.miner_kp.1;
         let amount = StakeUpdate::Add(10_000u128);
-        let from = Address::new(pk.clone());
+        let from = Address::new(pk);
 
         let mut stake = Stake::new(amount, sk, pk, from, None).unwrap();
 

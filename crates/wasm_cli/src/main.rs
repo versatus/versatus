@@ -7,6 +7,8 @@ use clap::Parser;
 fn main() -> Result<()> {
     let cli = cli::WasmCli::parse();
 
+    env_logger::init();
+
     // Process subcommand
     match &cli.cmd {
         Some(cli::WasmCommands::Describe(opts)) => {
@@ -19,8 +21,12 @@ fn main() -> Result<()> {
             commands::validate::run(opts)?;
         }
         Some(cli::WasmCommands::Publish(opts)) => {
-            let rt = tokio::runtime::Runtime::new()?;
-            rt.block_on(async { commands::publish::run(opts).await })?;
+            opts.validate()?;
+            commands::publish::run(opts)?;
+        }
+        Some(cli::WasmCommands::PkgInfo(opts)) => {
+            opts.validate()?;
+            commands::pkginfo::run(opts)?;
         }
         None => {}
     }
