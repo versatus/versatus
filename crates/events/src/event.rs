@@ -6,10 +6,10 @@ use ethereum_types::U256;
 use hbbft::sync_key_gen::Ack;
 use hbbft::{crypto::PublicKeySet, sync_key_gen::Part};
 use primitives::{
-    Address, BlockPartialSignature, ConvergencePartialSig, Epoch, FarmerQuorumThreshold, NodeId,
-    NodeIdx, ProgramExecutionOutput, PublicKeyShareVec, Round, Seed, Signature,
-    TxnValidationStatus, ValidatorPublicKeyShare, RUNTIME_TOPIC_STR,
+    base::ConvergencePartialSig, Address, BlockPartialSignature, Epoch, FarmerQuorumThreshold,
+    NodeId, NodeIdx, PublicKeyShareVec, Round, Signature, RUNTIME_TOPIC_STR,
 };
+use signer::engine::{QuorumData, QuorumMembers};
 
 use serde::{Deserialize, Serialize};
 use vrrb_core::claim::Claim;
