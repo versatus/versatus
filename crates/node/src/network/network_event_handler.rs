@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use dyswarm::types::Message as DyswarmMessage;
 use events::{Event, EventMessage, EventPublisher, PeerData, Topic};
 use primitives::{NodeId, NETWORK_TOPIC_STR, RUNTIME_TOPIC_STR};
-use tracing::info;
+use telemetry::info;
 use vrrb_core::transactions::Transaction;
 
 use crate::{network::NetworkEvent, NodeError, Result};

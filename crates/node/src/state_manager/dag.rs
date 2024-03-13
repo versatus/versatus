@@ -1,10 +1,14 @@
+use std::hash::Hash;
 use std::{
     collections::HashSet,
     sync::{Arc, RwLock, RwLockReadGuard},
 };
-use std::hash::Hash;
 
-use block::{header::BlockHeader, valid::{BlockValidationData, Valid}, Block, Certificate, ConvergenceBlock, GenesisBlock, InnerBlock, ProposalBlock, BlockHash};
+use block::{
+    header::BlockHeader,
+    valid::{BlockValidationData, Valid},
+    Block, BlockHash, Certificate, ConvergenceBlock, GenesisBlock, InnerBlock, ProposalBlock,
+};
 use bulldag::{
     graph::{BullDag, GraphError},
     vertex::Vertex,
@@ -13,7 +17,7 @@ use indexmap::IndexMap;
 use primitives::{HarvesterQuorumThreshold, NodeId, PublicKey, Signature, SignatureType};
 use signer::engine::{QuorumMembers, SignerEngine};
 use signer::types::{SignerError, SignerResult};
-use tracing::info;
+use telemetry::info;
 use vrrb_core::claim::Claim;
 
 use crate::{NodeError, Result};
@@ -169,7 +173,7 @@ impl DagModule {
         // }
 
         if let Some(genesis_block_hash) = &self.genesis_block_hash {
-            if genesis_block_hash != genesis.hash {
+            if genesis_block_hash != &genesis.hash {
                 info!("attempted to write non-matching genesis block");
                 return Err(GraphError::Other(
                     "attempted to write non-matching genesis block".to_string(),
@@ -301,7 +305,7 @@ impl DagModule {
     fn write_genesis(&mut self, vertex: &Vertex<Block, String>) -> GraphResult<()> {
         match vertex.get_data() {
             Block::Genesis { block } => {
-                self.genesis_block_hash = Some(block.clone());
+                self.genesis_block_hash = Some(block.hash);
                 if let Ok(mut guard) = self.dag.write() {
                     guard.add_vertex(vertex);
 

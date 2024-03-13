@@ -8,7 +8,7 @@ use primitives::{Address, NodeId, NodeType, PublicKey, QuorumId, QuorumKind, Sig
 use signer::engine::{QuorumData, QuorumMembers as InaugaratedMembers};
 use std::{collections::HashMap, fmt::format};
 use storage::vrrbdb::ApplyBlockResult;
-use tracing::info;
+use telemetry::info;
 use vrrb_core::transactions::TransactionDigest;
 
 use crate::{

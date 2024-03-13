@@ -6,7 +6,7 @@ use primitives::{
     Address, BlockPartialSignature, ConvergencePartialSig, NodeType, QuorumKind, NETWORK_TOPIC_STR,
     RUNTIME_TOPIC_STR,
 };
-use telemetry::{info, warn};
+use telemetry::{error, info, warn};
 use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
 use vrrb_config::QuorumMember;
 use vrrb_core::{ownable, transactions::Transaction};
@@ -50,19 +50,24 @@ impl Handler<EventMessage> for NodeRuntime {
             // ==============================================================================================================
             //
             Event::NodeAddedToPeerList(peer_data) => {
-                let assignments = self
-                    .handle_node_added_to_peer_list(peer_data.clone())
-                    .await?;
+                match self.handle_node_added_to_peer_list(peer_data.clone()).await {
+                    Ok(assignments) => {
+                        if let Some(assignments) = assignments {
+                            let assignments = assignments
+                                .into_values()
+                                .collect::<Vec<AssignedQuorumMembership>>();
 
-                if let Some(assignments) = assignments {
-                    let assignments = assignments
-                        .into_values()
-                        .collect::<Vec<AssignedQuorumMembership>>();
-
-                    self.send_event_to_network(Event::QuorumMembershipAssigmentsCreated(
-                        assignments,
-                    ))
-                        .await?;
+                            if let Err(err) = self
+                                .send_event_to_network(Event::QuorumMembershipAssigmentsCreated(
+                                    assignments,
+                                ))
+                                .await
+                            {
+                                error!("failed to send quorum assignments to network: {}", err);
+                            }
+                        }
+                    }
+                    Err(err) => error!("failed to add node to peer list: {}", err),
                 }
             }
 
@@ -304,7 +309,7 @@ impl Handler<EventMessage> for NodeRuntime {
                     self.config_ref().id.clone(),
                     txn.clone(),
                 ))
-                    .await?;
+                .await?;
 
                 info!("Transaction {} broadcast to network", txn.id().to_string());
 
@@ -432,7 +437,7 @@ impl Handler<EventMessage> for NodeRuntime {
                     block_header,
                     resolver,
                 )
-                    .await?;
+                .await?;
             }
             Event::GenesisBlockSignatureRequested(block) => {
                 let block_hash = block.hash.clone();
@@ -473,14 +478,14 @@ impl Handler<EventMessage> for NodeRuntime {
                 self.send_event_to_network(Event::ConvergenceBlockSignatureCreated(
                     partial_signature,
                 ))
-                    .await?;
+                .await?;
             }
 
             Event::GenesisBlockSignatureCreated(BlockPartialSignature {
-                                                    block_hash,
-                                                    signature,
-                                                    node_id,
-                                                }) => {
+                block_hash,
+                signature,
+                node_id,
+            }) => {
                 info!(
                     "handling GenesisBlockSignatureCreated on {}, a {}, from {}",
                     self.config_ref().id,
@@ -498,10 +503,10 @@ impl Handler<EventMessage> for NodeRuntime {
             }
 
             Event::ConvergenceBlockSignatureCreated(BlockPartialSignature {
-                                                        block_hash,
-                                                        signature,
-                                                        node_id,
-                                                    }) => {
+                block_hash,
+                signature,
+                node_id,
+            }) => {
                 let certificate = self
                     .handle_harvester_signature_received(block_hash, node_id, signature)
                     .await?;
