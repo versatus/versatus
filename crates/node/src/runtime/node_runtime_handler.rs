@@ -582,13 +582,25 @@ impl Handler<EventMessage> for NodeRuntime {
 
                 let event = Event::GenesisBlockSignatureCreated(partial_signature);
 
-                self.send_event_to_network(event.clone()).await?;
+                if let Err(err) = self.send_event_to_network(event.clone()).await {
+                    error!("error sending event to network: {:?}", err);
+                    return Ok(ActorState::Running);
+                };
 
-                self.send_event_to_self(event).await?;
+                if let Err(err) = self.send_event_to_self(event).await {
+                    error!("error sending event to self: {:?}", err);
+                    return Ok(ActorState::Running);
+                };
             }
             Event::ConvergenceBlockSignatureRequested(block) => {
                 let block_hash = block.hash.clone();
-                let signature = self.handle_sign_convergence_block(&block)?;
+                let signature = match self.handle_sign_convergence_block(&block) {
+                    Ok(signature) => signature,
+                    Err(err) => {
+                        error!("error signing block: {:?}", err);
+                        return Ok(ActorState::Running);
+                    }
+                };
 
                 telemetry::info!("Node {} signed block: {}", self.config_ref().id, block_hash);
 
@@ -598,10 +610,15 @@ impl Handler<EventMessage> for NodeRuntime {
                     block_hash,
                 };
 
-                self.send_event_to_network(Event::ConvergenceBlockSignatureCreated(
-                    partial_signature,
-                ))
-                .await?;
+                if let Err(err) = self
+                    .send_event_to_network(Event::ConvergenceBlockSignatureCreated(
+                        partial_signature,
+                    ))
+                    .await
+                {
+                    error!("error sending event to network: {:?}", err);
+                    return Ok(ActorState::Running);
+                };
             }
 
             Event::GenesisBlockSignatureCreated(BlockPartialSignature {
@@ -615,14 +632,28 @@ impl Handler<EventMessage> for NodeRuntime {
                     self.config_ref().node_type,
                     node_id
                 );
-                let certificate = self
+                match self
                     .handle_harvester_signature_received(block_hash, node_id, signature)
-                    .await?;
+                    .await
+                {
+                    Ok(certificate) => {
+                        info!("certificate created");
 
-                info!("certificate created");
-
-                self.send_event_to_network(Event::GenesisBlockCertificateCreated(certificate))
-                    .await?;
+                        if let Err(err) = self
+                            .send_event_to_network(Event::GenesisBlockCertificateCreated(
+                                certificate,
+                            ))
+                            .await
+                        {
+                            error!("error sending event to network: {:?}", err);
+                            return Ok(ActorState::Running);
+                        };
+                    }
+                    Err(err) => {
+                        error!("error while creating certificate: {:?}", err);
+                        return Ok(ActorState::Running);
+                    }
+                };
             }
 
             Event::ConvergenceBlockSignatureCreated(BlockPartialSignature {
@@ -630,30 +661,68 @@ impl Handler<EventMessage> for NodeRuntime {
                 signature,
                 node_id,
             }) => {
-                let certificate = self
+                let certificate = match self
                     .handle_harvester_signature_received(block_hash, node_id, signature)
-                    .await?;
-
-                self.send_event_to_network(Event::ConvergenceBlockCertificateCreated(certificate))
-                    .await?;
+                    .await
+                {
+                    Ok(certificate) => {
+                        if let Err(err) = self
+                            .send_event_to_network(Event::ConvergenceBlockCertificateCreated(
+                                certificate,
+                            ))
+                            .await
+                        {
+                            error!("error sending event to network: {:?}", err);
+                            return Ok(ActorState::Running);
+                        }
+                    }
+                    Err(err) => {
+                        error!("error creating convergence block signature: {:?}", err);
+                        return Ok(ActorState::Running);
+                    }
+                };
             }
 
             Event::GenesisBlockCertificateCreated(certificate) => {
                 info!("GenesisBlockCertificateCreated");
-                let confirmed_block = self.handle_genesis_block_certificate_created(certificate)?;
-
-                // TODO: update state after this
-                self.send_event_to_self(Event::UpdateState(confirmed_block))
-                    .await?;
+                let confirmed_block =
+                    match self.handle_genesis_block_certificate_created(certificate) {
+                        Ok(confirmed_block) =>
+                        // TODO: update state after this
+                        {
+                            if let Err(err) = self
+                                .send_event_to_self(Event::UpdateState(confirmed_block))
+                                .await
+                            {
+                                error!("error sending event to self: {:?}", err);
+                                return Ok(ActorState::Running);
+                            }
+                        }
+                        Err(err) => {
+                            error!("error creating genesis block certificate: {:?}", err);
+                            return Ok(ActorState::Running);
+                        }
+                    };
             }
 
             Event::ConvergenceBlockCertificateCreated(certificate) => {
-                let confirmed_block =
-                    self.handle_convergence_block_certificate_created(certificate)?;
-
-                // TODO: update state after this
-                self.send_event_to_self(Event::UpdateState(confirmed_block))
-                    .await?;
+                match self.handle_convergence_block_certificate_created(certificate) {
+                    Ok(confirmed_block) =>
+                    // TODO: update state after this
+                    {
+                        if let Err(err) = self
+                            .send_event_to_self(Event::UpdateState(confirmed_block))
+                            .await
+                        {
+                            error!("error sending event to self: {:?}", err);
+                            return Ok(ActorState::Running);
+                        }
+                    }
+                    Err(err) => {
+                        error!("error creating convergence block certificate: {:?}", err);
+                        return Ok(ActorState::Running);
+                    }
+                };
             }
 
             // Event::BlockConfirmed(cert_bytes) => {
@@ -681,7 +750,12 @@ impl Handler<EventMessage> for NodeRuntime {
                 // Claim should be added to pending claims
                 // Event to validate claim should be created
             }
-            Event::QuorumFormed => self.handle_quorum_formed().await?,
+            Event::QuorumFormed => {
+                if let Err(err) = self.handle_quorum_formed().await {
+                    error!("error forming quorum: {:?}", err);
+                    return Ok(ActorState::Running);
+                }
+            }
             _ => {}
         }
 
