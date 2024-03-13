@@ -276,13 +276,22 @@ impl Handler<EventMessage> for NodeRuntime {
                         Block::Genesis { block } => {
                             // send certificate requested to self
                             let event = Event::GenesisBlockSignatureRequested(block);
-                            if let Err(err) = self.send_event_to_self(event).await {};
+                            if let Err(err) = self.send_event_to_self(event).await {
+                                error!("failed to send genesis block signature to self: {:?}", err);
+                                return Ok(ActorState::Running);
+                            };
                         }
                         Block::Convergence { block } => {
                             let event = Event::ConvergenceBlockSignatureRequested(block);
-                            self.send_event_to_self(event).await?;
+                            if let Err(err) = self.send_event_to_self(event).await {
+                                error!(
+                                    "failed to send convergence block signature to self: {:?}",
+                                    err
+                                );
+                                return Ok(ActorState::Running);
+                            };
                         }
-                        _ => {}
+                        _ => return Ok(ActorState::Running),
                     }
                 }
 
@@ -306,7 +315,10 @@ impl Handler<EventMessage> for NodeRuntime {
             //     }
             // }
             Event::ConvergenceBlockCertificateCreated(certificate) => {
-                self.handle_convergence_block_certificate_created(certificate)?;
+                if let Err(err) = self.handle_convergence_block_certificate_created(certificate) {
+                    error!("error creating convergence block certificate: {:?}", err);
+                    return Ok(ActorState::Running);
+                };
             }
             Event::ConvergenceBlockCertified(certified_block) => {
                 //
@@ -365,18 +377,34 @@ impl Handler<EventMessage> for NodeRuntime {
                     self.config_ref().id
                 );
 
-                self.send_event_to_network(Event::NewTxnForwarded(
-                    self.config_ref().id.clone(),
-                    txn.clone(),
-                ))
-                .await?;
+                if let Err(err) = self
+                    .send_event_to_network(Event::NewTxnForwarded(
+                        self.config_ref().id.clone(),
+                        txn.clone(),
+                    ))
+                    .await
+                {
+                    error!("error sending event to network: {:?}", err);
+                    return Ok(ActorState::Running);
+                };
 
                 info!("Transaction {} broadcast to network", txn.id().to_string());
 
-                let txn_hash = self.state_driver.insert_txn_to_mempool(txn)?;
-
-                self.send_event_to_self(Event::TxnAddedToMempool(txn_hash.clone()))
-                    .await?;
+                match self.state_driver.insert_txn_to_mempool(txn) {
+                    Ok(txn_hash) => {
+                        if let Err(err) = self
+                            .send_event_to_self(Event::TxnAddedToMempool(txn_hash.clone()))
+                            .await
+                        {
+                            error!("error sending event to self: {:?}", err);
+                            return Ok(ActorState::Running);
+                        }
+                    }
+                    Err(err) => {
+                        error!("failure to insert txn into mempool: {:?}", err);
+                        return Ok(ActorState::Running);
+                    }
+                }
             }
             Event::NewTxnForwarded(node_id, txn) => {
                 info!(
@@ -397,10 +425,21 @@ impl Handler<EventMessage> for NodeRuntime {
                     self.config_ref().id
                 );
 
-                let txn_hash = self.state_driver.insert_txn_to_mempool(txn)?;
-
-                self.send_event_to_self(Event::TxnAddedToMempool(txn_hash.clone()))
-                    .await?;
+                match self.state_driver.insert_txn_to_mempool(txn) {
+                    Ok(txn_hash) => {
+                        if let Err(err) = self
+                            .send_event_to_self(Event::TxnAddedToMempool(txn_hash.clone()))
+                            .await
+                        {
+                            error!("error sending event to self: {:?}", err);
+                            return Ok(ActorState::Running);
+                        }
+                    }
+                    Err(err) => {
+                        error!("failure to insert txn into mempool: {:?}", err);
+                        return Ok(ActorState::Running);
+                    }
+                }
             }
             Event::TxnAddedToMempool(txn_hash) => {
                 // check to see if txn is already in mempool, return if present
@@ -414,13 +453,18 @@ impl Handler<EventMessage> for NodeRuntime {
 
                 match vote {
                     Ok(vote) => {
-                        self.send_event_to_network(Event::TransactionVoteCreated(vote))
-                            .await?;
+                        if let Err(err) = self
+                            .send_event_to_network(Event::TransactionVoteCreated(vote))
+                            .await
+                        {
+                            error!("failed to send event to network: {:?}", err);
+                            return Ok(ActorState::Running);
+                        };
                     }
                     Err(err) => {
-                        telemetry::error!("failed to create vote: {}", err);
+                        error!("failed to create vote: {}", err);
+                        return Ok(ActorState::Running);
                     }
-                    _ => {}
                 }
             }
             Event::TransactionVoteCreated(vote) => {
@@ -433,11 +477,17 @@ impl Handler<EventMessage> for NodeRuntime {
                 );
 
                 //forward vote to other network nodes
-                self.send_event_to_network(Event::TransactionVoteForwarded(vote.clone()))
-                    .await?;
+                if let Err(err) = self
+                    .send_event_to_network(Event::TransactionVoteForwarded(vote.clone()))
+                    .await
+                {
+                    error!("failed to send event to network: {:?}", err);
+                    return Ok(ActorState::Running);
+                };
 
                 if let Err(err) = self.handle_vote_received(vote).await {
-                    telemetry::error!("failed to handle vote for {}: {}", txn_id, err);
+                    error!("failed to handle vote for {}: {}", txn_id, err);
+                    return Ok(ActorState::Running);
                 }
             }
             Event::TransactionVoteForwarded(vote) => {
@@ -450,11 +500,14 @@ impl Handler<EventMessage> for NodeRuntime {
                 );
 
                 if let Err(err) = self.handle_vote_received(vote).await {
-                    telemetry::error!("failed to handle vote for {}: {}", txn_id, err);
+                    error!("failed to handle vote for {}: {}", txn_id, err);
                 }
             }
             Event::TxnValidated(txn) => {
-                self.state_driver.handle_transaction_validated(txn).await?;
+                if let Err(err) = self.state_driver.handle_transaction_validated(txn).await {
+                    error!("failed to validate txn: {:?}", err);
+                    return Ok(ActorState::Running);
+                };
             }
             Event::BuildProposalBlock() => {
                 // let proposal_block = self.handle_build_proposal_block_requested().await?;
@@ -465,14 +518,19 @@ impl Handler<EventMessage> for NodeRuntime {
             // ==============================================================================================================
             //
             Event::QuorumElectionStarted(header) => {
-                self.handle_quorum_election_started(header)?;
+                if let Err(err) = self.handle_quorum_election_started(header) {
+                    error!("error starting quorum election: {:?}", err);
+                    return Ok(ActorState::Running);
+                };
             }
             Event::MinerElectionStarted(header) => {
-                let claims = self
-                    .state_driver
-                    .read_handle()
-                    .claim_store_values()
-                    .map_err(|err| TheaterError::Other(err.to_string()))?;
+                match self.state_driver.read_handle().claim_store_values() {
+                    Ok(claims) => claims,
+                    Err(err) => {
+                        error!("error reading claims: {:?}", err);
+                        return Ok(ActorState::Running);
+                    }
+                };
 
                 let results = self
                     .consensus_driver
@@ -492,19 +550,24 @@ impl Handler<EventMessage> for NodeRuntime {
                 block_header,
             } => {
                 let resolver = self.mining_driver.clone();
-                self.handle_convergence_block_precheck_requested(
-                    convergence_block,
-                    block_header,
-                    resolver,
-                )
-                .await?;
+                if let Err(err) = self
+                    .handle_convergence_block_precheck_requested(
+                        convergence_block,
+                        block_header,
+                        resolver,
+                    )
+                    .await
+                {
+                    error!("error in convergence block precheck: {:?}", err);
+                    return Ok(ActorState::Running);
+                };
             }
             Event::GenesisBlockSignatureRequested(block) => {
                 let block_hash = block.hash.clone();
                 let signature = match self.handle_sign_genesis_block(&block) {
                     Ok(signature) => signature,
                     Err(err) => {
-                        telemetry::error!("error signing block: {}", err);
+                        error!("error signing block: {}", err);
                         return Ok(ActorState::Running);
                     }
                 };
