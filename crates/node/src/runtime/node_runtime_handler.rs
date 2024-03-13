@@ -524,7 +524,7 @@ impl Handler<EventMessage> for NodeRuntime {
                 };
             }
             Event::MinerElectionStarted(header) => {
-                match self.state_driver.read_handle().claim_store_values() {
+                let claims = match self.state_driver.read_handle().claim_store_values() {
                     Ok(claims) => claims,
                     Err(err) => {
                         error!("error reading claims: {:?}", err);
