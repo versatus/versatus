@@ -29,11 +29,6 @@ impl Handler<EventMessage> for NodeRuntime {
         self.status = actor_status;
     }
 
-    // fn on_error(&self, err: TheaterError) {
-    //     dbg!(&err);
-    //     telemetry::error!("{}", err);
-    // }
-
     fn on_start(&self) {
         info!("{} starting", self.label());
     }
@@ -63,11 +58,11 @@ impl Handler<EventMessage> for NodeRuntime {
                                 ))
                                 .await
                             {
-                                error!("failed to send quorum assignments to network: {}", err);
+                                error!("failed to send quorum assignments to network: {:?}", err);
                             }
                         }
                     }
-                    Err(err) => error!("failed to add node to peer list: {}", err),
+                    Err(err) => error!("failed to add node to peer list: {:?}", err),
                 }
             }
 
@@ -78,56 +73,81 @@ impl Handler<EventMessage> for NodeRuntime {
             //
             // TODO: consider eliminating this match arm and bundling this logic with the arm above
             Event::QuorumMembershipAssigmentsCreated(assignments) => {
-                self.handle_quorum_membership_assigments_created(assignments)?;
-                let own_node_id = self.config_ref().id.clone();
-
-                let quorum_kind =
-                    self.consensus_driver
-                        .quorum_kind
-                        .to_owned()
-                        .ok_or(NodeError::Other(format!(
-                            "Node {} has no quorum kind set",
-                            own_node_id
-                        )))?;
-
-                // TODO: write test case to ensure that no two miners are allowed to mine a genesis
-                // block
-
-                //get the lowest node_id with node_type == NodeType::Miner
-                let first_miner: &QuorumMember = self
-                    .config_ref()
-                    .whitelisted_nodes
-                    .iter()
-                    .filter(|quorum_member| quorum_member.node_type == NodeType::Miner)
-                    .min_by(|a, b| a.node_id.cmp(&b.node_id))
-                    .expect("No miners found in quorum");
-
-                let is_chosen_miner = own_node_id == first_miner.node_id;
-
-                let can_mine_genblock = quorum_kind == QuorumKind::Miner
-                    && self.config.node_type == NodeType::Miner
-                    && is_chosen_miner;
-
-                if !can_mine_genblock {
-                    // TODO: consider logging a debug message here
+                if let Err(err) = self.handle_quorum_membership_assigments_created(assignments) {
+                    error!("failed to create quorum membership assignments: {:?}", err);
                     return Ok(ActorState::Running);
                 }
+                let own_node_id = self.config_ref().id.clone();
 
-                let content = Event::GenesisMinerElected {
-                    genesis_receivers: self
-                        .config
-                        .whitelisted_nodes
-                        .iter()
-                        .map(|quorum_member| {
-                            GenesisReceiver::new(Address::new(quorum_member.validator_public_key))
-                        })
-                        .collect(),
-                };
+                match self
+                    .consensus_driver
+                    .quorum_kind
+                    .to_owned()
+                    .ok_or(NodeError::Other(format!(
+                        "Node {} has no quorum kind set",
+                        own_node_id
+                    ))) {
+                    Ok(quorum_kind) => {
+                        // TODO: write test case to ensure that no two miners are allowed to mine a genesis
+                        // block
 
-                self.send_event_to_self(content).await?;
+                        //get the lowest node_id with node_type == NodeType::Miner
+                        match self
+                            .config_ref()
+                            .whitelisted_nodes
+                            .iter()
+                            .filter(|quorum_member| quorum_member.node_type == NodeType::Miner)
+                            .min_by(|a, b| a.node_id.cmp(&b.node_id))
+                        {
+                            Some(first_miner) => {
+                                let is_chosen_miner = own_node_id == first_miner.node_id;
+
+                                let can_mine_genblock = quorum_kind == QuorumKind::Miner
+                                    && self.config.node_type == NodeType::Miner
+                                    && is_chosen_miner;
+
+                                if !can_mine_genblock {
+                                    // TODO: consider logging a debug message here
+                                    return Ok(ActorState::Running);
+                                }
+
+                                let content = Event::GenesisMinerElected {
+                                    genesis_receivers: self
+                                        .config
+                                        .whitelisted_nodes
+                                        .iter()
+                                        .map(|quorum_member| {
+                                            GenesisReceiver::new(Address::new(
+                                                quorum_member.validator_public_key,
+                                            ))
+                                        })
+                                        .collect(),
+                                };
+
+                                if let Err(err) = self.send_event_to_self(content).await {
+                                    error!("failed to elect genesis miner: {:?}", err);
+                                    return Ok(ActorState::Running);
+                                };
+                            }
+                            None => {
+                                error!("no miners found in quorum");
+                                return Ok(ActorState::Running);
+                            }
+                        }
+                    }
+                    Err(err) => {
+                        error!("{:?}", err);
+                        return Ok(ActorState::Running);
+                    }
+                }
             }
             Event::QuorumMembershipAssigmentCreated(assigned_membership) => {
-                self.handle_quorum_membership_assigment_created(assigned_membership.clone())?;
+                if let Err(err) =
+                    self.handle_quorum_membership_assigment_created(assigned_membership.clone())
+                {
+                    error!("failed to find assigned membership: {:?}", err);
+                    return Ok(ActorState::Running);
+                };
             }
 
             // ==============================================================================================================
@@ -135,15 +155,38 @@ impl Handler<EventMessage> for NodeRuntime {
             // ==============================================================================================================
             //
             Event::GenesisMinerElected { genesis_receivers } => {
-                let genesis_rewards = self.distribute_genesis_reward(genesis_receivers)?;
-
-                let block = self.mine_genesis_block(genesis_rewards)?;
-
-                self.send_event_to_network(Event::GenesisBlockCreated(block.clone()))
-                    .await?;
-
-                self.send_event_to_self(Event::GenesisBlockCreated(block))
-                    .await?;
+                match self.distribute_genesis_reward(genesis_receivers) {
+                    Ok(genesis_rewards) => {
+                        match self.mine_genesis_block(genesis_rewards) {
+                            Ok(block) => {
+                                if let Err(err) = self
+                                    .send_event_to_network(Event::GenesisBlockCreated(
+                                        block.clone(),
+                                    ))
+                                    .await
+                                {
+                                    error!("failed to send event to network: {:?}", err);
+                                    return Ok(ActorState::Running);
+                                };
+                                if let Err(err) = self
+                                    .send_event_to_self(Event::GenesisBlockCreated(block))
+                                    .await
+                                {
+                                    error!("failed to send event to self: {:?}", err);
+                                    return Ok(ActorState::Running);
+                                };
+                            }
+                            Err(err) => {
+                                error!("failed to mine genesis block: {:?}", err);
+                                return Ok(ActorState::Running);
+                            }
+                        };
+                    }
+                    Err(err) => {
+                        error!("failed to distribute to genesis receivers: {:?}", err);
+                        return Ok(ActorState::Running);
+                    }
+                }
             }
             // Event::BlockCreated(block) => {
             //     let node_id = self.config_ref().id.clone();
@@ -165,31 +208,39 @@ impl Handler<EventMessage> for NodeRuntime {
                     block.hash
                 );
 
-                let next_event = match self.handle_genesis_block_received(block) {
-                    Ok(event) => event,
+                match self.handle_genesis_block_received(block) {
+                    Ok(next_event) => {
+                        if let Err(err) = self.send_event_to_self(next_event).await {
+                            error!("failed to send event to self: {:?}", err);
+                            return Ok(ActorState::Running);
+                        }
+                    }
                     Err(err) => {
-                        info!("error handling genesis block: {}", err);
+                        error!("error handling genesis block: {:?}", err);
                         return Ok(ActorState::Running);
                     }
-                    _ => {
-                        info!("error handling genesis block");
-                        return Ok(ActorState::Running);
-                    }
-                };
-
-                self.send_event_to_self(next_event).await?;
+                }
             }
             Event::ProposalBlockCreated(block) => {
                 let node_id = self.config_ref().id.clone();
                 telemetry::info!(
-                    "Node {} received proposal block from network: {}",
+                    "Node {} received proposal block from network: {:?}",
                     node_id,
                     block.hash
                 );
 
-                let next_event = self.handle_proposal_block_received(block)?;
-
-                self.send_event_to_network(next_event).await?;
+                match self.handle_proposal_block_received(block) {
+                    Ok(next_event) => {
+                        if let Err(err) = self.send_event_to_network(next_event).await {
+                            error!("failed to send event to network: {:?}", err);
+                            return Ok(ActorState::Running);
+                        }
+                    }
+                    Err(err) => {
+                        error!("error handling genesis block: {:?}", err);
+                        return Ok(ActorState::Running);
+                    }
+                };
             }
             Event::ConvergenceBlockCreated(block) => {
                 let node_id = self.config_ref().id.clone();
@@ -199,11 +250,20 @@ impl Handler<EventMessage> for NodeRuntime {
                     block.hash
                 );
 
-                let next_event = self.handle_convergence_block_received(block)?;
-
-                self.send_event_to_network(next_event).await?;
+                match self.handle_convergence_block_received(block) {
+                    Ok(next_event) => {
+                        if let Err(err) = self.send_event_to_network(next_event).await {
+                            error!("failed to send event to network: {:?}", err);
+                            return Ok(ActorState::Running);
+                        }
+                    }
+                    Err(err) => {
+                        error!("error handling genesis block: {:?}", err);
+                        return Ok(ActorState::Running);
+                    }
+                };
             }
-            /// Triggered once a genesis block or convergence block makes it to state
+            // Triggered once a genesis block or convergence block makes it to state
             // TODO: create a specific handler for this event
             Event::StateUpdated(block) => {
                 if self.is_harvester().is_ok() {
@@ -216,7 +276,7 @@ impl Handler<EventMessage> for NodeRuntime {
                         Block::Genesis { block } => {
                             // send certificate requested to self
                             let event = Event::GenesisBlockSignatureRequested(block);
-                            self.send_event_to_self(event).await?;
+                            if let Err(err) = self.send_event_to_self(event).await {};
                         }
                         Block::Convergence { block } => {
                             let event = Event::ConvergenceBlockSignatureRequested(block);
