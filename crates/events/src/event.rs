@@ -12,6 +12,7 @@ use primitives::{
 };
 
 use serde::{Deserialize, Serialize};
+use signer::engine::{QuorumData, QuorumMembers};
 use vrrb_core::claim::Claim;
 use vrrb_core::transactions::{TransactionDigest, TransactionKind};
 
@@ -68,7 +69,6 @@ pub enum Event {
     // separately?
     #[deprecated]
     // BlockConfirmed(Vec<u8>),
-
     /// `ClaimCreated(Claim)` represents a claim that is created for the node
     /// then has to be broadcasted.
     ClaimCreated(Claim),

@@ -487,14 +487,22 @@ impl Handler<EventMessage> for NodeRuntime {
                     self.config_ref().node_type,
                     node_id
                 );
+
                 let certificate = self
                     .handle_harvester_signature_received(block_hash, node_id, signature)
-                    .await?;
+                    .await;
 
-                info!("certificate created");
+                match certificate {
+                    Ok(certificate) => {
+                        info!("certificate created");
 
-                self.send_event_to_network(Event::GenesisBlockCertificateCreated(certificate))
-                    .await?;
+                        self.send_event_to_network(Event::GenesisBlockCertificateCreated(certificate))
+                            .await?;
+                    }
+                    Err(error) => {
+                        info!("certificate not created: {}", error);
+                    }
+                }
             }
 
             Event::ConvergenceBlockSignatureCreated(BlockPartialSignature {

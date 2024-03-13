@@ -94,7 +94,7 @@ async fn genesis_block_can_be_certified() {
             node.handle_sign_block(Block::Genesis {
                 block: genesis_block.clone(),
             })
-            .unwrap(),
+                .unwrap(),
         );
         assert!(node.state_driver.append_genesis(&genesis_block).is_ok());
     }
@@ -190,7 +190,7 @@ async fn all_nodes_append_certified_genesis_block_to_dag() {
             node.handle_sign_block(Block::Genesis {
                 block: genesis_block.clone(),
             })
-            .unwrap(),
+                .unwrap(),
         );
         assert!(node.state_driver.append_genesis(&genesis_block).is_ok());
     }
@@ -206,7 +206,7 @@ async fn all_nodes_append_certified_genesis_block_to_dag() {
     all_nodes.extend(harvesters);
     for node in all_nodes.iter_mut() {
         let genesis_block = node
-            .handle_genesis_block_certificate_received(&genesis_block.hash, certificate.clone())
+            .handle_genesis_block_certificate_received(certificate.clone())
             .await
             .unwrap();
         assert_eq!(&genesis_block.certificate.unwrap(), &certificate);
@@ -215,7 +215,7 @@ async fn all_nodes_append_certified_genesis_block_to_dag() {
             .unwrap());
     }
     let genesis_block = chosen_harvester
-        .handle_genesis_block_certificate_received(&genesis_block.hash, certificate.clone())
+        .handle_genesis_block_certificate_received(certificate.clone())
         .await
         .unwrap();
     assert_eq!(&genesis_block.certificate.unwrap(), &certificate);
