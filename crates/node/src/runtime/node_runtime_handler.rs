@@ -657,8 +657,9 @@ impl Handler<EventMessage> for NodeRuntime {
                             return Ok(ActorState::Running);
                         };
                     }
-                    Err(error) => {
-                        info!("certificate not created: {}", error);
+                    Err(err) => {
+                        error!("certificate not created: {:?}", err);
+                        return Ok(ActorState::Running);
                     }
                 }
             }
@@ -668,7 +669,7 @@ impl Handler<EventMessage> for NodeRuntime {
                 signature,
                 node_id,
             }) => {
-                let certificate = match self
+                match self
                     .handle_harvester_signature_received(block_hash, node_id, signature)
                     .await
                 {
@@ -692,24 +693,23 @@ impl Handler<EventMessage> for NodeRuntime {
 
             Event::GenesisBlockCertificateCreated(certificate) => {
                 info!("GenesisBlockCertificateCreated");
-                let confirmed_block =
-                    match self.handle_genesis_block_certificate_created(certificate) {
-                        Ok(confirmed_block) =>
-                        // TODO: update state after this
+                match self.handle_genesis_block_certificate_created(certificate) {
+                    Ok(confirmed_block) =>
+                    // TODO: update state after this
+                    {
+                        if let Err(err) = self
+                            .send_event_to_self(Event::UpdateState(confirmed_block))
+                            .await
                         {
-                            if let Err(err) = self
-                                .send_event_to_self(Event::UpdateState(confirmed_block))
-                                .await
-                            {
-                                error!("error sending event to self: {:?}", err);
-                                return Ok(ActorState::Running);
-                            }
-                        }
-                        Err(err) => {
-                            error!("error creating genesis block certificate: {:?}", err);
+                            error!("error sending event to self: {:?}", err);
                             return Ok(ActorState::Running);
                         }
-                    };
+                    }
+                    Err(err) => {
+                        error!("error creating genesis block certificate: {:?}", err);
+                        return Ok(ActorState::Running);
+                    }
+                };
             }
 
             Event::ConvergenceBlockCertificateCreated(certificate) => {
