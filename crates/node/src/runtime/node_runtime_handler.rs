@@ -1,15 +1,11 @@
 use crate::{node_runtime::NodeRuntime, NodeError};
 use async_trait::async_trait;
-use block::{Block, Certificate, GenesisReceiver};
+use block::{Block, GenesisReceiver};
 use events::{AssignedQuorumMembership, Event, EventMessage};
-use primitives::{
-    Address, BlockPartialSignature, ConvergencePartialSig, NodeType, QuorumKind, NETWORK_TOPIC_STR,
-    RUNTIME_TOPIC_STR,
-};
+use primitives::{Address, BlockPartialSignature, NodeType, QuorumKind};
 use telemetry::{error, info, warn};
-use theater::{ActorId, ActorLabel, ActorState, Handler, TheaterError};
-use vrrb_config::QuorumMember;
-use vrrb_core::{ownable, transactions::Transaction};
+use theater::{ActorId, ActorLabel, ActorState, Handler};
+use vrrb_core::transactions::Transaction;
 
 #[async_trait]
 impl Handler<EventMessage> for NodeRuntime {
@@ -524,26 +520,36 @@ impl Handler<EventMessage> for NodeRuntime {
                 };
             }
             Event::MinerElectionStarted(header) => {
-                let claims = match self.state_driver.read_handle().claim_store_values() {
-                    Ok(claims) => claims,
+                match self.state_driver.read_handle().claim_store_values() {
+                    Ok(claims) => match self
+                        .consensus_driver
+                        .handle_miner_election_started(header, claims)
+                    {
+                        Ok(results) => match results.clone().into_iter().next() {
+                            Some(winner) => {
+                                if let Err(err) = self
+                                    .send_event_to_network(Event::MinerElected(winner))
+                                    .await
+                                {
+                                    error!("error sending event to network: {:?}", err);
+                                    return Ok(ActorState::Running);
+                                }
+                            }
+                            None => {
+                                error!("found no winner");
+                                return Ok(ActorState::Running);
+                            }
+                        },
+                        Err(err) => {
+                            error!("error retrieving results from claim: {:?}", err);
+                            return Ok(ActorState::Running);
+                        }
+                    },
                     Err(err) => {
                         error!("error reading claims: {:?}", err);
                         return Ok(ActorState::Running);
                     }
                 };
-
-                let results = self
-                    .consensus_driver
-                    .handle_miner_election_started(header, claims)?;
-
-                let winner = results
-                    .clone()
-                    .into_iter()
-                    .next()
-                    .ok_or(TheaterError::Other("no winner found".to_string()))?;
-
-                self.send_event_to_network(Event::MinerElected(winner))
-                    .await?;
             }
             Event::ConvergenceBlockPrecheckRequested {
                 convergence_block,
