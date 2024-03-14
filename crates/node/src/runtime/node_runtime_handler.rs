@@ -638,10 +638,12 @@ impl Handler<EventMessage> for NodeRuntime {
                     self.config_ref().node_type,
                     node_id
                 );
-                match self
+
+                let certificate = self
                     .handle_harvester_signature_received(block_hash, node_id, signature)
-                    .await
-                {
+                    .await;
+
+                match certificate {
                     Ok(certificate) => {
                         info!("certificate created");
 
@@ -655,11 +657,10 @@ impl Handler<EventMessage> for NodeRuntime {
                             return Ok(ActorState::Running);
                         };
                     }
-                    Err(err) => {
-                        error!("error while creating certificate: {:?}", err);
-                        return Ok(ActorState::Running);
+                    Err(error) => {
+                        info!("certificate not created: {}", error);
                     }
-                };
+                }
             }
 
             Event::ConvergenceBlockSignatureCreated(BlockPartialSignature {

@@ -108,7 +108,8 @@ impl NodeRuntime {
             .verify(&node_id, &sig, &block_hash)
             .map_err(|err| NodeError::Other(err.to_string()))?;
 
-        info!("sig_engine verify");
+
+        // info!("sig_engine verify for {node_id} on {}", self.config.id);
 
         let set = self
             .state_driver
@@ -128,7 +129,7 @@ impl NodeRuntime {
             .form_convergence_certificate(block_hash, sig_set)
             .map_err(|err| NodeError::Other(err.to_string()))?;
 
-        info!("form convergence certificate");
+        // info!("form convergence certificate");
 
         // TODO: This is also being sent in the node_runtime_handler, check to see why
         // self.events_tx
@@ -192,7 +193,7 @@ impl NodeRuntime {
         &mut self,
         genesis_block: GenesisBlock,
     ) -> Result<Certificate> {
-        let sig = todo!();
+        let sig = self.handle_sign_genesis_block(&genesis_block)?;
         self.certify_genesis_block(genesis_block, self.config.id.clone(), sig)
     }
 
@@ -235,13 +236,12 @@ impl NodeRuntime {
 
     pub async fn handle_genesis_block_certificate_received(
         &mut self,
-        block_hash: &str,
         certificate: Certificate,
     ) -> Result<GenesisBlock> {
         // This is for when a certificate is received from the network.
         self.verify_certificate(&certificate)?;
         let block = self
-            .append_certificate_to_genesis_block(block_hash, &certificate)?
+            .append_certificate_to_genesis_block(&certificate)?
             .ok_or(NodeError::Other(
                 "certificate not appended to genesis block".to_string(),
             ))?;
@@ -253,10 +253,10 @@ impl NodeRuntime {
         let cert_sigs = certificate.signatures.clone();
         if cert_sigs.len()
             < self
-                .consensus_driver
-                .sig_engine
-                .quorum_members()
-                .get_harvester_threshold()
+            .consensus_driver
+            .sig_engine
+            .quorum_members()
+            .get_harvester_threshold()
         {
             return Err(NodeError::Other("threshold not reached".to_string()));
         }
@@ -279,11 +279,10 @@ impl NodeRuntime {
 
     pub fn append_certificate_to_genesis_block(
         &mut self,
-        block_hash: &str,
         certificate: &Certificate,
     ) -> Result<Option<GenesisBlock>> {
         self.state_driver
-            .append_certificate_to_genesis_block(block_hash, certificate)
+            .append_certificate_to_genesis_block(certificate)
             .map_err(|err| NodeError::Other(format!("{:?}", err)))
     }
 
@@ -358,7 +357,7 @@ impl NodeRuntime {
     }
 
     pub async fn handle_convergence_block_precheck_requested<
-        R: Resolver<Proposal = ProposalBlock>,
+        R: Resolver<Proposal=ProposalBlock>,
     >(
         &mut self,
         block: ConvergenceBlock,

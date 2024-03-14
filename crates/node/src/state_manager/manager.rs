@@ -76,7 +76,7 @@ impl StateManager {
         self.apply_block(Block::Genesis {
             block: genesis_block.to_owned(),
         })
-        .map_err(|err| GraphError::Other(format!("{err:?}")))
+            .map_err(|err| GraphError::Other(format!("{err:?}")))
     }
 
     pub fn append_convergence(
@@ -126,11 +126,10 @@ impl StateManager {
 
     pub fn append_certificate_to_genesis_block(
         &mut self,
-        block_hash: &str,
         certificate: &Certificate,
     ) -> GraphResult<Option<GenesisBlock>> {
         self.dag
-            .append_certificate_to_genesis_block(block_hash, certificate)
+            .append_certificate_to_genesis_block(certificate)
     }
 
     pub fn export_state(&self) {

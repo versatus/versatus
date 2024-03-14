@@ -133,26 +133,33 @@ impl DagModule {
             .map_err(|err| GraphError::Other(format!("{:?}", err)))
     }
 
-    fn get_genesis_block(&self, block_hash: &str) -> GraphResult<GenesisBlock> {
-        let guard = self
-            .dag
-            .read()
-            .map_err(|err| GraphError::Other(format!("{err:?}")))?;
-        let block = guard
-            .get_vertex(block_hash.to_owned())
-            .ok_or_else(|| GraphError::Other("could not find genesis block in DAG".to_string()))?;
-        match block.get_data() {
-            Block::Genesis { block } => Ok(block),
-            block => Err(GraphError::Other(format!("block found in DAG for block hash \"{block_hash}\" is not a GenesisBlock, block: {block:?}"))),
+    fn get_genesis_block(&self) -> GraphResult<GenesisBlock> {
+        if let Some(genesis_block_hash) = &self.genesis_block_hash {
+            let guard = self
+                .dag
+                .read()
+                .map_err(|err| GraphError::Other(format!("{err:?}")))?;
+            let block = guard
+                .get_vertex(genesis_block_hash.to_owned())
+                .ok_or_else(|| {
+                    GraphError::Other("could not find genesis block in DAG".to_string())
+                })?;
+            match block.get_data() {
+                Block::Genesis { block } => Ok(block),
+                block => Err(GraphError::Other(format!(
+                    "block found in DAG for block hash \"{genesis_block_hash}\" is not a GenesisBlock, block: {block:?}",
+                ))),
+            }
+        } else {
+            Err(GraphError::Other("no genesis block hash found".to_string()))
         }
     }
 
     pub fn append_certificate_to_genesis_block(
         &mut self,
-        block_hash: &str,
         certificate: &Certificate,
     ) -> GraphResult<Option<GenesisBlock>> {
-        let mut genesis_block = self.get_genesis_block(block_hash)?;
+        let mut genesis_block = self.get_genesis_block()?;
         genesis_block
             .append_certificate(certificate)
             .map_err(|err| GraphError::Other(format!("{err:?}")))?;
@@ -173,7 +180,7 @@ impl DagModule {
         // }
 
         if let Some(genesis_block_hash) = &self.genesis_block_hash {
-            if genesis_block_hash != &genesis.hash {
+            if *genesis_block_hash != genesis.hash {
                 info!("attempted to write non-matching genesis block");
                 return Err(GraphError::Other(
                     "attempted to write non-matching genesis block".to_string(),
@@ -369,11 +376,18 @@ impl DagModule {
         {
             indexmap::map::Entry::Occupied(mut entry) => {
                 info!("entry occupied");
+                for (id, _sig) in entry.get() {
+                    if *id == node_id {
+                        return Err(NodeError::Other(format!(
+                            "node {node_id} already signed block {block_hash}",
+                        )));
+                    }
+                }
                 entry.get_mut().insert((node_id, sig));
             }
 
             indexmap::map::Entry::Vacant(entry) => {
-                info!("entry vacant");
+                info!("entry vacant for block {block_hash} from node {node_id}");
                 let mut set = HashSet::new();
                 set.insert((node_id, sig));
                 entry.insert(set);
