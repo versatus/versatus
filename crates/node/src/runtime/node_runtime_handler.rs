@@ -122,18 +122,15 @@ impl Handler<EventMessage> for NodeRuntime {
 
                                 if let Err(err) = self.send_event_to_self(content).await {
                                     error!("failed to elect genesis miner: {:?}", err);
-                                    return Ok(ActorState::Running);
                                 };
                             }
                             None => {
                                 error!("no miners found in quorum");
-                                return Ok(ActorState::Running);
                             }
                         }
                     }
                     Err(err) => {
                         error!("{:?}", err);
-                        return Ok(ActorState::Running);
                     }
                 }
             }
@@ -142,7 +139,6 @@ impl Handler<EventMessage> for NodeRuntime {
                     self.handle_quorum_membership_assigment_created(assigned_membership.clone())
                 {
                     error!("failed to find assigned membership: {:?}", err);
-                    return Ok(ActorState::Running);
                 };
             }
 
@@ -169,18 +165,15 @@ impl Handler<EventMessage> for NodeRuntime {
                                     .await
                                 {
                                     error!("failed to send event to self: {:?}", err);
-                                    return Ok(ActorState::Running);
                                 };
                             }
                             Err(err) => {
                                 error!("failed to mine genesis block: {:?}", err);
-                                return Ok(ActorState::Running);
                             }
                         };
                     }
                     Err(err) => {
                         error!("failed to distribute to genesis receivers: {:?}", err);
-                        return Ok(ActorState::Running);
                     }
                 }
             }
@@ -208,12 +201,10 @@ impl Handler<EventMessage> for NodeRuntime {
                     Ok(next_event) => {
                         if let Err(err) = self.send_event_to_self(next_event).await {
                             error!("failed to send event to self: {:?}", err);
-                            return Ok(ActorState::Running);
                         }
                     }
                     Err(err) => {
                         error!("error handling genesis block: {:?}", err);
-                        return Ok(ActorState::Running);
                     }
                 }
             }
@@ -229,12 +220,10 @@ impl Handler<EventMessage> for NodeRuntime {
                     Ok(next_event) => {
                         if let Err(err) = self.send_event_to_network(next_event).await {
                             error!("failed to send event to network: {:?}", err);
-                            return Ok(ActorState::Running);
                         }
                     }
                     Err(err) => {
                         error!("error handling genesis block: {:?}", err);
-                        return Ok(ActorState::Running);
                     }
                 };
             }
@@ -250,12 +239,10 @@ impl Handler<EventMessage> for NodeRuntime {
                     Ok(next_event) => {
                         if let Err(err) = self.send_event_to_network(next_event).await {
                             error!("failed to send event to network: {:?}", err);
-                            return Ok(ActorState::Running);
                         }
                     }
                     Err(err) => {
                         error!("error handling genesis block: {:?}", err);
-                        return Ok(ActorState::Running);
                     }
                 };
             }
@@ -287,7 +274,7 @@ impl Handler<EventMessage> for NodeRuntime {
                                 return Ok(ActorState::Running);
                             };
                         }
-                        _ => return Ok(ActorState::Running),
+                        _ => error!("error updating status for block: {:?}", block),
                     }
                 }
 
@@ -313,7 +300,6 @@ impl Handler<EventMessage> for NodeRuntime {
             Event::ConvergenceBlockCertificateCreated(certificate) => {
                 if let Err(err) = self.handle_convergence_block_certificate_created(certificate) {
                     error!("error creating convergence block certificate: {:?}", err);
-                    return Ok(ActorState::Running);
                 };
             }
             Event::ConvergenceBlockCertified(certified_block) => {
@@ -393,12 +379,10 @@ impl Handler<EventMessage> for NodeRuntime {
                             .await
                         {
                             error!("error sending event to self: {:?}", err);
-                            return Ok(ActorState::Running);
                         }
                     }
                     Err(err) => {
                         error!("failure to insert txn into mempool: {:?}", err);
-                        return Ok(ActorState::Running);
                     }
                 }
             }
@@ -428,12 +412,10 @@ impl Handler<EventMessage> for NodeRuntime {
                             .await
                         {
                             error!("error sending event to self: {:?}", err);
-                            return Ok(ActorState::Running);
                         }
                     }
                     Err(err) => {
                         error!("failure to insert txn into mempool: {:?}", err);
-                        return Ok(ActorState::Running);
                     }
                 }
             }
@@ -454,12 +436,10 @@ impl Handler<EventMessage> for NodeRuntime {
                             .await
                         {
                             error!("failed to send event to network: {:?}", err);
-                            return Ok(ActorState::Running);
                         };
                     }
                     Err(err) => {
                         error!("failed to create vote: {}", err);
-                        return Ok(ActorState::Running);
                     }
                 }
             }
@@ -483,7 +463,6 @@ impl Handler<EventMessage> for NodeRuntime {
 
                 if let Err(err) = self.handle_vote_received(vote).await {
                     error!("failed to handle vote for {}: {}", txn_id, err);
-                    return Ok(ActorState::Running);
                 }
             }
             Event::TransactionVoteForwarded(vote) => {
@@ -502,7 +481,6 @@ impl Handler<EventMessage> for NodeRuntime {
             Event::TxnValidated(txn) => {
                 if let Err(err) = self.state_driver.handle_transaction_validated(txn).await {
                     error!("failed to validate txn: {:?}", err);
-                    return Ok(ActorState::Running);
                 };
             }
             Event::BuildProposalBlock() => {
@@ -516,7 +494,6 @@ impl Handler<EventMessage> for NodeRuntime {
             Event::QuorumElectionStarted(header) => {
                 if let Err(err) = self.handle_quorum_election_started(header) {
                     error!("error starting quorum election: {:?}", err);
-                    return Ok(ActorState::Running);
                 };
             }
             Event::MinerElectionStarted(header) => {
@@ -532,22 +509,18 @@ impl Handler<EventMessage> for NodeRuntime {
                                     .await
                                 {
                                     error!("error sending event to network: {:?}", err);
-                                    return Ok(ActorState::Running);
                                 }
                             }
                             None => {
                                 error!("found no winner");
-                                return Ok(ActorState::Running);
                             }
                         },
                         Err(err) => {
                             error!("error retrieving results from claim: {:?}", err);
-                            return Ok(ActorState::Running);
                         }
                     },
                     Err(err) => {
                         error!("error reading claims: {:?}", err);
-                        return Ok(ActorState::Running);
                     }
                 };
             }
@@ -565,7 +538,6 @@ impl Handler<EventMessage> for NodeRuntime {
                     .await
                 {
                     error!("error in convergence block precheck: {:?}", err);
-                    return Ok(ActorState::Running);
                 };
             }
             Event::GenesisBlockSignatureRequested(block) => {
@@ -595,7 +567,6 @@ impl Handler<EventMessage> for NodeRuntime {
 
                 if let Err(err) = self.send_event_to_self(event).await {
                     error!("error sending event to self: {:?}", err);
-                    return Ok(ActorState::Running);
                 };
             }
             Event::ConvergenceBlockSignatureRequested(block) => {
@@ -623,7 +594,6 @@ impl Handler<EventMessage> for NodeRuntime {
                     .await
                 {
                     error!("error sending event to network: {:?}", err);
-                    return Ok(ActorState::Running);
                 };
             }
 
@@ -654,12 +624,10 @@ impl Handler<EventMessage> for NodeRuntime {
                             .await
                         {
                             error!("error sending event to network: {:?}", err);
-                            return Ok(ActorState::Running);
                         };
                     }
                     Err(err) => {
                         error!("certificate not created: {:?}", err);
-                        return Ok(ActorState::Running);
                     }
                 }
             }
@@ -681,12 +649,10 @@ impl Handler<EventMessage> for NodeRuntime {
                             .await
                         {
                             error!("error sending event to network: {:?}", err);
-                            return Ok(ActorState::Running);
                         }
                     }
                     Err(err) => {
                         error!("error creating convergence block signature: {:?}", err);
-                        return Ok(ActorState::Running);
                     }
                 };
             }
@@ -702,12 +668,10 @@ impl Handler<EventMessage> for NodeRuntime {
                             .await
                         {
                             error!("error sending event to self: {:?}", err);
-                            return Ok(ActorState::Running);
                         }
                     }
                     Err(err) => {
                         error!("error creating genesis block certificate: {:?}", err);
-                        return Ok(ActorState::Running);
                     }
                 };
             }
@@ -722,12 +686,10 @@ impl Handler<EventMessage> for NodeRuntime {
                             .await
                         {
                             error!("error sending event to self: {:?}", err);
-                            return Ok(ActorState::Running);
                         }
                     }
                     Err(err) => {
                         error!("error creating convergence block certificate: {:?}", err);
-                        return Ok(ActorState::Running);
                     }
                 };
             }
@@ -760,7 +722,6 @@ impl Handler<EventMessage> for NodeRuntime {
             Event::QuorumFormed => {
                 if let Err(err) = self.handle_quorum_formed().await {
                     error!("error forming quorum: {:?}", err);
-                    return Ok(ActorState::Running);
                 }
             }
             _ => {}
