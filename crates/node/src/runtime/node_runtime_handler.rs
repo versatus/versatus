@@ -261,7 +261,6 @@ impl Handler<EventMessage> for NodeRuntime {
                             let event = Event::GenesisBlockSignatureRequested(block);
                             if let Err(err) = self.send_event_to_self(event).await {
                                 error!("failed to send genesis block signature to self: {:?}", err);
-                                return Ok(ActorState::Running);
                             };
                         }
                         Block::Convergence { block } => {
@@ -271,7 +270,6 @@ impl Handler<EventMessage> for NodeRuntime {
                                     "failed to send convergence block signature to self: {:?}",
                                     err
                                 );
-                                return Ok(ActorState::Running);
                             };
                         }
                         _ => error!("error updating status for block: {:?}", block),
