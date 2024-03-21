@@ -47,12 +47,12 @@ pub fn run(opts: &ValidateOpts) -> Result<()> {
     }
 
     if !w.is_wasi && !w.is_wasix {
-        println!("WASM module isn't built for use with WASI/WASIX");
+        println!(" - WASM module isn't built for use with WASI/WASIX");
         expected_to_run = false;
     }
 
     if !w.has_start {
-        println!("WASM module doesn't have an entry point exported as _start");
+        println!(" - WASM module doesn't have an entry point exported as _start");
         expected_to_run = false;
     }
 

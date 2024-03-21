@@ -20,6 +20,15 @@ fn main() -> Result<()> {
         Some(cli::WasmCommands::Validate(opts)) => {
             commands::validate::run(opts)?;
         }
+        Some(cli::WasmCommands::TestInitDB(opts)) => {
+            commands::testinitdb::run(opts)?;
+        }
+        Some(cli::WasmCommands::TestBalance(opts)) => {
+            commands::testbalance::run(opts)?;
+        }
+        Some(cli::WasmCommands::TestContract(opts)) => {
+            commands::testcontract::run(opts)?;
+        }
         Some(cli::WasmCommands::Publish(opts)) => {
             opts.validate()?;
             commands::publish::run(opts)?;
