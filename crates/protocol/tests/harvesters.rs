@@ -100,24 +100,23 @@ async fn harvester_nodes_form_certificate() {
             }
         })
         .collect();
-    let convergence_block = dummy_convergence_block();
+    let mut convergence_block = dummy_convergence_block();
     let mut chosen_harvester = harvesters.pop().unwrap();
     let _ = chosen_harvester
         .state_driver
-        .append_convergence(&convergence_block);
+        .append_convergence(&mut convergence_block);
     let mut sigs: Vec<Signature> = Vec::new();
     for harvester in harvesters.iter_mut() {
         // 2 of 3 harvester nodes sign a convergence block
         sigs.push(
             harvester
-                .handle_sign_block(Block::Convergence {
-                    block: convergence_block.clone(),
-                })
+                .handle_sign_convergence_block(convergence_block.clone())
+                .await
                 .unwrap(),
         );
         let _ = harvester
             .state_driver
-            .append_convergence(&convergence_block);
+            .append_convergence(&mut convergence_block.clone());
     }
     let mut res: Result<Certificate, NodeError> = Err(NodeError::Other("".to_string()));
     // all harvester nodes get the other's signatures
@@ -155,12 +154,12 @@ async fn certificate_formed_includes_pending_quorum() {
         })
         .collect();
 
-    let convergence_block = dummy_convergence_block();
+    let mut convergence_block = dummy_convergence_block();
     let mut chosen_harvester = harvesters.pop().unwrap();
 
     let _ = chosen_harvester
         .state_driver
-        .append_convergence(&convergence_block);
+        .append_convergence(&mut convergence_block);
 
     let mut sigs: Vec<Signature> = Vec::new();
 
@@ -168,14 +167,13 @@ async fn certificate_formed_includes_pending_quorum() {
         // 2 of 3 harvester nodes sign a convergence block
         sigs.push(
             harvester
-                .handle_sign_block(Block::Convergence {
-                    block: convergence_block.clone(),
-                })
+                .handle_sign_convergence_block(convergence_block.clone())
+                .await
                 .unwrap(),
         );
         let _ = harvester
             .state_driver
-            .append_convergence(&convergence_block);
+            .append_convergence(&mut convergence_block.clone());
     }
 
     let mut eligible_claims = produce_random_claims(21)
@@ -245,7 +243,7 @@ async fn all_nodes_append_certificate_to_convergence_block() {
             }
         })
         .collect();
-    let convergence_block = dummy_convergence_block();
+    let mut convergence_block = dummy_convergence_block();
     harvesters.iter_mut().for_each(|node| {
         node.state_driver
             .handle_block_received(
@@ -269,20 +267,19 @@ async fn all_nodes_append_certificate_to_convergence_block() {
     let mut chosen_harvester = harvesters.pop().unwrap();
     let _ = chosen_harvester
         .state_driver
-        .append_convergence(&convergence_block);
+        .append_convergence(&mut convergence_block);
     let mut sigs: Vec<Signature> = Vec::new();
     for harvester in harvesters.iter_mut() {
         // 2 of 3 harvester nodes sign a convergence block
         sigs.push(
             harvester
-                .handle_sign_block(Block::Convergence {
-                    block: convergence_block.clone(),
-                })
+                .handle_sign_convergence_block(convergence_block.clone())
+                .await
                 .unwrap(),
         );
         let _ = harvester
             .state_driver
-            .append_convergence(&convergence_block);
+            .append_convergence(&mut convergence_block.clone());
     }
     let mut res: Result<Certificate, NodeError> = Err(NodeError::Other("".to_string()));
     // all harvester nodes get the other's signatures
@@ -299,12 +296,14 @@ async fn all_nodes_append_certificate_to_convergence_block() {
     all_nodes.extend(harvesters);
     for node in all_nodes.iter_mut() {
         let convergence_block = node
-            .handle_convergence_block_certificate_created(certificate.clone())
+            .handle_convergence_block_certificate_received(certificate.clone())
+            .await
             .unwrap();
         assert_eq!(&convergence_block.certificate.unwrap(), &certificate);
     }
     let convergence_block = chosen_harvester
-        .handle_convergence_block_certificate_created(certificate.clone())
+        .handle_block_certificate_created(certificate.clone())
+        .await
         .unwrap();
     assert_eq!(&convergence_block.certificate.unwrap(), &certificate);
 }
@@ -372,20 +371,19 @@ async fn all_nodes_append_certified_convergence_block_to_dag() {
     let mut chosen_harvester = harvesters.pop().unwrap();
     let _ = chosen_harvester
         .state_driver
-        .append_convergence(&convergence_block);
+        .append_convergence(&mut convergence_block);
     let mut sigs: Vec<Signature> = Vec::new();
     for harvester in harvesters.iter_mut() {
         // 2 of 3 harvester nodes sign a convergence block
         sigs.push(
             harvester
-                .handle_sign_block(Block::Convergence {
-                    block: convergence_block.clone(),
-                })
+                .handle_sign_convergence_block(convergence_block.clone())
+                .await
                 .unwrap(),
         );
         let _ = harvester
             .state_driver
-            .append_convergence(&convergence_block);
+            .append_convergence(&mut convergence_block.clone());
     }
     let mut res: Result<Certificate, NodeError> = Err(NodeError::Other("".to_string()));
     // all harvester nodes get the other's signatures
@@ -402,13 +400,15 @@ async fn all_nodes_append_certified_convergence_block_to_dag() {
     all_nodes.extend(harvesters);
     for node in all_nodes.iter_mut() {
         let convergence_block = node
-            .handle_convergence_block_certificate_created(certificate.clone())
+            .handle_convergence_block_certificate_received(certificate.clone())
+            .await
             .unwrap();
         assert_eq!(&convergence_block.certificate.unwrap(), &certificate);
         assert!(node.certified_convergence_block_exists_within_dag(convergence_block.hash));
     }
     let convergence_block = chosen_harvester
-        .handle_convergence_block_certificate_created(certificate.clone())
+        .handle_block_certificate_created(certificate.clone())
+        .await
         .unwrap();
     assert_eq!(&convergence_block.certificate.unwrap(), &certificate);
     assert!(chosen_harvester.certified_convergence_block_exists_within_dag(convergence_block.hash));
@@ -452,7 +452,7 @@ async fn all_nodes_update_state_upon_successfully_appending_certified_convergenc
 
     proposal_block.from = miner.claim.clone();
 
-    let winner = (miner.claim.hash, miner.claim.clone());
+    let winner = (miner.claim.hash.clone(), miner.claim.clone());
     let pblock: Block = proposal_block.clone().into();
     let vtx = pblock.into();
     let mut miner_election_results = BTreeMap::new();
@@ -518,21 +518,20 @@ async fn all_nodes_update_state_upon_successfully_appending_certified_convergenc
     let mut chosen_harvester = harvesters.pop().unwrap();
     let _ = chosen_harvester
         .state_driver
-        .append_convergence(&convergence_block);
+        .append_convergence(&mut convergence_block);
 
     let mut sigs: Vec<Signature> = Vec::new();
     for harvester in harvesters.iter_mut() {
         // 2 of 3 harvester nodes sign a convergence block
         sigs.push(
             harvester
-                .handle_sign_block(Block::Convergence {
-                    block: convergence_block.clone(),
-                })
+                .handle_sign_convergence_block(convergence_block.clone())
+                .await
                 .unwrap(),
         );
         let _ = harvester
             .state_driver
-            .append_convergence(&convergence_block);
+            .append_convergence(&mut convergence_block.clone());
     }
     let mut res: Result<Certificate, NodeError> = Err(NodeError::Other("".to_string()));
     // all harvester nodes get the other's signatures
@@ -550,7 +549,8 @@ async fn all_nodes_update_state_upon_successfully_appending_certified_convergenc
     let mut results = Vec::new();
     for node in all_nodes.iter_mut() {
         let convergence_block = node
-            .handle_convergence_block_certificate_created(certificate.clone())
+            .handle_convergence_block_certificate_received(certificate.clone())
+            .await
             .unwrap();
 
         let block_result = node
@@ -562,7 +562,8 @@ async fn all_nodes_update_state_upon_successfully_appending_certified_convergenc
         assert!(node.certified_convergence_block_exists_within_dag(convergence_block.hash));
     }
     let convergence_block = chosen_harvester
-        .handle_convergence_block_certificate_created(certificate.clone())
+        .handle_block_certificate_created(certificate.clone())
+        .await
         .unwrap();
     let block_apply_result = chosen_harvester
         .state_driver

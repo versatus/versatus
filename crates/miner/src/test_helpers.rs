@@ -457,11 +457,11 @@ pub fn mine_next_convergence_block(dag: MinerDag) -> Option<String> {
             }
 
             if let Ok(mut guard) = dag.write() {
-                let mut ext_edges = Vec::with_capacity(edges.len());
-                for (source, reference) in &edges {
-                    ext_edges.push((source, reference));
-                }
-                guard.extend_from_edges(&ext_edges);
+                let edges: Vec<_> = edges
+                    .iter()
+                    .map(|(source, reference)| (source, reference))
+                    .collect();
+                guard.extend_from_edges(&*edges);
                 return Some(block.get_hash());
             }
         }
@@ -486,13 +486,14 @@ pub fn append_proposal_blocks_to_dag(dag: &mut MinerDag, proposals: Vec<Proposal
             }
         }
     }
-    let mut ext_edges = Vec::with_capacity(edges.len());
-    for (source, reference) in &edges {
-        ext_edges.push((source, reference));
-    }
+
+    let edges: Vec<_> = edges
+        .iter()
+        .map(|(source, reference)| (source, reference))
+        .collect();
 
     if let Ok(mut guard) = dag.clone().write() {
-        guard.extend_from_edges(&ext_edges);
+        guard.extend_from_edges(&*edges);
     }
 }
 

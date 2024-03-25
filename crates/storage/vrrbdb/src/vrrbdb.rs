@@ -39,22 +39,16 @@ impl VrrbDbConfig {
 pub struct ApplyBlockResult {
     state_root_hash: RootHash,
     transactions_root_hash: RootHash,
-    // claims_root_hash: RootHash,
 }
 
 impl ApplyBlockResult {
     pub fn state_root_hash_str(&self) -> String {
         let state_root_hash = self.state_root_hash;
-        // let transaction_root_hash = self.transaction_store.root_hash()?;
-
-        // let txn_root_hash_hex = hex::encode(txn_root_hash.0);
         hex::encode(state_root_hash.0)
-        // let claim_root_hash_hex = hex::encode(claim_root_hash.0);
     }
 
     pub fn transactions_root_hash_str(&self) -> String {
         let txn_root_hash = self.transactions_root_hash;
-
         hex::encode(txn_root_hash.0)
     }
 }
@@ -274,9 +268,12 @@ impl VrrbDb {
                 let account = Account::new(receiver_address.0.clone());
                 self.insert_account(receiver_address.0.clone(), account)?;
             };
+
             let update = StateUpdate::from((receiver_address.0.clone(), *reward)).into();
+
             self.state_store
                 .update_uncommited(receiver_address.0.clone(), update)?;
+
             self.state_store.commit();
         }
 
@@ -327,7 +324,7 @@ impl VrrbDb {
         })
     }
 
-    pub fn apply_genesis_block(&mut self, block: GenesisBlock) -> Result<ApplyBlockResult> {
+    fn apply_genesis_block(&mut self, block: GenesisBlock) -> Result<ApplyBlockResult> {
         let read_handle = self.read_handle();
 
         if block.genesis_rewards.0.is_empty() {
@@ -353,12 +350,13 @@ impl VrrbDb {
     pub fn apply_block(&mut self, block: Block) -> Result<ApplyBlockResult> {
         match block {
             Block::Genesis { block } => self.apply_genesis_block(block),
-            Block::Convergence { block: _ } => {
-                todo!()
+            Block::Convergence { block } => {
+                // TODO: find a way to get the proposals here
+                self.apply_convergence_block(&block, &[])
             }
             _ => {
-                telemetry::info!("unsupported block type: {:?}", block);
-                Err(StorageError::Other("unsupported block type".to_string()))
+                telemetry::info!("Unsupported block type: {:?}", block);
+                return Err(StorageError::Other("Unsupported block type".to_string()));
             }
         }
     }

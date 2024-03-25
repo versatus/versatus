@@ -295,7 +295,9 @@ impl ConsensusModule {
                 vote.farmer_node_id.clone()
             )))?
             .0;
+
         self.check_vote_is_valid(&quorum_id, &vote).await?;
+
         match self.votes_pool.entry(quorum_id.clone()) {
             Entry::Occupied(mut entry) => {
                 let map = entry.get_mut();
@@ -321,7 +323,7 @@ impl ConsensusModule {
 
         self.check_vote_threshold_reached(&quorum_id, &vote)
             .await
-            .map_err(|err| NodeError::Other(format!("threhold net yet reached, err: {}", err)))?;
+            .map_err(|err| NodeError::Other(format!("threshold net yet reached, err: {}", err)))?;
 
         self.certify_transaction(&vote, &quorum_id).await
     }
@@ -364,36 +366,40 @@ impl ConsensusModule {
     fn batch_verify_vote_sigs(&mut self, quorum_id: &QuorumId, vote: &Vote) -> Result<()> {
         let set = self.get_quorum_pending_votes_for_transaction(quorum_id, vote)?;
         let quorum_members = self.get_quorum_members(quorum_id)?;
-        if self.double_check_vote_threshold_reached(&set, quorum_members) {
-            let batch_sigs: Vec<(String, Signature)> = set
-                .iter()
-                .map(|vote| (vote.farmer_node_id.clone(), vote.signature))
-                .collect();
 
-            let data = bincode::serialize(&vote.txn.clone()).map_err(|err| {
+        let is_threshold_met = self.double_check_vote_threshold_reached(&set, quorum_members);
+
+        if !is_threshold_met {
+            return Err(NodeError::Other(format!(
+                "quorum {:?} doesn't have enough pending votes to meet threshold",
+                quorum_id
+            )));
+        }
+
+        let batch_sigs: Vec<(String, Signature)> = set
+            .iter()
+            .map(|vote| (vote.farmer_node_id.clone(), vote.signature))
+            .collect();
+
+        let data = bincode::serialize(&vote.txn.clone()).map_err(|err| {
+            NodeError::Other(format!(
+                "unable to serialize txn: {} to verify vote signature. err: {}",
+                &vote.txn.id(),
+                err
+            ))
+        })?;
+
+        self.sig_engine
+            .verify_batch(&batch_sigs, &data)
+            .map_err(|err| {
                 NodeError::Other(format!(
-                    "unable to serialize txn: {} to verify vote signature. err: {}",
-                    &vote.txn.id(),
+                    "unable to batch verify vote signatures for txn: {}, err: {}",
+                    &vote.txn.id().clone(),
                     err
                 ))
             })?;
-            self.sig_engine
-                .verify_batch(&batch_sigs, &data)
-                .map_err(|err| {
-                    NodeError::Other(format!(
-                        "unable to batch verify vote signatures for txn: {}, err: {}",
-                        &vote.txn.id().clone(),
-                        err
-                    ))
-                })?;
 
-            return Ok(());
-        }
-
-        Err(NodeError::Other(format!(
-            "quorum {:?} doesn't have enough pending votes to meet threshold",
-            quorum_id
-        )))
+        Ok(())
     }
 
     fn double_check_vote_threshold_reached(
@@ -536,21 +542,25 @@ impl ConsensusModule {
         self.node_config.node_type == NodeType::Bootstrap
     }
 
+    // TODO: move this up to NodeRuntime
     pub fn is_harvester(&self) -> Result<()> {
+        let node_id = &self.node_config.id;
         if self.quorum_kind.is_none() || self.quorum_kind != Some(QuorumKind::Harvester) {
-            return Err(NodeError::Other(
-                "local node is not a Harvester Node".to_string(),
-            ));
+            return Err(NodeError::Other(format!(
+                "Node {node_id} is not a Harvester Node"
+            )));
         }
 
         Ok(())
     }
 
+    // TODO: move this up to NodeRuntime
     pub fn is_farmer(&self) -> Result<()> {
+        let node_id = &self.node_config.id;
         if self.quorum_kind.is_none() || self.quorum_kind != Some(QuorumKind::Farmer) {
-            return Err(NodeError::Other(
-                "local node is not a Farmer Node".to_string(),
-            ));
+            return Err(NodeError::Other(format!(
+                "Node {node_id} is not a Farmer Node"
+            )));
         }
 
         Ok(())

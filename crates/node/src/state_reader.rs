@@ -9,6 +9,7 @@ use vrrb_core::{account::Account, claim::Claim};
 use crate::Result;
 
 #[async_trait::async_trait]
+// TODO: deprecate this whole concept and think of something better for integral-db
 pub trait StateReader: std::fmt::Debug {
     /// Returns a full list of all accounts within state
     async fn state_snapshot(&self) -> Result<HashMap<Address, Account>>;

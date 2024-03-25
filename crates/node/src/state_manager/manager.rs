@@ -76,7 +76,7 @@ impl StateManager {
         self.apply_block(Block::Genesis {
             block: genesis_block.to_owned(),
         })
-        .map_err(|err| GraphError::Other(format!("{err:?}")))
+            .map_err(|err| GraphError::Other(format!("{err:?}")))
     }
 
     pub fn append_convergence(
@@ -112,6 +112,7 @@ impl StateManager {
             .database
             .apply_convergence_block(convergence, proposals)
             .map_err(|err| GraphError::Other(err.to_string()))?;
+
         Ok(res)
     }
 
@@ -125,11 +126,10 @@ impl StateManager {
 
     pub fn append_certificate_to_genesis_block(
         &mut self,
-        block_hash: &str,
         certificate: &Certificate,
     ) -> GraphResult<Option<GenesisBlock>> {
         self.dag
-            .append_certificate_to_genesis_block(block_hash, certificate)
+            .append_certificate_to_genesis_block(certificate)
     }
 
     pub fn export_state(&self) {
@@ -582,6 +582,7 @@ impl StateReader for VrrbDbReadHandle {
         let values = self
             .transaction_store_values()
             .map_err(|err| StorageError::Other(format!("failed to read transactions: {err}")))?;
+
         Ok(values)
     }
 
@@ -589,6 +590,7 @@ impl StateReader for VrrbDbReadHandle {
         let values = self
             .claim_store_values()
             .map_err(|err| StorageError::Other(format!("failed to read claims: {err}")))?;
+
         Ok(values)
     }
 }

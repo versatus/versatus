@@ -22,6 +22,8 @@ pub async fn create_test_network(n: u16) -> Vec<Node> {
 
 pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeConfig>) -> Vec<Node> {
     let validator_count = (n as f64 * 0.8).ceil() as usize;
+    let farmer_count = (validator_count as f64 * 0.7).ceil() as usize;
+    let harvester_count = validator_count - farmer_count;
     let miner_count = n as usize - validator_count;
 
     let mut nodes = vec![];
@@ -41,11 +43,25 @@ pub async fn create_test_network_from_config(n: u16, base_config: Option<NodeCon
 
         let node_id = format!("node-{}", i);
 
+        let quorum_kind = if usize::from(i) < farmer_count {
+            QuorumKind::Farmer
+        } else if usize::from(i) < farmer_count + harvester_count {
+            QuorumKind::Harvester
+        } else {
+            QuorumKind::Miner
+        };
+
+        let node_type = if usize::from(i) < farmer_count + harvester_count {
+            NodeType::Validator
+        } else {
+            NodeType::Miner
+        };
+
         let member = BootstrapQuorumMember {
-            node_id: format!("node-{}", i),
+            node_id: node_id.clone(),
             kademlia_peer_id: KademliaPeerId::rand(),
-            quorum_kind: QuorumKind::Harvester,
-            node_type: NodeType::Validator,
+            quorum_kind,
+            node_type,
             udp_gossip_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), udp_port),
             raptorq_gossip_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), raptor_port),
             kademlia_liveness_address: SocketAddr::new(

@@ -25,7 +25,8 @@ use std::{
     sync::{Arc, RwLock},
 };
 use storage::vrrbdb::{StateStoreReadHandleFactory, VrrbDbConfig, VrrbDbReadHandle};
-use theater::{ActorId, ActorState};
+use theater::{ActorId, ActorState, TheaterError};
+use tokio::runtime::Handle;
 use tokio::task::JoinHandle;
 use utils::payload::digest_data_to_bytes;
 use vrrb_config::{NodeConfig, QuorumMembershipConfig};
@@ -50,6 +51,9 @@ pub struct NodeRuntime {
     pub mining_driver: Miner,
     pub claim: Claim,
     pub pending_quorum: Option<InaugaratedMembers>,
+
+    pub proposal_mining_trigger: Option<Handle>,
+    pub convergence_mining_trigger: Option<Handle>,
 }
 
 impl NodeRuntime {
@@ -142,8 +146,72 @@ impl NodeRuntime {
             mining_driver: miner,
             claim,
             pending_quorum: None,
+            proposal_mining_trigger: None,
+            convergence_mining_trigger: None,
         })
     }
+
+    // pub fn create_proposal_mining_task(
+    //     &mut self,
+    // ) -> std::result::Result<JoinHandle<Result<()>>, anyhow::Error> {
+    //     let handle = tokio::spawn(async move {
+    //         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(10));
+    //         loop {
+    //             interval.tick().await;
+    //             self.build_proposal_block().await;
+    //         }
+    //     });
+    //     Ok(handle)
+    // }
+
+    pub fn is_harvester(&self) -> Result<()> {
+        self.consensus_driver.is_harvester()
+    }
+
+    pub async fn build_proposal_block(&mut self) -> Result<()> {
+        if let Some(last_confirmed_block) = self.state_driver.dag.last_confirmed_block() {
+            let block = self
+                .handle_build_proposal_block_requested(last_confirmed_block)
+                .await;
+            if let Err(err) = block {
+                telemetry::error!("Error mining proposal block: {err}");
+            } else {
+                self.events_tx
+                    .send(EventMessage::new(
+                        Some(RUNTIME_TOPIC_STR.into()),
+                        Event::ProposalBlockCreated(block.unwrap()),
+                    ))
+                    .await?;
+            }
+        } else {
+            telemetry::error!("No last confirmed block found");
+        }
+
+        Ok(())
+    }
+
+    // pub fn create_convergence_mining_task(
+    //     &mut self,
+    // ) -> std::result::Result<JoinHandle<Result<()>>, anyhow::Error> {
+    //     let handle = tokio::spawn(async move {
+    //         let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(10));
+    //         loop {
+    //             interval.tick().await;
+    //             let block = self.mining_driver.mine_convergence_block();
+    //             if let Some(block) = block {
+    //                 self.events_tx
+    //                     .send(EventMessage::new(
+    //                         Some(RUNTIME_TOPIC_STR.into()),
+    //                         Event::ConvergenceBlockCreated(block),
+    //                     ))
+    //                     .await?;
+    //             } else {
+    //                 telemetry::error!("Error mining convergence block");
+    //             }
+    //         }
+    //     });
+    //     Ok(handle)
+    // }
 
     pub fn certified_convergence_block_exists_within_dag(&self, block_hash: String) -> bool {
         if let Ok(guard) = self.state_driver.dag.read() {
@@ -263,6 +331,8 @@ impl NodeRuntime {
     }
 
     // TODO: This should be a const function
+    // TODO: rename to generate_genesis_reward_distributions to avoid confusing with the actual
+    // recording of the distributions
     pub fn distribute_genesis_reward(
         &self,
         receivers: Vec<GenesisReceiver>,
@@ -324,6 +394,15 @@ impl NodeRuntime {
         Ok(genesis)
     }
 
+    pub fn verify_block_signature(&self, block: Block) -> Result<()> {
+        match block {
+            Block::Genesis { block } => self.verify_genesis_block_origin(block),
+            _ => Err(NodeError::Other(
+                "Unsupported block type for signature verification".to_string(),
+            )),
+        }
+    }
+
     pub fn verify_genesis_block_origin(&self, genesis_block: GenesisBlock) -> Result<()> {
         let miner_signature = genesis_block.header.miner_signature;
         let miner_id = genesis_block.header.miner_claim.node_id.clone();
@@ -364,20 +443,26 @@ impl NodeRuntime {
         sig: Signature,
     ) -> Result<Certificate> {
         self.consensus_driver.is_harvester()?;
-        self.consensus_driver
-            .sig_engine
-            .verify(&node_id, &sig, &genesis.hash)
-            .map_err(|err| NodeError::Other(err.to_string()))?;
+
+        let genesis_hash = genesis.hash.clone();
+
+        // TODO: refactor redundant Block::Genesis wrapping
+        self.verify_block_signature(Block::Genesis {
+            block: genesis.clone(),
+        })
+        .map_err(|err| NodeError::Other(err.to_string()))?;
+
         let set = self
             .state_driver
             .dag
             .add_signer_to_block(
-                genesis.hash.clone(),
+                genesis_hash,
                 sig,
                 node_id,
                 &self.consensus_driver.sig_engine,
             )
             .map_err(|err| NodeError::Other(err.to_string()))?;
+
         let certificate = self
             .consensus_driver
             .certify_genesis_block(genesis, set.into_iter().collect())?;
@@ -408,10 +493,9 @@ impl NodeRuntime {
             .map(|from| (from.hash, from.clone()))
             .collect();
 
-        //TODO: variable _cert is not being used.
         let txns_list: LinkedHashMap<TransactionDigest, TransactionKind> = txns
             .into_iter()
-            .map(|(digest, (txn, _cert))| {
+            .map(|(digest, (txn, cert))| {
                 //                if let Err(err) = self
                 //                    .consensus_driver
                 //                    .certified_txns_filter
@@ -560,6 +644,7 @@ impl NodeRuntime {
     ) -> Result<(TransactionKind, bool)> {
         self.has_required_node_type(NodeType::Validator, "validate transactions")?;
         self.belongs_to_correct_quorum(QuorumKind::Farmer, "validate transactions")?;
+
         let validated_transaction_kind =
             self.consensus_driver
                 .validate_transaction_kind(&digest, mempool_reader, state_reader);
@@ -584,5 +669,9 @@ impl NodeRuntime {
     ) -> Result<Vote> {
         self.consensus_driver
             .cast_vote_on_transaction_kind(transaction, validity)
+    }
+
+    pub fn update_state(&mut self, block: Block) -> Result<()> {
+        self.state_driver.update_state(block.hash())
     }
 }

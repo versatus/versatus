@@ -1,12 +1,21 @@
 use std::net::SocketAddr;
 
-use block::{Block, Certificate, ConvergenceBlock};
+use block::{
+    header::BlockHeader, Block, Certificate, ConvergenceBlock, GenesisBlock, ProposalBlock,
+};
 use events::{AssignedQuorumMembership, Vote};
-use hbbft::sync_key_gen::{Ack, Part};
+use hbbft::{
+    crypto::PublicKeySet,
+    sync_key_gen::{Ack, Part},
+};
 use mempool::TxnRecord;
-use primitives::{ConvergencePartialSig, KademliaPeerId, NodeId, NodeType, PeerId, PublicKey};
+use primitives::{
+    BlockPartialSignature, ConvergencePartialSig, KademliaPeerId, NodeId, NodeType, PeerId,
+    PublicKey,
+};
 use serde::{Deserialize, Serialize};
-use vrrb_core::claim::Claim;
+use signer::engine::QuorumData;
+use vrrb_core::{claim::Claim, transactions::TransactionKind};
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 /// Represents data trasmitted over the VRRB network by nodes that participate
@@ -49,9 +58,13 @@ pub enum NetworkEvent {
         socket_addr: SocketAddr,
     },
 
-    BlockCreated(Block),
-
-    ForwardedTxn(Box<TxnRecord>),
+    // BlockCreated(Block),
+    GenesisBlockCreated(GenesisBlock),
+    GenesisBlockSignatureCreated(BlockPartialSignature),
+    ProposalBlockCreated(ProposalBlock),
+    ConvergenceBlockCreated(ConvergenceBlock),
+    NewTxnCreated(TransactionKind),
+    NewTxnForwarded(NodeId, TransactionKind),
 
     PartCommitmentCreated(NodeId, Part),
     PartCommitmentAcknowledged {
@@ -60,10 +73,22 @@ pub enum NetworkEvent {
         ack: Ack,
     },
 
+    ConvergenceBlockCertificateCreated(Certificate),
+    ConvergenceBlockCertificateRequested {
+        convergence_block: ConvergenceBlock,
+        block_header: BlockHeader,
+    },
+
+    #[deprecated(note = "prefer ConvergenceBlockCertificateCreated")]
     ConvergenceBlockCertified(ConvergenceBlock),
     ConvergenceBlockPartialSignComplete(ConvergencePartialSig),
     BroadcastCertificate(Certificate),
+
+    #[deprecated(note = "prefer TransactionVoteCreated")]
     BroadcastTransactionVote(Box<Vote>),
+    TransactionVoteCreated(Vote),
+    TransactionVoteForwarded(Vote),
+
     Ping(NodeId),
 
     #[default]

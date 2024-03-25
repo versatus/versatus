@@ -1,13 +1,16 @@
-use block::GenesisReceiver;
-use block::{header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, ProposalBlock};
+use block::{
+    header::BlockHeader, Block, BlockHash, Certificate, ConvergenceBlock, ProposalBlock, RefHash,
+};
+use block::{GenesisBlock, GenesisReceiver};
 use ethereum_types::U256;
 use hbbft::sync_key_gen::Ack;
 use hbbft::{crypto::PublicKeySet, sync_key_gen::Part};
 use primitives::{
-    Address, ConvergencePartialSig, FarmerQuorumThreshold, NodeId, Signature, RUNTIME_TOPIC_STR,
+    base::ConvergencePartialSig, Address, BlockPartialSignature, Epoch, FarmerQuorumThreshold,
+    NodeId, NodeIdx, PublicKeyShareVec, Round, Signature, RUNTIME_TOPIC_STR,
 };
-
 use serde::{Deserialize, Serialize};
+use signer::engine::{QuorumData, QuorumMembers};
 use vrrb_core::claim::Claim;
 use vrrb_core::transactions::{TransactionDigest, TransactionKind};
 
@@ -40,7 +43,9 @@ pub enum Event {
     /// that needs to be validated.
     NewTxnCreated(TransactionKind),
 
-    /// `TxnValidated(Txn)` is an event that is triggered when a transaction has
+    NewTxnForwarded(NodeId, TransactionKind),
+
+    /// `TransactionValidated(Txn)` is an event that is triggered when a transaction has
     /// been validated by the validator module. The `Txn` parameter contains
     /// the details of the validated transaction. This event can be used to
     /// perform further actions on the validated transaction, such as removing
@@ -58,10 +63,10 @@ pub enum Event {
     /// block, or a convergence block.
     BlockReceived(Block),
 
-    //BlockConfirmed — Should we broadcast convergence block and certificate to all nodes
+    // BlockConfirmed — Should we broadcast convergence block and certificate to all nodes
     // separately?
-    BlockConfirmed(Vec<u8>),
-
+    #[deprecated]
+    // BlockConfirmed(Vec<u8>),
     /// `ClaimCreated(Claim)` represents a claim that is created for the node
     /// then has to be broadcasted.
     ClaimCreated(Claim),
@@ -85,7 +90,7 @@ pub enum Event {
 
     /// `BlockCreated(Block)` is an event that occurs whenever a block of any
     /// kind is created
-    BlockCreated(Block),
+    // BlockCreated(Block),
 
     /// Event emitted by a bootrstrap QuorumModule to signal a node was assigned
     /// to a particular quorum
@@ -120,6 +125,12 @@ pub enum Event {
         genesis_receivers: Vec<GenesisReceiver>,
     },
 
+    GenesisBlockCreated(GenesisBlock),
+
+    ProposalBlockCreated(ProposalBlock),
+
+    ConvergenceBlockCreated(ConvergenceBlock),
+
     ConvergenceBlockCertified(ConvergenceBlock),
 
     QuorumElectionStarted(BlockHeader),
@@ -129,6 +140,42 @@ pub enum Event {
         quorum_threshold: FarmerQuorumThreshold,
     },
 
+    /// `ProposalBlockMineRequestCreated` triggers the mining of a proposal
+    /// block by a farmer node after every `X` seconds. The proposal block
+    /// contains a list of transactions that have been validated and certified
+    /// by the farmer node
+    ProposalBlockMineRequestCreated {
+        ref_hash: RefHash,
+        round: Round,
+        epoch: Epoch,
+        claim: Claim,
+    },
+
+    // BlockSignatureRequested(Block),
+    GenesisBlockSignatureRequested(GenesisBlock),
+    // #[deprecated(note = "Use BlockSignatureRequested instead")]
+    ConvergenceBlockSignatureRequested(ConvergenceBlock),
+
+    // BlockSignatureCreated(BlockPartialSignature),
+    GenesisBlockSignatureCreated(BlockPartialSignature),
+    ConvergenceBlockSignatureCreated(BlockPartialSignature),
+
+    /// `ConvergenceBlockPartialSignatureCreated` is an event that is triggered
+    /// when a node has partially signed a convergence block. The
+    /// `JobResult` parameter contains the result of the partial signing
+    /// process, which includes the partial signature and the public key share
+    /// used to verify it. This event is used to communicate the partial
+    /// signature to other nodes in the network, so that they can aggregate
+    /// it with their own partial signatures to create a complete signature for
+    /// the convergence block,also it adds the partial signature to
+    /// certificate cache
+    // #[deprecated(note = "Use BlockSignatureCreated instead")]
+    // ConvergenceBlockPartialSignatureCreated {
+    //     block_hash: BlockHash,
+    //     public_key_share: ValidatorPublicKeyShare,
+    //     partial_signature: Signature,
+    // },
+
     /// `ConvergenceBlockPrecheckRequested` is a function
     /// used to precheck a convergence block before it is signed and added
     /// to the blockchain. This precheck process involves verifying the validity
@@ -136,10 +183,68 @@ pub enum Event {
     /// the block hashes correctly reference proposal block hashes,
     /// as well as verifying the claim hashes and transaction hashes associated
     /// with the convergence block.
+    #[deprecated(note = "Use ConvergenceBlockCertificateRequested instead")]
     ConvergenceBlockPrecheckRequested {
         convergence_block: ConvergenceBlock,
         block_header: BlockHeader,
     },
+    BlockPeerSignatureRequested {
+        node_id: NodeId,
+        block_hash: BlockHash,
+        public_key_share: PublicKeyShareVec,
+        partial_signature: Signature,
+    },
+
+    /// `ConvergenceBlockPeerSignatureRequested` is an event that is used to create an
+    /// aggregated signatures out of  a partial signature shares from peers
+    ConvergenceBlockPeerSignatureRequested {
+        node_id: NodeId,
+        block_hash: BlockHash,
+        public_key_share: PublicKeyShareVec,
+        partial_signature: Signature,
+    },
+
+    /// `ConvergenceBlockPeerSignatureCreated` is an triggered once a harvester node created a
+    /// partial signature for a given convergence block
+    ConvergenceBlockPeerSignatureCreated(NodeId, BlockHash, PublicKeyShareVec, Signature),
+
+    // TODO: figure out how to bundle GenesisBlockCertificateRequested and ConvergenceBlockCertificateRequested into this event so they can be handled from one place
+    BlockCertificateRequested {
+        block: Block,
+        block_header: BlockHeader,
+    },
+    /// `BlockCertificate(Certificate)` is an event that carries a `Certificate`
+    /// object representing a proof that a block has been certified by a
+    /// quorum. This certificate is then added to convergence block .
+    // BlockCertificateCreated(Certificate),
+    GenesisBlockCertificateRequested {
+        genesis_block: GenesisBlock,
+        block_header: BlockHeader,
+    },
+
+    /// This event is triggered once a genesis block certificate is created and emitted by a
+    /// harvester quorum
+    GenesisBlockCertificateCreated(Certificate),
+
+    ConvergenceBlockCertificateRequested {
+        convergence_block: ConvergenceBlock,
+        block_header: BlockHeader,
+    },
+    ConvergenceBlockCertificateCreated(Certificate),
+
+    BlockAppended(BlockHash),
+    QuorumMembersReceived(QuorumMembers),
+    QuorumFormed,
+    HarvesterSignatureReceived(BlockHash, NodeId, Signature),
+    BroadcastQuorumFormed(QuorumData),
+
+    /// `StateUpdated` is an event that triggers the update of the node's state
+    /// to a new block hash. This event is used to update the node's state
+    /// after a last new convergence block has been certified .
+    //TODO: discuss renaming to BlockApplied
+    StateUpdated(Block),
+
+    Ping(NodeId),
 
     // TODO: refactor all the events below
     // ==========================================================================
@@ -147,7 +252,8 @@ pub enum Event {
     ///
     /// `UpdateState` is an event that triggers the update of the node's state
     /// to a new block hash. This event is used to update the node's state
-    /// after a last new convergence block has been certified.
+    /// after a last new convergence block has been certified .
+    #[deprecated(note = "Use StateUpdated instead")]
     UpdateState(ConvergenceBlock),
 
     /// `ConvergenceBlockPartialSign(JobResult)` is an event that is triggered
@@ -167,16 +273,20 @@ pub enum Event {
     /// a Job to the scheduler
     SignConvergenceBlock(ConvergenceBlock),
 
-    /// `BlockCertificate(Certificate)` is an event that carries a `Certificate`
-    /// object representing a proof that a block has been certified by a
-    /// quorum. This certificate is then added to convergence block .
-    BlockCertificateCreated(Certificate),
-    QuorumFormed,
-    HarvesterSignatureReceived(BlockHash, NodeId, Signature),
+    /// `SendPeerConvergenceBlockSign` is an event that triggers the sharing of
+    /// a convergence block partial signature with other peers.
+    SendPeerConvergenceBlockSign(NodeIdx, BlockHash, PublicKeyShareVec, Signature),
+
     BroadcastCertificate(Certificate),
+
+    #[deprecated(note = "Use TransactionVoteCreated instead")]
     BroadcastTransactionVote(Vote),
-    BlockAppended(String),
-    BuildProposalBlock(ConvergenceBlock),
+
+    TransactionVoteCreated(Vote),
+    TransactionVoteForwarded(Vote),
+
+    BuildProposalBlock(),
+
     BroadcastProposalBlock(ProposalBlock),
 }
 

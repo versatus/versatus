@@ -28,7 +28,7 @@ use vrrb_config::QuorumMember;
 use vrrb_core::{
     account::{Account, AccountField},
     claim::Claim,
-    keypair::{KeyPair, Keypair},
+    keypair::{self, KeyPair, Keypair},
     transactions::{
         generate_transfer_digest_vec, NewTransferArgs, Transaction, TransactionDigest,
         TransactionKind, Transfer,
@@ -193,12 +193,12 @@ pub fn produce_convergence_block(dag: Arc<RwLock<BullDag<Block, BlockHash>>>) ->
             }
 
             if let Ok(mut guard) = dag.write() {
-                let mut ext_edges = Vec::with_capacity(edges.len());
-                for (source, reference) in &edges {
-                    ext_edges.push((source, reference));
-                }
+                let edges: Vec<_> = edges
+                    .iter()
+                    .map(|(source, reference)| (source, reference))
+                    .collect();
 
-                guard.extend_from_edges(&ext_edges);
+                guard.extend_from_edges(&*edges);
                 return Some(block.get_hash());
             }
         }

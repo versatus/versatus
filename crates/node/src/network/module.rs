@@ -1,21 +1,36 @@
 use std::net::SocketAddr;
 
-use block::{Block, Certificate, ConvergenceBlock};
+use block::{
+    header::BlockHeader, Block, Certificate, ConvergenceBlock, GenesisBlock, ProposalBlock,
+};
 use dyswarm::{
     client::{BroadcastArgs, BroadcastConfig},
     server::ServerConfig,
 };
-use events::{AssignedQuorumMembership, EventPublisher, Vote};
+use events::{
+    AssignedQuorumMembership, Event, EventMessage, EventPublisher, EventSubscriber, Vote,
+};
 use hbbft::sync_key_gen::{Ack, Part};
-use kademlia_dht::{Node as KademliaNode, NodeData};
-use primitives::{ConvergencePartialSig, KademliaPeerId, NodeId, NodeType, PublicKey};
+use kademlia_dht::{Key, Node as KademliaNode, NodeData};
+use primitives::{
+    BlockPartialSignature, ConvergencePartialSig, KademliaPeerId, NodeId, NodeType, PublicKey,
+    RUNTIME_TOPIC_STR,
+};
 use telemetry::info;
-use theater::{ActorId, ActorState};
-use vrrb_config::{NodeConfig, QuorumMembershipConfig};
-use vrrb_core::claim::Claim;
+use telemetry::tracing::Subscriber;
+use theater::{Actor, ActorId, ActorState, Handler, TheaterError};
+use utils::payload::digest_data_to_bytes;
+use vrrb_config::{BootstrapQuorumConfig, NodeConfig, QuorumMembershipConfig};
+use vrrb_core::{
+    claim::Claim,
+    transactions::{Transaction, TransactionKind},
+};
 
 use super::NetworkEvent;
-use crate::{network::DyswarmHandler, result::Result, NodeError, DEFAULT_ERASURE_COUNT};
+use crate::{
+    network::DyswarmHandler, result::Result, NodeError, RuntimeComponent, RuntimeComponentHandle,
+    DEFAULT_ERASURE_COUNT,
+};
 
 // TODO: change these magic numbers when retrieving the closest peers to a dynamically sized
 // network members count such that broadcast can happen across the whole network
@@ -23,7 +38,7 @@ use crate::{network::DyswarmHandler, result::Result, NodeError, DEFAULT_ERASURE_
 #[derive(Debug)]
 pub struct NetworkModule {
     pub(crate) id: ActorId,
-    pub(crate) _node_config: NodeConfig,
+    pub(crate) node_config: NodeConfig,
     pub(crate) node_id: NodeId,
     pub(crate) node_type: NodeType,
     pub(crate) status: ActorState,
@@ -32,10 +47,10 @@ pub struct NetworkModule {
     pub(crate) kademlia_node: KademliaNode,
     pub(crate) udp_gossip_addr: SocketAddr,
     pub(crate) raptorq_gossip_addr: SocketAddr,
-    pub(crate) _kademlia_liveness_addr: SocketAddr,
-    pub(crate) _dyswarm_server_handle: dyswarm::server::ServerHandle,
+    pub(crate) kademlia_liveness_addr: SocketAddr,
+    pub(crate) dyswarm_server_handle: dyswarm::server::ServerHandle,
     pub(crate) dyswarm_client: dyswarm::client::Client,
-    pub(crate) _membership_config: Option<QuorumMembershipConfig>,
+    pub(crate) membership_config: Option<QuorumMembershipConfig>,
     pub(crate) validator_public_key: PublicKey,
 }
 
@@ -104,17 +119,17 @@ impl NetworkModule {
             node_id: config.node_id.clone(),
             node_type: config.node_type,
             status: ActorState::Stopped,
-            _node_config: config.node_config.clone(),
+            node_config: config.node_config.clone(),
 
             // NOTE: if there's bootstrap config, this node is a bootstrap node
             is_bootstrap: config.node_config.is_bootstrap(),
             kademlia_node,
-            _kademlia_liveness_addr: config.kademlia_liveness_addr,
+            kademlia_liveness_addr: config.kademlia_liveness_addr,
             udp_gossip_addr: config.udp_gossip_addr,
             raptorq_gossip_addr: config.raptorq_gossip_addr,
-            _dyswarm_server_handle: dyswarm_server_handle,
+            dyswarm_server_handle,
             dyswarm_client,
-            _membership_config: config.membership_config.clone(),
+            membership_config: config.membership_config.clone(),
             validator_public_key: config.validator_public_key,
         };
 
@@ -206,6 +221,42 @@ impl NetworkModule {
         self.validator_public_key
     }
 
+    pub async fn broadcast_event_to_known_peers(&mut self, nevent: NetworkEvent) -> Result<()> {
+        let nid = self.kademlia_node.node_data().id;
+        let rt = self.kademlia_node.get_routing_table();
+        let closest_nodes = rt.get_closest_nodes(&nid, 8);
+
+        let closest_nodes_udp_addrs = closest_nodes
+            .clone()
+            .into_iter()
+            .map(|n| n.udp_gossip_addr)
+            .collect::<Vec<SocketAddr>>();
+
+        self.dyswarm_client
+            .add_peers(closest_nodes_udp_addrs)
+            .await?;
+
+        let message = dyswarm::types::Message::new(nevent);
+
+        self.dyswarm_client
+            .broadcast(BroadcastArgs {
+                config: Default::default(),
+                message,
+                erasure_count: DEFAULT_ERASURE_COUNT,
+            })
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn send_event_to_runtime(
+        &mut self,
+        evt: Event,
+    ) -> std::result::Result<(), NodeError> {
+        let em = EventMessage::new(Some(RUNTIME_TOPIC_STR.into()), evt);
+        self.events_tx.send(em).await.map_err(NodeError::from)
+    }
+
     pub async fn broadcast_join_intent(&mut self) -> Result<()> {
         let msg = dyswarm::types::Message::new(NetworkEvent::PeerJoined {
             node_id: self.node_id.clone(),
@@ -219,7 +270,7 @@ impl NetworkModule {
 
         let nid = self.kademlia_node.node_data().id;
         let rt = self.kademlia_node.get_routing_table();
-        let closest_nodes = rt.get_closest_nodes(&nid, 7);
+        let closest_nodes = rt.get_closest_nodes(&nid, 8);
 
         let closest_nodes_udp_addrs = closest_nodes
             .clone()
@@ -269,8 +320,37 @@ impl NetworkModule {
             .broadcast(BroadcastArgs {
                 config: Default::default(),
                 message,
-                erasure_count: 0,
+                erasure_count: DEFAULT_ERASURE_COUNT,
             })
+            .await?;
+
+        Ok(())
+    }
+
+    pub(crate) async fn notify_quorum_membership_assignment(
+        &mut self,
+        assigned_membership: AssignedQuorumMembership,
+    ) -> Result<()> {
+        let closest_nodes = self
+            .node_ref()
+            .get_routing_table()
+            .get_closest_nodes(&self.node_ref().node_data().id, 8);
+
+        let found_peer = closest_nodes
+            .iter()
+            .find(|node| node.id == assigned_membership.kademlia_peer_id)
+            .ok_or(NodeError::Other(
+                "Could not find peer in routing table".to_string(),
+            ))?;
+
+        let addr = found_peer.udp_gossip_addr;
+
+        let message = dyswarm::types::Message::new(NetworkEvent::AssignmentToQuorumCreated {
+            assigned_membership,
+        });
+
+        self.dyswarm_client
+            .send_data_via_quic(message, addr)
             .await?;
 
         Ok(())
@@ -413,44 +493,63 @@ impl NetworkModule {
         Ok(())
     }
 
-    pub async fn broadcast_transaction_vote(&mut self, vote: Vote) -> Result<()> {
-        telemetry::info!("Broadcasting transaction vote to network");
-        let message =
-            dyswarm::types::Message::new(NetworkEvent::BroadcastTransactionVote(Box::new(vote)));
-        self.dyswarm_client
-            .broadcast(BroadcastArgs {
-                config: Default::default(),
-                message,
-                erasure_count: 0,
-            })
-            .await?;
-
-        Ok(())
+    pub async fn broadcast_forwarded_transaction(
+        &mut self,
+        node_id: NodeId,
+        txn: TransactionKind,
+    ) -> Result<()> {
+        telemetry::info!(
+            "Broadcasting transaction {} to network from {}",
+            txn.id(),
+            node_id
+        );
+        self.broadcast_event_to_known_peers(NetworkEvent::NewTxnForwarded(node_id, txn))
+            .await
     }
 
-    pub(crate) async fn broadcast_block(&mut self, block: Block) -> Result<()> {
-        let closest_nodes = self
-            .node_ref()
-            .get_routing_table()
-            .get_closest_nodes(&self.node_ref().node_data().id, 8);
+    pub async fn broadcast_transaction(&mut self, txn: TransactionKind) -> Result<()> {
+        telemetry::info!("Broadcasting transaction {} to network", txn.id());
+        self.broadcast_event_to_known_peers(NetworkEvent::NewTxnCreated(txn))
+            .await
+    }
 
-        let socket_address = closest_nodes
-            .iter()
-            .map(|node| node.udp_gossip_addr)
-            .collect();
+    pub async fn broadcast_transaction_vote(&mut self, vote: Vote) -> Result<()> {
+        telemetry::info!("Broadcasting transaction vote to network");
+        self.broadcast_event_to_known_peers(NetworkEvent::TransactionVoteCreated(vote))
+            .await
+    }
 
-        self.dyswarm_client.add_peers(socket_address).await?;
+    pub async fn rebroadcast_transaction_vote(&mut self, vote: Vote) -> Result<()> {
+        telemetry::info!("Broadcasting transaction vote to network");
+        self.broadcast_event_to_known_peers(NetworkEvent::TransactionVoteForwarded(vote))
+            .await
+    }
 
-        let message = dyswarm::types::Message::new(NetworkEvent::BlockCreated(block));
+    pub(crate) async fn broadcast_genesis_block(&mut self, block: GenesisBlock) -> Result<()> {
+        self.broadcast_event_to_known_peers(NetworkEvent::GenesisBlockCreated(block))
+            .await
+    }
 
-        self.dyswarm_client
-            .broadcast(BroadcastArgs {
-                config: Default::default(),
-                message,
-                erasure_count: 0,
-            })
-            .await?;
+    pub(crate) async fn broadcast_genesis_block_partial_signature(
+        &mut self,
+        partial_signature: BlockPartialSignature,
+    ) -> Result<()> {
+        self.broadcast_event_to_known_peers(NetworkEvent::GenesisBlockSignatureCreated(
+            partial_signature,
+        ))
+        .await
+    }
 
-        Ok(())
+    pub(crate) async fn broadcast_proposal_block(&mut self, block: ProposalBlock) -> Result<()> {
+        self.broadcast_event_to_known_peers(NetworkEvent::ProposalBlockCreated(block))
+            .await
+    }
+
+    pub(crate) async fn broadcast_convergence_block(
+        &mut self,
+        block: ConvergenceBlock,
+    ) -> Result<()> {
+        self.broadcast_event_to_known_peers(NetworkEvent::ConvergenceBlockCreated(block))
+            .await
     }
 }
