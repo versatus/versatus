@@ -1,10 +1,14 @@
+use std::hash::Hash;
 use std::{
     collections::HashSet,
     sync::{Arc, RwLock, RwLockReadGuard},
 };
-use std::hash::Hash;
 
-use block::{header::BlockHeader, valid::{BlockValidationData, Valid}, Block, Certificate, ConvergenceBlock, GenesisBlock, InnerBlock, ProposalBlock, BlockHash};
+use block::{
+    header::BlockHeader,
+    valid::{BlockValidationData, Valid},
+    Block, BlockHash, Certificate, ConvergenceBlock, GenesisBlock, InnerBlock, ProposalBlock,
+};
 use bulldag::{
     graph::{BullDag, GraphError},
     vertex::Vertex,
@@ -13,7 +17,7 @@ use indexmap::IndexMap;
 use primitives::{HarvesterQuorumThreshold, NodeId, PublicKey, Signature, SignatureType};
 use signer::engine::{QuorumMembers, SignerEngine};
 use signer::types::{SignerError, SignerResult};
-use tracing::info;
+use telemetry::info;
 use vrrb_core::claim::Claim;
 
 use crate::{NodeError, Result};
@@ -137,7 +141,9 @@ impl DagModule {
                 .map_err(|err| GraphError::Other(format!("{err:?}")))?;
             let block = guard
                 .get_vertex(genesis_block_hash.to_owned())
-                .ok_or_else(|| GraphError::Other("could not find genesis block in DAG".to_string()))?;
+                .ok_or_else(|| {
+                    GraphError::Other("could not find genesis block in DAG".to_string())
+                })?;
             match block.get_data() {
                 Block::Genesis { block } => Ok(block),
                 block => Err(GraphError::Other(format!(
