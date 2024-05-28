@@ -167,7 +167,10 @@ impl RpcApiServer for RpcServerImpl {
         self.events_tx
             .send(event.clone().into())
             .await
-            .map_err(|e| RpseeError::owned(INTERNAL_ERROR_CODE, e.to_string(), None::<()>))?;
+            .map_err(|e| {
+                error!("could not create account: {e}");
+                RpseeError::owned(INTERNAL_ERROR_CODE, e.to_string(), None::<()>)
+            })?;
 
         telemetry::info!("requested account creation for address: {}", address);
 

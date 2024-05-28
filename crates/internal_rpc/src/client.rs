@@ -20,7 +20,13 @@ impl InternalRpcClient {
             .max_request_size(MAX_RESPONSE_SIZE)
             .build(format!("ws://{socket}"))
             .await
-            .unwrap();
+            .map_err(|e| {
+                RpseeError::owned(
+                    INTERNAL_ERROR_CODE,
+                    format!("failed to build client: {e}"),
+                    None::<()>,
+                )
+            })?;
 
         if client.is_connected() {
             println!("connection to server established");
