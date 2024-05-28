@@ -1,9 +1,8 @@
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-
 use events::{EventPublisher, DEFAULT_BUFFER};
 use jsonrpsee::server::{ServerBuilder, ServerHandle};
 use mempool::{LeftRightMempool, MempoolReadHandleFactory};
 use primitives::NodeType;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use storage::vrrbdb::{VrrbDb, VrrbDbConfig, VrrbDbReadHandle};
 use tokio::sync::mpsc::channel;
 
@@ -33,7 +32,7 @@ impl JsonRpcServer {
         };
 
         let addr = server.local_addr()?;
-        let handle = server.start(server_impl.into_rpc())?;
+        let handle = server.start(server_impl.into_rpc());
 
         // TODO: refactor example out of here
         // In this example we don't care about doing shutdown so let's it run forever.
