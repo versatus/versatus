@@ -78,7 +78,7 @@ impl std::fmt::Display for VersionNumber {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct ServiceStatusResponse {
     /// Type of service (see above)
     pub service_type: ServiceType,

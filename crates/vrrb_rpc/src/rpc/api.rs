@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use block::block::Block;
 use block::ClaimHash;
-use jsonrpsee::{core::Error as RpseeError, proc_macros::rpc};
+use jsonrpsee::{proc_macros::rpc, types::ErrorObjectOwned as RpseeError};
 use primitives::{Address, NodeType, Round};
 use secp256k1::PublicKey;
 use serde::{Deserialize, Serialize};

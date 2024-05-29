@@ -1,13 +1,14 @@
 use crate::{
-    api::{IPFSDataType, InternalRpcApiServer, RpcResult},
+    api::{IPFSDataType, InternalRpcApiServer},
     job_queue::{
         channel::{ServiceQueueChannel, ServiceReceiver, ServiceTransmitter},
         job::{ServiceJobApi, ServiceJobStatusResponse, ServiceJobType},
     },
 };
 use jsonrpsee::{
-    core::async_trait,
+    core::{async_trait, RpcResult},
     server::{ServerBuilder, ServerHandle},
+    types::{error::INTERNAL_ERROR_CODE, ErrorObjectOwned as RpseeError},
 };
 use log::info;
 use platform::services::*;
@@ -49,7 +50,7 @@ impl InternalRpcServer {
         );
 
         let addr = server.local_addr()?;
-        let handle = server.start(rpc.into_rpc())?;
+        let handle = server.start(rpc.into_rpc());
 
         Ok((handle, addr, rx))
     }
@@ -93,34 +94,34 @@ impl<T: ServiceTransmitter<J>, J: ServiceJobApi + Debug> InternalRpc<T, J> {
         })
     }
 
-    async fn retrieve_object(&self, cid: &str) -> RpcResult<Vec<u8>> {
+    async fn retrieve_object(&self, cid: &str) -> anyhow::Result<Vec<u8>> {
         info!("Retrieving object '{}' from local IPFS instance.", &cid);
         let store = Web3Store::local()?;
         let obj = store.read_object(cid).await?;
         Ok(obj)
     }
 
-    async fn retrieve_dag(&self, cid: &str) -> RpcResult<Vec<u8>> {
+    async fn retrieve_dag(&self, cid: &str) -> anyhow::Result<Vec<u8>> {
         info!("Retrieving DAG object '{}' from local IPFS instance.", &cid);
         let store = Web3Store::local()?;
         let obj = store.read_dag(cid).await?;
         Ok(obj)
     }
 
-    async fn pin_object_ipfs(&self, cid: &str, recursive: bool) -> RpcResult<Vec<String>> {
+    async fn pin_object_ipfs(&self, cid: &str, recursive: bool) -> anyhow::Result<Vec<String>> {
         info!("Pinning object '{}' to local IPFS instance.", &cid);
         let store = Web3Store::local()?;
         let obj = store.pin_object(cid, recursive).await?;
         Ok(obj)
     }
 
-    async fn is_pinned_obj(&self, cid: &str) -> RpcResult<()> {
+    async fn is_pinned_obj(&self, cid: &str) -> anyhow::Result<()> {
         info!(
             "Checking whether object '{}' is pinned to local IPFS instance.",
             &cid
         );
         let store = Web3Store::local()?;
-        store.is_pinned(cid).await.map_err(|err| err.into())
+        store.is_pinned(cid).await
     }
 }
 
@@ -147,16 +148,26 @@ impl<T: ServiceTransmitter<J> + 'static, J: ServiceJobApi + Debug + 'static> Int
 
     async fn get_data(&self, cid: &str, data_type: IPFSDataType) -> RpcResult<Vec<u8>> {
         return match data_type {
-            IPFSDataType::Object => self.retrieve_object(cid).await,
-            IPFSDataType::Dag => self.retrieve_dag(cid).await,
+            IPFSDataType::Object => self
+                .retrieve_object(cid)
+                .await
+                .map_err(|e| RpseeError::owned(INTERNAL_ERROR_CODE, e.to_string(), None::<()>)),
+            IPFSDataType::Dag => self
+                .retrieve_dag(cid)
+                .await
+                .map_err(|e| RpseeError::owned(INTERNAL_ERROR_CODE, e.to_string(), None::<()>)),
         };
     }
 
     async fn pin_object(&self, cid: &str, recursive: bool) -> RpcResult<Vec<String>> {
-        self.pin_object_ipfs(cid, recursive).await
+        self.pin_object_ipfs(cid, recursive)
+            .await
+            .map_err(|e| RpseeError::owned(INTERNAL_ERROR_CODE, e.to_string(), None::<()>))
     }
     async fn pinned_status(&self, cid: &str) -> RpcResult<()> {
-        self.is_pinned_obj(cid).await
+        self.is_pinned_obj(cid)
+            .await
+            .map_err(|e| RpseeError::owned(INTERNAL_ERROR_CODE, e.to_string(), None::<()>))
     }
 }
 

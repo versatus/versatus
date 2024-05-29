@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use jsonrpsee::core::Error as RpseeError;
+use jsonrpsee::types::ErrorObjectOwned as RpseeError;
 
 pub mod http;
 pub mod rpc;

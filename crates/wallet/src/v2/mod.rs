@@ -4,7 +4,10 @@ use std::{
     str::FromStr,
 };
 
-use jsonrpsee::core::client::Client;
+use jsonrpsee::{
+    core::client::Client,
+    types::{error::INTERNAL_ERROR_CODE, ErrorObjectOwned as RpseeError},
+};
 use primitives::Address;
 use secp256k1::{ecdsa::Signature, Message, PublicKey, Secp256k1, SecretKey};
 use serde::{Deserialize, Serialize};
@@ -22,7 +25,7 @@ type WalletResult<Wallet> = Result<Wallet, WalletError>;
 #[derive(Error, Debug)]
 pub enum WalletError {
     #[error("RPC error: {0}")]
-    RpcError(#[from] jsonrpsee::core::Error),
+    RpcError(#[from] RpseeError),
 
     #[error("API error: {0}")]
     ApiError(#[from] vrrb_rpc::ApiError),
@@ -136,7 +139,13 @@ impl Wallet {
     }
 
     pub async fn get_mempool(&self) -> Result<Vec<RpcTransactionRecord>, WalletError> {
-        let mempool = self.client.get_full_mempool().await?;
+        let mempool = self.client.get_full_mempool().await.map_err(|e| {
+            WalletError::RpcError(RpseeError::owned(
+                INTERNAL_ERROR_CODE,
+                e.to_string(),
+                None::<()>,
+            ))
+        })?;
 
         Ok(mempool)
     }

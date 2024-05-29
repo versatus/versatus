@@ -4,7 +4,10 @@ use async_trait::async_trait;
 use block::block::Block;
 use block::ClaimHash;
 use events::{Event, EventPublisher};
-use jsonrpsee::core::Error as RpseeError;
+use jsonrpsee::types::{
+    error::{INTERNAL_ERROR_CODE, PARSE_ERROR_CODE},
+    ErrorObjectOwned as RpseeError,
+};
 use mempool::MempoolReadHandleFactory;
 use primitives::{Address, NodeType, Round};
 use secp256k1::{Message, SecretKey};
@@ -67,9 +70,12 @@ impl RpcApiServer for RpcServerImpl {
 
         debug!("{:?}", event);
 
-        self.events_tx.send(event.into()).await.map_err(|err| {
-            error!("could not queue transaction to mempool: {err}");
-            RpseeError::Custom(err.to_string())
+        self.events_tx.send(event.into()).await.map_err(|e| {
+            RpseeError::owned(
+                INTERNAL_ERROR_CODE,
+                format!("could not queue transaction to mempool: {e}"),
+                None::<()>,
+            )
         })?;
 
         Ok(RpcTransactionRecord::from(txn))
@@ -84,7 +90,13 @@ impl RpcApiServer for RpcServerImpl {
 
         let parsed_digest = transaction_digest
             .parse::<TransactionDigest>()
-            .map_err(|_err| RpseeError::Custom("unable to parse transaction digest".to_string()))?;
+            .map_err(|_e| {
+                RpseeError::owned(
+                    PARSE_ERROR_CODE,
+                    "unable to parse transaction digest".to_string(),
+                    None::<()>,
+                )
+            })?;
 
         let values = self
             .vrrbdb_read_handle
@@ -101,7 +113,15 @@ impl RpcApiServer for RpcServerImpl {
                 let txn_record = RpcTransactionRecord::from(txn.clone());
                 Ok(txn_record)
             }
-            None => return Err(RpseeError::Custom("unable to find transaction".to_string())),
+            None => {
+                return Err({
+                    RpseeError::owned(
+                        INTERNAL_ERROR_CODE,
+                        "unable to find transaction".to_string(),
+                        None::<()>,
+                    )
+                })
+            }
         }
     }
 
@@ -137,8 +157,8 @@ impl RpcApiServer for RpcServerImpl {
     }
 
     async fn create_account(&self, address: Address, account: Account) -> Result<(), RpseeError> {
-        let account_bytes =
-            encode_to_binary(&account).map_err(|err| RpseeError::Custom(err.to_string()))?;
+        let account_bytes = encode_to_binary(&account)
+            .map_err(|e| RpseeError::owned(INTERNAL_ERROR_CODE, e.to_string(), None::<()>))?;
 
         let event = Event::CreateAccountRequested((address.clone(), account_bytes));
 
@@ -147,9 +167,9 @@ impl RpcApiServer for RpcServerImpl {
         self.events_tx
             .send(event.clone().into())
             .await
-            .map_err(|err| {
-                error!("could not create account: {err}");
-                RpseeError::Custom(err.to_string())
+            .map_err(|e| {
+                error!("could not create account: {e}");
+                RpseeError::owned(INTERNAL_ERROR_CODE, e.to_string(), None::<()>)
             })?;
 
         telemetry::info!("requested account creation for address: {}", address);
@@ -160,17 +180,21 @@ impl RpcApiServer for RpcServerImpl {
     async fn update_account(&self, account: Account) -> Result<(), RpseeError> {
         debug!("Received an updateAccount RPC request");
 
-        let account_bytes =
-            encode_to_binary(&account).map_err(|err| RpseeError::Custom(err.to_string()))?;
+        let account_bytes = encode_to_binary(&account)
+            .map_err(|e| RpseeError::owned(INTERNAL_ERROR_CODE, e.to_string(), None::<()>))?;
 
-        let addr =
-            Address::from_str(account.hash()).map_err(|err| RpseeError::Custom(err.to_string()))?;
+        let addr = Address::from_str(account.hash())
+            .map_err(|e| RpseeError::owned(INTERNAL_ERROR_CODE, e.to_string(), None::<()>))?;
 
         let event = Event::AccountUpdateRequested((addr, account_bytes));
 
-        self.events_tx.send(event.into()).await.map_err(|err| {
-            error!("could not update account: {err}");
-            RpseeError::Custom(err.to_string())
+        self.events_tx.send(event.into()).await.map_err(|e| {
+            error!("could not update account: {e}");
+            RpseeError::owned(
+                INTERNAL_ERROR_CODE,
+                format!("could not update account: {e}"),
+                None::<()>,
+            )
         })?;
 
         Ok(())
@@ -179,10 +203,13 @@ impl RpcApiServer for RpcServerImpl {
     async fn get_account(&self, address: Address) -> Result<Account, RpseeError> {
         telemetry::info!("retrieving account {address}");
 
-        let values = self
-            .vrrbdb_read_handle
-            .state_store_values()
-            .map_err(|err| RpseeError::Custom(format!("failed to read values: {err}")))?;
+        let values = self.vrrbdb_read_handle.state_store_values().map_err(|e| {
+            RpseeError::owned(
+                INTERNAL_ERROR_CODE,
+                format!("failed to read values: {e}"),
+                None::<()>,
+            )
+        })?;
 
         let value = values.get(&address);
 
@@ -190,7 +217,15 @@ impl RpcApiServer for RpcServerImpl {
 
         match value {
             Some(account) => return Ok(account.to_owned()),
-            None => return Err(RpseeError::Custom("unable to find account".to_string())),
+            None => {
+                return Err({
+                    RpseeError::owned(
+                        INTERNAL_ERROR_CODE,
+                        format!("unable to find account: {value:?}"),
+                        None::<()>,
+                    )
+                })
+            }
         }
     }
 
@@ -221,7 +256,15 @@ impl RpcApiServer for RpcServerImpl {
 
         let secret_key = match secret_key_result {
             Ok(secret_key) => secret_key,
-            Err(_) => return Err(RpseeError::Custom("unable to parse secret_key".to_string())),
+            Err(_) => {
+                return Err({
+                    RpseeError::owned(
+                        PARSE_ERROR_CODE,
+                        "unable to parse secret_key".to_string(),
+                        None::<()>,
+                    )
+                })
+            }
         };
 
         Ok(secret_key.sign_ecdsa(msg).to_string())
@@ -257,10 +300,13 @@ impl RpcApiServer for RpcServerImpl {
     }
 
     async fn get_claims_by_account_id(&self, address: Address) -> Result<Claims, RpseeError> {
-        let claims = self
-            .vrrbdb_read_handle
-            .claim_store_values()
-            .map_err(|err| RpseeError::Custom(format!("Failed to read values: {err}")))?;
+        let claims = self.vrrbdb_read_handle.claim_store_values().map_err(|e| {
+            RpseeError::owned(
+                INTERNAL_ERROR_CODE,
+                format!("Failed to read values: {e}"),
+                None::<()>,
+            )
+        })?;
 
         let claims = claims
             .values()
@@ -272,10 +318,13 @@ impl RpcApiServer for RpcServerImpl {
     }
 
     async fn get_claim_hashes(&self) -> Result<Vec<ClaimHash>, RpseeError> {
-        let claims = self
-            .vrrbdb_read_handle
-            .claim_store_values()
-            .map_err(|err| RpseeError::Custom(format!("Failed to read values: {err}")))?;
+        let claims = self.vrrbdb_read_handle.claim_store_values().map_err(|e| {
+            RpseeError::owned(
+                INTERNAL_ERROR_CODE,
+                format!("Failed to read values: {e}"),
+                None::<()>,
+            )
+        })?;
 
         let claim_hashes = claims.values().map(|claim| claim.hash).collect();
 
@@ -283,10 +332,13 @@ impl RpcApiServer for RpcServerImpl {
     }
 
     async fn get_claims(&self, claim_hashes: Vec<ClaimHash>) -> Result<Claims, RpseeError> {
-        let claims = self
-            .vrrbdb_read_handle
-            .claim_store_values()
-            .map_err(|err| RpseeError::Custom(format!("Failed to read values: {err}")))?;
+        let claims = self.vrrbdb_read_handle.claim_store_values().map_err(|e| {
+            RpseeError::owned(
+                INTERNAL_ERROR_CODE,
+                format!("Failed to read values: {e}"),
+                None::<()>,
+            )
+        })?;
 
         let claims = claims
             .values()

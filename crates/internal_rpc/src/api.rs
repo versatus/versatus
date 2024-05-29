@@ -1,11 +1,10 @@
 use crate::job_queue::job::{ServiceJobStatusResponse, ServiceJobType};
+use jsonrpsee::core::RpcResult;
 use jsonrpsee::proc_macros::rpc;
 use platform::services::ServiceStatusResponse;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::str::FromStr;
-
-pub(crate) type RpcResult<T> = Result<T, jsonrpsee::core::Error>;
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone)]
 pub enum IPFSDataType {

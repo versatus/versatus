@@ -164,7 +164,7 @@ pub enum ServiceJobState {
 
 /// The reponse sent from the server when requested by a client
 /// about the state of a job.
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ServiceJobStatusResponse {
     pub(crate) status: ServiceJobState,
     pub(crate) uptime: u64,
