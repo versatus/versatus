@@ -1,0 +1,72 @@
+name: Build and Release versa-wasm
+
+on:
+  workflow_dispatch:
+    inputs:
+      major:
+        description: "Major Version"
+        required: true
+      minor:
+        description: "Minor Version"
+        required: true
+      patch:
+        description: "Patch Version"
+        required: true
+
+jobs:
+  build-and-release-wasm:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: macos-latest
+            target: aarch64-apple-darwin
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: windows-latest
+            target: aarch64-pc-windows-msvc
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+          target: ${{ matrix.target }}
+
+      - name: Build wasm_cli
+        run: |
+          cd crates/wasm_cli
+          cargo build --release --target ${{ matrix.target }}
+
+      - name: Create Release (runs only once)
+        if: github.event.inputs.major && github.event.inputs.minor && github.event.inputs.patch && matrix.target == 'x86_64-unknown-linux-gnu'
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.event.inputs.major }}.${{ github.event.inputs.minor }}.${{ github.event.inputs.patch }}
+          release_name: Release v${{ github.event.inputs.major }}.${{ github.event.inputs.minor }}.${{ github.event.inputs.patch }}
+          draft: true
+          prerelease: true
+
+      - name: Upload Release Asset
+        if: steps.create_release.outputs.upload_url
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./target/${{ matrix.target }}/release/versa-wasm
+          asset_name: versa-wasm-${{ matrix.target }}
+          asset_content_type: application/octet-stream
